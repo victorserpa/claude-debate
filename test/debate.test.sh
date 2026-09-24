@@ -147,7 +147,8 @@ has "$T/stdin-accuser" "hunt regressions from the fix first"
 grep -qx low "$T/efforts-accuser" || fail "a later round did not run at effort low"
 printf '%s\n' "$out" | grep -qF "effort low (default, later round)" || fail "the summary hides the later-round effort ($out)"
 reset
-OBJECTION_EFFORT=high bash "$DEBATE" --since "$prev" main >/dev/null 2>&1
+out=$(OBJECTION_EFFORT=high bash "$DEBATE" --since "$prev" main 2>/dev/null)
+printf '%s\n' "$out" | grep -qF "effort high (default, OBJECTION_EFFORT)" || fail "the summary misnames an overridden effort ($out)"
 grep -qx high "$T/efforts-accuser" || fail "OBJECTION_EFFORT did not override the later-round effort"
 
 # An annotated severity ("HIGH (regression)") still counts and is defended.

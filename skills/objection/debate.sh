@@ -137,7 +137,11 @@ if [ -n "$since" ]; then
   tier_effort="${later:-low}"
   tier_reason="$tier_reason, later round"
 fi
-if [ -n "${OBJECTION_EFFORT:-}" ]; then tier_effort="$OBJECTION_EFFORT"; defender_effort="$OBJECTION_EFFORT"; fi
+if [ -n "${OBJECTION_EFFORT:-}" ]; then
+  tier_effort="$OBJECTION_EFFORT"
+  defender_effort="$OBJECTION_EFFORT"
+  tier_reason="${tier_reason%, later round}, OBJECTION_EFFORT"
+fi
 # The defender's model: the config's models.defender (default sonnet),
 # whatever the accuser runs on; OBJECTION_DEFENDER_MODEL overrides it.
 defender_model=$(sed -n 's/^<!-- objection-defender: \([A-Za-z0-9._-]*\) -->$/\1/p' "$brief" | head -n 1)
