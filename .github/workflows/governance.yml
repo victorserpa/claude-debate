@@ -75,7 +75,7 @@ jobs:
           # human amending a Dependabot commit keeps it as author but becomes
           # the committer, so it no longer counts; a human merge ("Update
           # branch", conflict resolution) is a human commit, so every check
-          # runs (ask "@dependabot rebase" to get a clean Dependabot branch).
+          # runs ("@dependabot recreate" rebuilds a clean branch, dropping the edits).
           # Editing the title or body changes nothing here.
           only=false
           if [ "$AUTHOR" = "dependabot[bot]" ]; then
@@ -104,7 +104,7 @@ jobs:
           text=$(perl -0pe 's/<!--.*?-->//gs' <<<"$BODY")
           grep -qiE "$re" <<<"$text" && exit 0
           if [ "$AUTHOR" = "dependabot[bot]" ]; then
-            echo "::error title=issue-link::This Dependabot PR has commits not made by Dependabot, so it needs an issue link and a record. To get a clean Dependabot branch instead, comment \"@dependabot rebase\"."
+            echo "::error title=issue-link::This Dependabot PR has commits not made by Dependabot, so it needs an issue link and a record. Either link an issue and add a record, or comment \"@dependabot recreate\" to rebuild a clean Dependabot branch (this drops the other commits)."
           else
             echo "::error title=issue-link::Link the issue this PR closes in the body (Closes #n). Open one first if it does not exist."
           fi
@@ -132,7 +132,7 @@ jobs:
           # human amending a Dependabot commit keeps it as author but becomes
           # the committer, so it no longer counts; a human merge ("Update
           # branch", conflict resolution) is a human commit, so every check
-          # runs (ask "@dependabot rebase" to get a clean Dependabot branch).
+          # runs ("@dependabot recreate" rebuilds a clean branch, dropping the edits).
           # Editing the title or body changes nothing here.
           only=false
           if [ "$AUTHOR" = "dependabot[bot]" ]; then
