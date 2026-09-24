@@ -189,6 +189,29 @@ failed() {
   exit 1
 }
 
+# Some models write the findings table without its outer pipes
+# ("HIGH | BUG | a.ts:3 | ..."). Every reader (debate.sh, ci-review.sh,
+# eval/run.sh) counts rows that start with "|", so a BLOCKER in such a
+# table would count as none and the CI check would pass it. A run of
+# pipe-less lines that holds a delimiter row ("--- | ---") gets the outer
+# pipes; nothing else in the answer changes.
+print_answer() {
+  node -e '
+const lines = require("fs").readFileSync(process.argv[1], "utf8").split("\n");
+const bare = (l) => l.includes("|") && !/^\s*\|/.test(l);
+const delim = (l) => /^\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(l);
+for (let i = 0; i < lines.length; ) {
+  if (!bare(lines[i])) { i++; continue; }
+  let j = i;
+  while (j < lines.length && bare(lines[j])) j++;
+  if (lines.slice(i, j).some(delim))
+    for (let k = i; k < j; k++) lines[k] = "| " + lines[k].trim().replace(/\|\s*$/, "").trim() + " |";
+  i = j;
+}
+process.stdout.write(lines.join("\n"));
+' "$work/answer"
+}
+
 if [ "$runner" = gemini ]; then
   # Chosen explicitly (a reviewers entry with agent "gemini", or
   # OBJECTION_RUNNER=gemini), never picked automatically. The role replaces
@@ -219,7 +242,8 @@ if (log) {
     fs.appendFileSync(log, [new Date().toISOString(), branch, head, role, label, inTok, outTok, "", "ok"].join("\t") + "\n");
   } catch (e) { process.stderr.write(`objection: usage not logged (${e.message})\n`); }
 }
-' "$out" "$role" "$usage_log" "${branch:-}" "${head:-}" "$label" || failed
+' "$out" "$role" "$usage_log" "${branch:-}" "${head:-}" "$label" >"$work/answer" || failed
+  print_answer
   exit 0
 fi
 
@@ -250,7 +274,8 @@ if (log) {
     fs.appendFileSync(log, [new Date().toISOString(), branch, head, role, label, inTok, u.output_tokens || 0, "", "ok"].join("\t") + "\n");
   } catch (e) { process.stderr.write(`objection: usage not logged (${e.message})\n`); }
 }
-' "$out" "$work/last" "$role" "$usage_log" "${branch:-}" "${head:-}" "$label"
+' "$out" "$work/last" "$role" "$usage_log" "${branch:-}" "${head:-}" "$label" >"$work/answer"
+  print_answer
   exit 0
 fi
 
@@ -268,6 +293,7 @@ if ! run_limited "${OBJECTION_TIMEOUT:-900}" "$claude_bin" -p \
   failed
 fi
 
+rc=0
 node -e '
 const raw = require("fs").readFileSync(process.argv[1], "utf8");
 let j;
@@ -293,4 +319,7 @@ if (log) {
   } catch (e) { process.stderr.write(`objection: usage not logged (${e.message})\n`); }
 }
 if (j.is_error) process.exit(1);
-' "$out" "$role" "$usage_log" "${branch:-}" "${head:-}" "$model"
+' "$out" "$role" "$usage_log" "${branch:-}" "${head:-}" "$model" >"$work/answer" || rc=$?
+# An answer flagged as an error is still printed: it was paid for.
+print_answer
+exit "$rc"

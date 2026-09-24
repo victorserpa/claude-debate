@@ -94,6 +94,10 @@ has "$T/summary" "Accuser: gemini (the CLI default model)"
 has "$T/summary" "1 BLOCKER"
 has "$T/gemini-args" "--approval-mode"
 [ -e "$T/args" ] && fail "runner gemini ran claude"
+# The same BLOCKER in a table without outer pipes still fails the check.
+printf 'severity | kind | file:line | defect | evidence | proof\n--- | --- | --- | --- | --- | ---\nBLOCKER | BUG | src/a.ts:3 | defect | read | path\n' >"$T/answer"
+OBJECTION_RUNNER=gemini OBJECTION_GEMINI="$T/gemini" GEMINI_API_KEY=test ANTHROPIC_API_KEY= run && fail "a pipe-less BLOCKER passed"
+has "$T/summary" "1 BLOCKER"
 OBJECTION_RUNNER=gemini OBJECTION_GEMINI="$T/gemini" GEMINI_API_KEY= run && fail "gemini without its key passed"
 has "$T/err" "GEMINI_API_KEY is not set"
 OBJECTION_RUNNER=codex run

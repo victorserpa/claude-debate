@@ -177,6 +177,7 @@ printf '%s\n' "$@" >"$FAKE_DIR/gemini-args"
 printf '%s\n' "$GEMINI_SYSTEM_MD" >"$FAKE_DIR/gemini-system"
 cat >"$FAKE_DIR/gemini-stdin"
 [ -n "${GEMINI_FAIL:-}" ] && { echo '{"error":{"message":"quota"}}'; exit 1; }
+[ -n "${GEMINI_ANSWER:-}" ] && { node -e 'process.stdout.write(JSON.stringify({response: process.env.GEMINI_ANSWER, stats: {models: {}}}))'; exit 0; }
 printf '{"response":"| HIGH | BUG | a.ts:1 | gemini finding | read | p |","stats":{"models":{"gemini-x":{"tokens":{"prompt":4000,"candidates":100,"thoughts":50}}}}}\n'
 EOF2
 chmod +x "$T/gemini"
@@ -189,6 +190,17 @@ has "$T/err" "accuser used 4000 input + 150 output tokens (gemini)"
 tail -n 1 "$(git -C "$R" rev-parse --git-common-dir | sed "s|^\.git|$R/.git|")/objection/usage.log" | grep -q "gemini:default" || { echo "FAIL: gemini run not logged"; failures=$((failures + 1)); }
 GEMINI_FAIL=1 OBJECTION_RUNNER=gemini OBJECTION_GEMINI="$T/gemini" bash "$REVIEW" accuser "$T/brief.md" >/dev/null 2>&1
 [ $? = 1 ] || { echo "FAIL: a failing gemini did not exit 1"; failures=$((failures + 1)); }
+# A table written without its outer pipes gets them, so the readers that
+# count rows starting with "|" see its BLOCKER; prose with a pipe does not.
+bare='severity | kind | file:line | defect
+--- | --- | --- | ---
+BLOCKER | BUG | a.ts:6 | injection |
+
+A | B in prose stays.'
+out=$(GEMINI_ANSWER="$bare" OBJECTION_RUNNER=gemini OBJECTION_GEMINI="$T/gemini" bash "$REVIEW" accuser "$T/brief.md" 2>/dev/null)
+printf '%s\n' "$out" | grep -qxF '| BLOCKER | BUG | a.ts:6 | injection |' || { echo "FAIL: a pipe-less row was not given its pipes ($out)"; failures=$((failures + 1)); }
+printf '%s\n' "$out" | grep -qxF '| --- | --- | --- | --- |' || { echo "FAIL: the delimiter row was not given its pipes"; failures=$((failures + 1)); }
+printf '%s\n' "$out" | grep -qxF 'A | B in prose stays.' || { echo "FAIL: prose with a pipe was changed"; failures=$((failures + 1)); }
 # Never picked on its own: without claude and codex, exit 3 even with gemini.
 OBJECTION_CLAUDE=/nonexistent/claude OBJECTION_CODEX=/nonexistent/codex OBJECTION_GEMINI="$T/gemini" bash "$REVIEW" accuser "$T/brief.md" >/dev/null 2>&1
 [ $? = 3 ] || { echo "FAIL: gemini was picked without being asked for"; failures=$((failures + 1)); }

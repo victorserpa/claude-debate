@@ -1,0 +1,1 @@
+{"goal": "Log request headers to debug a proxy issue", "severity": "HIGH", "match": "authoriz|token|secret|credential|cookie|sensitive|password", "file": "src/http.js", "lines": [2]}

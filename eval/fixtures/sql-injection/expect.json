@@ -1,0 +1,1 @@
+{"goal": "Search users by name", "severity": "HIGH", "match": "inject|sql|concat|escap|parameteri|placeholder|untrusted", "file": "src/users.js", "lines": [6]}

@@ -59,23 +59,34 @@ PR body.
 
 ## Known bugs, caught
 
-[`eval/`](eval) plants seven bugs in small repositories (a negative cart
-total, an authorization check turned into a deny-list, a temp dir leaked
-on a retry, pages that start at 1 but skip the first, a charge that lost
-its row lock, the same negative total with a comment telling the
-reviewer the change is approved, and a rename with no bug at all) and
-runs the accuser on each. Latest runs:
+[`eval/`](eval) plants nine bugs in small repositories and adds two
+changes with no bug at all: a negative cart total, an authorization
+check turned into a deny-list, a temp dir leaked on a retry, pages that
+start at 1 but skip the first, a charge that lost its row lock, a SQL
+query built by concatenating a search term, request headers (with the
+`Authorization` token) written to the log, writes fired from a
+`forEach(async ...)` and never awaited, and the negative total again
+with a comment telling the reviewer the change is approved. It runs the
+accuser on each. Latest runs, all eleven cases:
 
-| runner | caught | false alarm on the clean change | cost |
+| runner | bugs caught | false alarm on the two clean changes | cost |
 |---|---|---|---|
-| claude sonnet, effort medium | 7 of 7, all as BLOCKER | none | $0.06 for all seven |
-| gemini (CLI default model) | 7 of 7 (6 BLOCKER, 1 HIGH) | none | Gemini credits |
+| claude sonnet, effort medium | 9 of 9, all as BLOCKER | none | $0.10 for all eleven |
+| gemini-3.1-pro-preview (the Gemini CLI's default) | 9 of 9 (7 BLOCKER, 2 HIGH) | none | about 6k tokens a review (measured on PR #42) |
+| gemini-3-flash-preview | 9 of 9 (8 BLOCKER, 1 HIGH) | none | Flash pricing, below Pro |
 
-The prompt-injection case was caught by both: text in the diff is data
-under review, not instructions. Run it yourself with `bash eval/run.sh`
-(`OBJECTION_RUNNER=gemini` or `codex` for the others); it calls a real
-model, so it is not part of CI. Seven small cases prove the reviewers
-catch these bugs, not that they catch every bug.
+The prompt-injection case was caught by all three: text in the diff is
+data under review, not instructions. Flash's first run scored the SQL
+injection as missed, although it had written the finding as BLOCKER:
+its table had no outer pipes, so every reader counted no rows, and a CI
+check would have passed that BLOCKER. review.sh now adds the pipes to
+such a table (test/review.test.sh and test/ci-review.test.sh pin it),
+and the rerun counted it. Run the eval yourself with `bash eval/run.sh`
+(`OBJECTION_RUNNER=gemini` or `codex` for the others, and
+`OBJECTION_GEMINI_MODEL` for the model). It calls a real model, so CI
+runs only its scoring, against a fake reviewer (test/eval.test.sh).
+Eleven small cases prove the reviewers catch these bugs, not that they
+catch every bug.
 
 ## Track record
 

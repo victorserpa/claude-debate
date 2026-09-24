@@ -1,7 +1,27 @@
 # Changelog
 
-## Unreleased
+## 0.15.0 (2026-09-24)
 
+**One real fail-open closed, and a bigger eval.**
+
+- review.sh adds the outer pipes to a findings table written without
+  them ("BLOCKER | BUG | a.ts:6 | ..."). debate.sh, ci-review.sh and the
+  eval count only rows that start with "|", so such a BLOCKER counted as
+  none, and the CI check would have passed it. Found by the eval:
+  gemini-3-flash-preview wrote its SQL-injection BLOCKER that way.
+- eval: four new cases (a SQL query built by concatenation, the
+  Authorization header written to the log, writes from a
+  `forEach(async ...)` never awaited, and a second clean change), eleven
+  in all. Claude Sonnet caught 9 of 9 bugs for $0.10, gemini-3.1-pro-preview
+  9 of 9, and gemini-3-flash-preview 9 of 9 once its table was read.
+  None raised a false alarm on the clean changes.
+- The eval's scoring is tighter: a keyword counts only in the defect
+  cell next to the file, so an unrelated finding in the same file is no
+  longer a catch. test/eval.test.sh checks the scoring against a fake
+  reviewer and runs in CI.
+- The rulings rule no longer counts a numbered step in the Accusation's
+  prose ("1. open the page") as a finding: a "N." line needs a severity
+  word.
 - The Gemini CI review runs on a GitHub runner: this repository's
   `review (gemini)` job reviews every same-repository PR with it. First
   live run: PR #42, authenticated by `GEMINI_API_KEY` alone, 4433 input +

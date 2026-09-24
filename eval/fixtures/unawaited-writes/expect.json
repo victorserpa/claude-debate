@@ -1,0 +1,1 @@
+{"goal": "Save items in parallel", "severity": "HIGH", "match": "forEach|not await|before .*(finish|complete)|unhandled|fire.and.forget|promise", "file": "src/save.js", "lines": [2, 3, 4]}
