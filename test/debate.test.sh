@@ -211,6 +211,11 @@ printf '{"bases":["develop","release"],"defaultBase":"develop","budget":"standar
 git add . && gitc commit -q -m "release base"
 out=$(bash "$QDEBATE" release "the goal" 2>&1) && fail "an unfetched listed base ran ($out)"
 printf '%s\n' "$out" | grep -qF "git fetch" || fail "no fetch hint for an unfetched base"
+# A word that is no base at all is the goal, and the summary says the base
+# fell back (a typo like "developp" must be visible).
+reset
+out=$(bash "$QDEBATE" developp 2>/dev/null)
+printf '%s\n' "$out" | grep -qF "base: develop (defaultBase" || fail "a defaulted base is not announced ($out)"
 # An agent that names a Claude model runs the extra accuser on that model
 # (the reviewers come from the base, so the base gets this config).
 git update-ref refs/remotes/origin/develop HEAD

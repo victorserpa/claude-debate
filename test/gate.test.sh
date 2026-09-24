@@ -480,15 +480,24 @@ check 0 "$T/named" Bash 'gh pr create --head me:feat --base develop -R up/repo'
 git -C "$T/named" remote set-url mirror "https://github.com/me/repo.git"
 check 2 "$T/named" Bash 'gh pr create --head me:feat --base develop -R up/repo'
 git -C "$T/named" remote remove mirror
-# SSH aliases for GitHub (Host github-work, github.com-work in ~/.ssh/config)
-# are where the fork is: still read. The alias is never contacted here,
-# so the fork keeps the real (local) URL and the alias is a second remote
-# that makes the match ambiguous only if it is kept: blocked means kept.
+# SSH aliases are resolved as ssh does (ssh -G reads the config, never
+# connects). The fork keeps its real (local) URL; the alias is a second
+# remote that makes the match ambiguous only if it is kept: blocked (2)
+# means it was taken for GitHub, allowed (0) means it was not.
+printf 'Host github-work\n  HostName github.com\nHost gitlab-work\n  HostName gitlab.com\n' >"$T/ssh_config"
+export OBJECTION_SSH_CONFIG="$T/ssh_config"
 git -C "$T/named" remote add alias1 "git@github-work:me/repo.git"
 check 2 "$T/named" Bash 'gh pr create --head me:feat --base develop -R up/repo'
-git -C "$T/named" remote set-url alias1 "git@github.com-work:me/repo.git"
+git -C "$T/named" remote set-url alias1 "git@gitlab-work:me/repo.git"
+check 0 "$T/named" Bash 'gh pr create --head me:feat --base develop -R up/repo'
+git -C "$T/named" remote set-url alias1 "git@gitserver:me/repo.git"
+check 0 "$T/named" Bash 'gh pr create --head me:feat --base develop -R up/repo'
+git -C "$T/named" remote set-url alias1 "git@github.com.evil.io:me/repo.git"
+check 0 "$T/named" Bash 'gh pr create --head me:feat --base develop -R up/repo'
+git -C "$T/named" remote set-url alias1 "ssh://git@github-work/me/repo.git"
 check 2 "$T/named" Bash 'gh pr create --head me:feat --base develop -R up/repo'
 git -C "$T/named" remote remove alias1
+unset OBJECTION_SSH_CONFIG
 gitc -C "$T/named" commit -q --allow-empty -m later
 git -C "$T/named" push -q fork HEAD:feat
 git -C "$T/named" reset -q --hard "$NAMED_SHA"

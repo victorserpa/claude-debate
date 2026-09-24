@@ -82,15 +82,17 @@ const nativeCache = new Map();
 export function nativePath(p) {
   if (process.platform !== "win32" || !p || !p.startsWith("/")) return p;
   if (nativeCache.has(p)) return nativeCache.get(p);
-  let out;
   try {
-    out = execFileSync("cygpath", ["-w", p], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 5000 }).trim() || p;
+    const out = execFileSync("cygpath", ["-w", p], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 5000 }).trim();
+    if (out) {
+      nativeCache.set(p, out);
+      return out;
+    }
   } catch {
-    const m = /^\/([a-zA-Z])(\/.*)?$/.exec(p);
-    out = m ? `${m[1].toUpperCase()}:${m[2] || "/"}` : p;
+    // The fallback below is not cached: cygpath may answer next time.
   }
-  nativeCache.set(p, out);
-  return out;
+  const m = /^\/([a-zA-Z])(\/.*)?$/.exec(p);
+  return m ? `${m[1].toUpperCase()}:${m[2] || "/"}` : p;
 }
 
 // The gh CLI. OBJECTION_GH (a JSON array, e.g. ["bash","/path/stub"]) is
@@ -209,14 +211,30 @@ export function gate(input) {
           // "C:/x" is a Windows drive, not a host.
           return m && !/^[a-zA-Z]$/.test(m[1]) ? m[1].toLowerCase() : null;
         };
-        // Kept: no host (a path), GitHub itself, and SSH aliases for it
-        // (github-work, github.com-work in ~/.ssh/config: no dot, or the
-        // GitHub host as prefix). Dropped: another real host (gitlab.com).
-        // Keeping too much only makes the match ambiguous (blocked).
+        // Kept: no host (a path), GitHub itself, and SSH aliases that the
+        // SSH config maps to it (Host github-work / HostName github.com),
+        // resolved with `ssh -G`, which reads the config and never
+        // connects. Dropped: any other host. OBJECTION_SSH_CONFIG is an
+        // ssh config file for tests.
+        const isGh = (h) => h === ghHost || (ghHost === "github.com" && h === "ssh.github.com");
+        const viaSsh = (u) => /^ssh:\/\//i.test(u) || !/^[a-z][a-z0-9+.-]*:\/\//i.test(u);
+        const sshName = (h) => {
+          try {
+            const cfg = process.env.OBJECTION_SSH_CONFIG ? ["-F", process.env.OBJECTION_SSH_CONFIG] : [];
+            const out = execFileSync("ssh", [...cfg, "-G", h], {
+              encoding: "utf8",
+              stdio: ["ignore", "pipe", "ignore"],
+              timeout: 5000,
+            });
+            const m = /^hostname\s+(\S+)/m.exec(out);
+            return m ? m[1].toLowerCase() : h;
+          } catch {
+            return h;
+          }
+        };
         const onGh = (u) => {
           const h = hostOf(u);
-          return h === null || !h.includes(".") || h.startsWith(ghHost) ||
-            (ghHost === "github.com" && h === "ssh.github.com");
+          return h === null || isGh(h) || (viaSsh(u) && isGh(sshName(h)));
         };
         const under = remotes.filter((r) => onGh(url(r)) && new RegExp(`[:/]${esc(owner)}/`, "i").test(url(r)));
         const exact = name

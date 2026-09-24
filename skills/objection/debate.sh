@@ -46,9 +46,12 @@ top="$(git rev-parse --show-toplevel)"
 cd "$top"
 
 base=""
+defaulted=""
 if [ $# -gt 0 ] && [ -n "$1" ] && git rev-parse --verify -q "refs/remotes/origin/$1" >/dev/null; then
   base="$1"
   shift
+elif [ $# -gt 0 ]; then
+  defaulted="$1"
 fi
 if [ -z "$base" ]; then
   for c in .objection.json .claude/objection.json; do
@@ -136,9 +139,9 @@ if [ "$budget" != lean ]; then
       accusers="$accusers + $agent"
       # An agent that names a Claude model runs on it; any other agent (a
       # different tool) is only a label here: this is review.sh's model.
-      model="${OBJECTION_MODEL:-opus}"
+      model="${OBJECTION_MODEL:-}"
       case "$agent" in opus | sonnet | haiku | claude-*) model="$agent" ;; esac
-      printf '\n### %s (focus: %s; run by review.sh on %s)\n\n' "$agent" "$focus" "$model" >>"$tmp/all"
+      printf '\n### %s (focus: %s; run by review.sh%s)\n\n' "$agent" "$focus" "${model:+ on $model}" >>"$tmp/all"
       if OBJECTION_MODEL="$model" OBJECTION_FOCUS="$focus" bash "$here/review.sh" accuser "$brief" >"$tmp/one" </dev/null; then
         cat "$tmp/one" >>"$tmp/all"
       else
@@ -222,6 +225,9 @@ for kind in brief accusation findings defense record; do
 done
 
 echo "objection: $(git rev-parse --abbrev-ref HEAD) @ ${sha:0:7}, budget $budget, diff $diff_base...HEAD"
+if [ -n "$defaulted" ]; then
+  echo "base: $base (defaultBase; \"$defaulted\" is not a branch on origin, so it was read as the goal)"
+fi
 echo "accusers: $accusers"
 echo "findings: $(count BLOCKER) BLOCKER, $(count HIGH) HIGH, $(count MEDIUM) MEDIUM, $(count LOW) LOW"
 echo "defender: $defended"
