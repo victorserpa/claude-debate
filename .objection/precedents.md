@@ -27,3 +27,7 @@ Maintained by precedents.mjs; edit by hand only to delete a line.
 - [1x, 2026-09-24, 7cff2bf] skills/objection/: a marker matched anywhere in free text refuses content that only quotes it
 - [1x, 2026-09-24, 7cff2bf] skills/objection/: an argument that does not parse as one thing is silently reused as another
 - [1x, 2026-09-24, 7cff2bf] skills/objection/gate/: a helper process spawned per item inside the hook, uncached, spends the hook's time budget
+- [1x, 2026-09-24, a9d6f78] skills/objection/gate/: a gate that covers one spelling of an action misses its other spellings (another flag, another value form)
+- [1x, 2026-09-24, 102d9d2] skills/objection/gate/: a flag whose value the parser does not know is read as the target
+- [1x, 2026-09-24, a9d6f78] skills/objection/gate/: an input the platform may truncate is trusted as whole
+- [1x, 2026-09-24, a9d6f78] skills/objection/: a new automatic fallback turns a documented fall-back exit into a hard failure
