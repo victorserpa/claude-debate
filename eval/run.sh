@@ -73,5 +73,6 @@ case "${OBJECTION_RUNNER:-claude}" in
   codex) who="codex ${OBJECTION_CODEX_MODEL:-(its default)}" ;;
   *) who="claude ${OBJECTION_MODEL:-sonnet}, effort ${OBJECTION_EFFORT:-medium}" ;;
 esac
+[ "$total" -gt 0 ] || { echo "no fixture matched: nothing ran." >&2; exit 2; }
 echo "runner: $who; $pass of $total as expected"
 [ "$pass" = "$total" ]

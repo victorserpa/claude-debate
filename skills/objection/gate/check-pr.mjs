@@ -155,7 +155,9 @@ if (!docsOnly) {
     if (!lines.includes(section)) fail(`the record is missing the section "${section}".`);
 }
 
-if (!docsOnly) {
+// Only records drafted by 0.13 or later (they name the version): a record
+// stamped before the rule existed stays valid while its PR is open.
+if (!docsOnly && lines.some((l) => /^objection \d+\.\d+\.\d+; config /.test(l))) {
   const missing = missingRulings(record);
   if (missing.length) fail(`the Judge section has no ruling for finding(s) ${missing.join(", ")}.`);
 }

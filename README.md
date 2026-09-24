@@ -517,7 +517,6 @@ skills/objection/            the skill, self-contained
   pr-body.sh                 puts the stored record into the PR body
   gate/rulings.mjs           every numbered finding needs a ruling (stamp and CI)
   VERSION                    the version every draft record names
-eval/                        known bugs the reviewers must catch (run by hand)
   usage.sh                   what the reviewers cost, per branch
   precedents.mjs             keeps .objection/precedents.md
   gate/core.mjs              gate logic, tool-neutral
@@ -528,6 +527,7 @@ agents/                      Claude Code subagents (same prompts as roles/)
 .claude-plugin/, hooks/      Claude Code plugin and marketplace
 action.yml                   the GitHub Action
 test/                        regression cases
+eval/                        known bugs the reviewers must catch (run by hand)
 ```
 
 Contributing: see [AGENTS.md](AGENTS.md).

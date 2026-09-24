@@ -54,7 +54,7 @@ run 0 "$CODE" "$(record $HEAD origin/main '10, high-level note' APPROVED)"
 run 0 "$CODE" "$(record $HEAD origin/main '- High-risk area untouched (MEDIUM)' APPROVED)"
 # Every numbered finding needs a ruling: a list, a table row, a range.
 ruled() { # accusation judge
-  printf '<!-- objection: sha=%s base=origin/main -->\n## Accusation\n%s\n## Defense\nx\n## Judge\n%s\n## Open\nnothing\nOPEN: BLOCKER=0 HIGH=0\nVERDICT: APPROVED\n' "$HEAD" "$1" "$2"
+  printf '<!-- objection: sha=%s base=origin/main -->\nobjection 0.13.0; config c; accuser a at effort e; defender d at effort e.\n## Accusation\n%s\n## Defense\nx\n## Judge\n%s\n## Open\nnothing\nOPEN: BLOCKER=0 HIGH=0\nVERDICT: APPROVED\n' "$HEAD" "$1" "$2"
 }
 run 0 "$CODE" "$(ruled '1. HIGH, BUG, a.ts:3: x
 2. LOW: y' '1. UPHELD, fixed.
@@ -75,6 +75,12 @@ run 0 "$CODE" "$(ruled '1. x
 # A number inside the text is not a finding; the Defense does not rule.
 run 0 "$CODE" "$(ruled 'Round 1 found 3 issues, see #20.' 'Nothing to rule on.')"
 run 1 "$CODE" "$(ruled '1. HIGH: x' 'The defense said 1. UPHELD.')"
+# A Judge table rules too.
+run 0 "$CODE" "$(ruled '| 1 | HIGH | BUG | a.ts:3 | x | read | p |' '| # | ruling |
+|---|---|
+| 1 | UPHELD, fixed |')"
+# A record drafted before 0.13 (no version line) is not held to the rule.
+run 0 "$CODE" "$(ruled '1. HIGH: x' 'All refuted.' | grep -v '^objection 0')"
 
 # The structured count: required, and zero to approve.
 OPENLINE="" run 1 "$CODE" "$(OPENLINE="" record $HEAD origin/main nothing APPROVED)"

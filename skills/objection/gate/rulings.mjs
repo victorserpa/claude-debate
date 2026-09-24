@@ -4,7 +4,8 @@
 // A numbered finding is a line of the Accusation section that starts with
 // "N." (a list) or "| N |" (the table debate.sh numbers). A ruling is a
 // line of the Judge section that starts with "N." / "N)" / "N:", a range
-// "N-M.", or a list "1, 2 and 5:" covering it. Anything else in the text
+// "N-M.", or a list "1, 2 and 5:" covering it, or a table row "| N |".
+// Anything else in the text
 // is free-form.
 
 export function missingRulings(text) {
@@ -26,7 +27,8 @@ export function missingRulings(text) {
   const ruled = new Set();
   for (const l of section("## Judge")) {
     const item = String.raw`\d+(?:\s*[-–]\s*\d+)?`;
-    const m = new RegExp(String.raw`^\s*(${item}(?:\s*(?:,|and|&)\s*${item})*)\s*[.):]`).exec(l);
+    const list = String.raw`(${item}(?:\s*(?:,|and|&)\s*${item})*)`;
+    const m = new RegExp(String.raw`^\s*${list}\s*[.):]`).exec(l) || new RegExp(String.raw`^\s*\|\s*${list}\s*\|`).exec(l);
     if (!m) continue;
     for (const part of m[1].split(/\s*(?:,|and|&)\s*/)) {
       const [a, b = a] = part.split(/\s*[-–]\s*/).map(Number);

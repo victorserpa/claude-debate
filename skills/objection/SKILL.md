@@ -124,7 +124,10 @@ and writes a draft record whose Judge and Open sections say
 `TODO(judge)`. It prints a short summary and the draft's path: read the
 draft, judge (step 3), replace every TODO line (`stamp.sh` refuses a
 record that still has one), stamp. Findings are numbered once, in the
-Accusation; the defender and your rulings use the same numbers. Under
+Accusation; the defender and your rulings use the same numbers, and
+every number needs a ruling line in Judge that starts with it ("3.",
+"1, 2 and 5:", "4-6." or a "| 3 |" table row): stamp.sh and the CI check
+refuse a record that leaves one out. Under
 `lean`, a diff of at most `smallDiff` changed lines (default 20) that no
 invariant or `strongPaths` touches runs no reviewer: the draft comes
 pre-filled as APPROVED with one `TODO(judge)` line; read the diff and

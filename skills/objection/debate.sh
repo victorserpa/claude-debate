@@ -213,7 +213,8 @@ checks=""
 check_rows=""
 while IFS="$(printf '\t')" read -r cmd rule; do
   [ -n "$cmd" ] || continue
-  if out_check=$(cd "$top" && bash -c "$cmd" 2>&1); then
+  # </dev/null: a check that reads stdin must not eat the next check's line.
+  if out_check=$(cd "$top" && bash -c "$cmd" 2>&1 </dev/null); then
     checks="${checks}- \`$cmd\` (invariant: $rule): passed
 "
   else
@@ -221,15 +222,22 @@ while IFS="$(printf '\t')" read -r cmd rule; do
     last=$(printf '%s\n' "$out_check" | tail -n 3 | tr '\n|' '  ' | cut -c1-200)
     checks="${checks}- \`$cmd\` (invariant: $rule): FAILED, exit $code
 "
-    check_rows="${check_rows}| BLOCKER | INVARIANT | (verify) | the check for \"$rule\" fails: \`$cmd\` exits $code | test | $last |
+    cell_cmd=$(printf '%s' "$cmd" | tr '|' '/')
+    cell_rule=$(printf '%s' "$rule" | tr '|' '/')
+    check_rows="${check_rows}| BLOCKER | INVARIANT | (verify) | the check for \"$cell_rule\" fails: \`$cell_cmd\` exits $code | test | $last |
 "
   fi
 done <<EOF_CHECKS
 $(sed -n 's/^<!-- objection-invariant-check: \(.*\) -->$/\1/p' "$brief")
 EOF_CHECKS
 
-# An exit 3 (no claude CLI) must reach the caller as 3, so no `|| exit 1`.
-bash "$here/review.sh" accuser "$brief" >"$accusation"
+# An exit 3 (no claude CLI) must reach the caller as 3, so no `|| exit 1`;
+# a check that already failed is said before leaving, or it is lost.
+bash "$here/review.sh" accuser "$brief" >"$accusation" || {
+  st=$?
+  [ -z "$check_rows" ] || printf 'objection: invariant checks that FAILED (a BLOCKER in any record of this round):\n%s' "$checks" >&2
+  exit "$st"
+}
 rc=0
 
 # Standard and thorough: one more accuser per matching reviewers entry

@@ -326,7 +326,7 @@ cd "$R" || exit 1
 # reviewers; a failure is a numbered BLOCKER, a pass is listed.
 V="$T/verify"
 git init -q "$V" && cd "$V" || exit 1
-printf '{"bases":["main"],"invariants":[{"paths":"^src/pay","rule":"exact money","verify":"test ! -f src/pay/broken"},{"paths":"^src/other","rule":"untouched","verify":"touch %s/ran-untouched"}]}\n' "$T" >.objection.json
+printf '{"bases":["main"],"invariants":[{"paths":"^src/pay","rule":"reads stdin","verify":"cat >/dev/null"},{"paths":"^src/pay","rule":"exact money","verify":"test ! -f src/pay/broken"},{"paths":"^src/other","rule":"untouched","verify":"touch %s/ran-untouched"}]}\n' "$T" >.objection.json
 mkdir -p src/pay && echo 1 >src/pay/a.ts
 git add . && gitc commit -q -m base && git update-ref refs/remotes/origin/main HEAD
 echo x >src/pay/broken && git add . && gitc commit -q -m broken
@@ -336,6 +336,8 @@ out=$(bash "$DEBATE" main 2>/dev/null)
 record=$(printf '%s\n' "$out" | sed -n 's/^draft record: //p')
 has "$record" "| 1 | BLOCKER | INVARIANT | (verify) |"
 has "$record" "FAILED, exit 1"
+# The stdin-reading check before it did not swallow its line.
+has "$record" "(invariant: reads stdin): passed"
 has "$record" "| 2 | MEDIUM | BUG"
 printf '%s\n' "$out" | grep -qF "findings: 1 BLOCKER" || fail "the failed check was not counted ($out)"
 has "$T/stdin-defender" "(verify)"
