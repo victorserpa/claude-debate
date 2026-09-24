@@ -31,3 +31,6 @@ Maintained by precedents.mjs; edit by hand only to delete a line.
 - [1x, 2026-09-24, 102d9d2] skills/objection/gate/: a flag whose value the parser does not know is read as the target
 - [1x, 2026-09-24, a9d6f78] skills/objection/gate/: an input the platform may truncate is trusted as whole
 - [1x, 2026-09-24, a9d6f78] skills/objection/: a new automatic fallback turns a documented fall-back exit into a hard failure
+- [1x, 2026-09-24, 5fe2c5d] skills/objection/: bash 3.2 exits 0 from a set -u error when an EXIT trap is set, so a script meant to fail closed passes
+- [1x, 2026-09-24, 5fe2c5d] skills/objection/: a size or count heuristic reads what it cannot measure (a binary file, a rename) as zero and takes the cheap path
+- [1x, 2026-09-24, 5fe2c5d] skills/objection/: a CI step treats every failure of a helper as one opaque exit, so a benign case (nothing to review) fails the check without saying why
