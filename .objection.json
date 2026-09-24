@@ -1,0 +1,11 @@
+{
+  "bases": ["main"],
+  "defaultBase": "main",
+  "verify": [
+    "bash test/gate.test.sh",
+    "bash test/check-pr.test.sh",
+    "bash test/roles-in-sync.test.sh",
+    "bash test/precedents.test.sh"
+  ],
+  "budget": "standard"
+}

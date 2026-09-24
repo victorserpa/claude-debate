@@ -2,6 +2,23 @@
 
 Instructions for any AI agent (and human) changing this repository.
 
+## Workflow: mandatory
+
+`main` only changes through pull requests (a ruleset blocks direct
+pushes, force pushes and deletion). Every change:
+
+1. has an issue; open it first if needed;
+2. lives on a branch `<type>/<issue>-<slug>` from `main`;
+3. goes through `/objection` on this repository itself (`.objection.json`),
+   and the stored record is pasted into the PR body;
+4. opens a PR whose body says `Closes #<issue>` and whose title follows
+   the commit rules (squash merge uses it as the commit message);
+5. merges by squash once `test`, `commits`, `issue-link` and `record`
+   are green.
+
+The `v*` tags are protected. Moving `v1` is a release decision for the
+maintainer, never a side effect of a PR.
+
 ## Commits: mandatory
 
 - **Conventional Commits, in English**: `type(scope)!: description`, with

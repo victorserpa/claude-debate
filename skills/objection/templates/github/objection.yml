@@ -1,8 +1,13 @@
-# Copy to .github/workflows/objection.yml, then make "objection / record"
-# a required status check in branch protection.
+# Copy to .github/workflows/objection.yml, then make "record" a required
+# status check in a ruleset (or branch protection) on your default branch.
+#
+# pull_request_target on purpose: it runs this file from the base branch,
+# so a pull request cannot edit the check it is judged by. It is safe here
+# because the action never checks out or runs the PR's code; it reads the
+# event and the GitHub API.
 name: objection
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, edited, synchronize, reopened, ready_for_review]
 permissions:
   contents: read

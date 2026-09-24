@@ -131,12 +131,12 @@ Reports from people running it in those tools are welcome.
 for the current head SHA and base. It does not care which tool (or
 person) opened the PR, so it covers every agent, including those without
 hooks. Copy [`templates/github/objection.yml`](skills/objection/templates/github/objection.yml)
-to `.github/workflows/` and make `objection / record` a required status
-check:
+to `.github/workflows/` and make `record` a required status check in a
+ruleset on your default branch:
 
 ```yaml
 on:
-  pull_request:
+  pull_request_target: # runs from the base branch: a PR cannot edit its own judge
     types: [opened, edited, synchronize, reopened, ready_for_review]
 jobs:
   record:

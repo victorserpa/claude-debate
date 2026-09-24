@@ -1,34 +1,22 @@
+# Runs the pull request's code: tests only. The checks that decide whether
+# a PR may merge (commit rules, issue link, objection record) live in
+# governance.yml and run from main, so a PR cannot edit them to pass.
 name: test
 on:
   push:
     branches: [main]
   pull_request:
+permissions:
+  contents: read
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
       - run: bash test/gate.test.sh
       - run: bash test/check-pr.test.sh
       - run: bash test/roles-in-sync.test.sh
       - run: bash test/precedents.test.sh
-  commits:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Conventional Commits, English, no Co-Authored-By
-        env:
-          RANGE: ${{ github.event_name == 'pull_request' && format('{0}..{1}', github.event.pull_request.base.sha, github.event.pull_request.head.sha) || format('{0}..{1}', github.event.before, github.event.after) }}
-        run: |
-          case "$RANGE" in 0000000000000000000000000000000000000000..*) RANGE="${RANGE#*..}~1..${RANGE#*..}" ;; esac
-          status=0
-          for c in $(git rev-list --no-merges "$RANGE"); do
-            git log -1 --format=%B "$c" > /tmp/msg
-            bash scripts/check-commit-msg.sh /tmp/msg || { echo "  in commit $c"; status=1; }
-          done
-          exit $status

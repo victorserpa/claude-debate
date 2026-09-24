@@ -1,0 +1,20 @@
+name: Gate gap
+description: A way to create or merge a PR without a record, or an innocent command that gets blocked.
+labels: [gate]
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      options:
+        - Natural form passes without a record (HIGH)
+        - Innocent command gets blocked (HIGH)
+        - Deliberate disguise passes (LOW, see SECURITY.md)
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Exact command or hook input
+    validations:
+      required: true
