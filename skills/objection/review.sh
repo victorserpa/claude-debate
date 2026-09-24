@@ -34,6 +34,10 @@
 #      OBJECTION_EXCERPT_MAX (total excerpt lines, default 1500).
 set -eu
 
+# Git Bash (Windows) rewrites an argument like "origin/main:file" as a
+# path list ("origin\\main;file"); these calls must reach git untouched.
+gitref() { MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' git "$@"; }
+
 role="${1:?usage: review.sh accuser <brief> | review.sh defender <brief> <findings>}"
 brief="${2:?usage: review.sh accuser <brief> | review.sh defender <brief> <findings>}"
 case "$role" in
@@ -80,11 +84,11 @@ if [ "$role" = defender ]; then
   grep -oE '[A-Za-z0-9_./-]+\.[A-Za-z0-9]+:[0-9]+' "$findings" | sort -u | while IFS=: read -r path line; do
     # Stop reading files once the cap is passed (the rest would be cut).
     [ "$(wc -l <"$work/excerpts")" -gt "${OBJECTION_EXCERPT_MAX:-1500}" ] && break
-    git -C "$top" cat-file -e "HEAD:$path" 2>/dev/null || continue
+    gitref -C "$top" cat-file -e "HEAD:$path" 2>/dev/null || continue
     n="${OBJECTION_EXCERPT_LINES:-40}"
     from=$((line > n ? line - n : 1))
     printf '## %s (lines %s-%s)\n\n```\n' "$path" "$from" "$((line + n))"
-    git -C "$top" show "HEAD:$path" | awk -v a="$from" -v b="$((line + n))" 'NR>=a && NR<=b {printf "%5d  %s\n", NR, $0}'
+    gitref -C "$top" show "HEAD:$path" | awk -v a="$from" -v b="$((line + n))" 'NR>=a && NR<=b {printf "%5d  %s\n", NR, $0}'
     printf '```\n\n'
   done >"$work/excerpts"
   max="${OBJECTION_EXCERPT_MAX:-1500}"

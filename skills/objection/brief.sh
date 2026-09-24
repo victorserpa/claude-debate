@@ -21,6 +21,10 @@
 # from the previous round's commit, which is the branch.
 set -eu
 
+# Git Bash (Windows) rewrites an argument like "origin/main:file" as a
+# path list ("origin\\main;file"); these calls must reach git untouched.
+gitref() { MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' git "$@"; }
+
 diff_base="${1:?usage: brief.sh <diff-base> [goal] [scope] [config-base]}"
 goal="${2:-not stated}"
 scope="${3:-not stated}"
@@ -49,7 +53,7 @@ files=$(git diff --name-only "$diff_base"...HEAD "${X[@]}")
 
 config=""
 for c in .objection.json .claude/objection.json; do
-  config=$(git show "$config_base:$c" 2>/dev/null) && [ -n "$config" ] && break
+  config=$(gitref show "$config_base:$c" 2>/dev/null) && [ -n "$config" ] && break
   config=""
 done
 config_note="from $config_base"
@@ -104,7 +108,7 @@ else
   # From the base like the rules: a branch could delete its own precedents.
   # The working copy only when the base has none yet.
   prec=$(mktemp)
-  if git show "$config_base:.objection/precedents.md" >"$prec" 2>/dev/null; then
+  if gitref show "$config_base:.objection/precedents.md" >"$prec" 2>/dev/null; then
     export OBJECTION_PRECEDENTS_FILE="$prec"
   fi
   if p=$(printf '%s\n' "$files" | tr '\n' '\0' | xargs -0 node "$here/precedents.mjs" match 2>"$err"); then

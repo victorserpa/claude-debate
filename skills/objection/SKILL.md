@@ -101,16 +101,18 @@ generic accuser (`roles/accuser.md`) whose prompt also carries the
 `thorough` run those reviewers as accusers of their own.
 
 **The whole round in one command, when the `claude` CLI is available:**
-`bash <this skill's directory>/debate.sh <base> "<goal>" "<scope>"`
-(later rounds: `debate.sh --since <previous-round-sha> <base> ...`). It
-builds the brief, runs the accuser and, for the findings the budget
-sends, the defender, both isolated (option 1 below), and writes a draft
-record whose Judge and Open sections say `TODO(judge)`. It prints a
-short summary and the draft's path: read the draft, judge (step 3),
-replace the TODO lines, stamp. Under `standard` and `thorough` it runs
-the generic accuser only; run each matching `reviewers` entry as well.
-Exit 3 means no `claude` CLI: run the roles one by one as below.
-`usage.sh` shows what each branch's reviewers cost.
+`bash <this skill's directory>/debate.sh "<goal>" "<scope>"` (the base
+is the config's `defaultBase`; name another first: `debate.sh <base>
+"<goal>"`; later rounds: `debate.sh --since <previous-round-sha> "<goal>"`).
+It builds the brief, runs the accusers (under `standard` and `thorough`,
+each matching `reviewers` entry too, with its focus) and, for the
+findings the budget sends, the defender, all isolated (option 1 below),
+and writes a draft record whose Judge and Open sections say
+`TODO(judge)`. It prints a short summary and the draft's path: read the
+draft, judge (step 3), replace every TODO line (`stamp.sh` refuses a
+record that still has one), stamp. Exit 3 means no `claude` CLI: run the
+roles one by one as below. `usage.sh` shows what each branch's
+reviewers cost.
 
 **How to run a role**, in order of preference:
 
@@ -271,11 +273,12 @@ severity MEDIUM or above; refuted findings never become precedent.
 Then stamp the resulting HEAD:
 
 ```bash
-bash <this skill's directory>/stamp.sh <record.md> origin/<base>
+bash <this skill's directory>/stamp.sh <record.md> [origin/<base>]
 ```
 
-It refuses a record without the sections, with a dirty tree, with a base
-outside `bases`, or APPROVED with a serious finding open. It stores the
+The base defaults to `origin/<defaultBase>`. It refuses a record without
+the sections, with a `TODO(judge)` line left, with a dirty tree, with a
+base outside `bases`, or APPROVED with a serious finding open. It stores the
 record with a stamp (`<!-- objection: sha=... base=... -->`) on the first
 line and prints where. Then push the debated commit and **paste the
 stored record, stamp line included, into the PR body**: the GitHub check

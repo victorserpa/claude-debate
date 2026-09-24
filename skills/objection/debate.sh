@@ -31,6 +31,10 @@
 # exit code is the defender's: rerun only the defense, not the round.
 set -eu
 
+# Git Bash (Windows) rewrites an argument like "origin/main:file" as a
+# path list ("origin\\main;file"); these calls must reach git untouched.
+gitref() { MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' git "$@"; }
+
 since=""
 if [ "${1:-}" = --since ]; then
   since="${2:?--since needs the commit of the previous round}"
@@ -72,7 +76,7 @@ case "$here/" in
     mkdir -p "$tmp/roles"
     for r in accuser defender; do
       # New at the base (the PR that adds the skill): the working copy.
-      git show "origin/$base:$rel/roles/$r.md" >"$tmp/roles/$r.md" 2>/dev/null ||
+      gitref show "origin/$base:$rel/roles/$r.md" >"$tmp/roles/$r.md" 2>/dev/null ||
         cp "$here/roles/$r.md" "$tmp/roles/$r.md"
     done
     export OBJECTION_ROLES_DIR="$tmp/roles"

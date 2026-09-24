@@ -108,7 +108,10 @@ work anywhere you did not opt in.
 | `invariants` | rules that must never break, each with the `paths` it guards; a violation is a BLOCKER |
 | `budget` | `lean` (default), `standard` or `thorough`: how many reviewers and rounds a debate runs |
 
-Requirements: `node`, `git`, and the `gh` CLI.
+Requirements: `node`, `git`, `bash`, `perl` and the `gh` CLI. Linux and
+macOS have them; on Windows, Git for Windows brings `bash` and `perl`
+(Git Bash, which Claude Code needs there anyway). CI runs every test on
+all three systems.
 
 ## Gates
 

@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.8.0 (2026-09-24)
+
+**Windows, and the gaps left after 0.7.0.**
+
+- Windows: CI now runs every test on Linux, macOS and Windows (Git
+  Bash). The gate reads Git Bash paths (`/c/...`, `/tmp/...`) in `cd`
+  targets and the hook's `cwd` through `cygpath`; `.gitattributes` keeps
+  the scripts LF on Windows checkouts.
+- `debate.sh` and `stamp.sh` default to the config's `defaultBase`
+  (adopters whose base is `develop` no longer need to say so).
+- `stamp.sh` refuses a record that still has `TODO(judge)` lines.
+- Under `standard` and `thorough`, `debate.sh` runs each matching
+  `reviewers` entry as its own isolated accuser with its focus
+  (`OBJECTION_FOCUS` in `review.sh`).
+- `debate.sh` keeps the newest `OBJECTION_KEEP` (10) artifacts of each
+  kind in `<git-common-dir>/objection`; stamped records are never pruned.
+- `review.sh`'s timeout ends the reviewer's whole process group, and an
+  interrupt is passed on to it.
+- Precedents come from the base branch, like the rules; and when the
+  skill under review is in the repository itself, `debate.sh` gives the
+  reviewers the base branch's roles.
+- The gate's `--head <owner>:<branch>` only matches remotes on GitHub's
+  host (or `GH_HOST`): a mirror elsewhere no longer blocks.
+
 ## 0.7.0 (2026-09-24)
 
 **One command per round, and the cost of each PR on record.**
