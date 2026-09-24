@@ -332,6 +332,31 @@ check 2 $N Bash 'x="$(gh pr create --fill)"'
 check 2 $N Bash 'echo $(gh pr merge 5)'
 check 2 $N Bash 'echo `gh pr merge 5`'
 check 2 $N Bash "bash -c 'gh pr merge 5'"
+
+# --- Round 5: what the round-4 accuser found in that fix -------------------
+export STUB_SHA=$OK_SHA STUB_LOG="$T/gh.log"
+: >"$T/gh.log"
+# A PR number the gate cannot read is blocked, even when the current
+# branch's PR has a record (it used to check that one instead).
+check 2 $O Bash 'gh pr merge $(cat .pr-number) --squash'
+check 2 $O Bash 'gh pr merge "$(jq -r .number pr.json)"'
+check 2 $O Bash 'gh pr ready `cat .pr`'
+check 2 $O Bash 'gh pr merge $((40+2))'
+check 2 $O Bash 'gh pr merge "$PR" --squash'
+check 2 $O Bash 'gh pr merge $PR'
+# ...while a literal number with a substitution elsewhere still works.
+STUB_WANT="7" check 0 $O Bash 'gh pr merge 7 -t "$(cd sub && git log -1 --format=%s)"'; called "7"
+STUB_WANT="7" check 0 $O Bash 'gh pr merge 7 -t $(cd sub && git log -1 --format=%s)'; called "7"
+unset STUB_LOG
+export STUB_SHA=deadbeef
+# Prose that names gh next to an innocent substitution is not a command.
+check 0 $N Bash 'git commit -m "docs: explain gh pr merge ($(date +%F))"'
+check 0 $N Bash 'echo "run gh pr create after $(date)"'
+# ...but a substitution that runs gh inside a message still counts.
+check 2 $N Bash 'echo "created: $(gh pr create --fill)"'
+# Deep nesting does not crash the hook (a crash is a non-blocking error).
+deep="gh pr merge 7 -t "$(printf '"$(echo %.0s' $(seq 5000))
+check 2 $N Bash "$deep"
 # (A quoted interpreter, "$SHELL" -c, is LOW by the threat model: treating
 # any quoted word as an interpreter blocked the searches below.)
 # ...and their innocent look-alikes, from the round-3 accuser.
