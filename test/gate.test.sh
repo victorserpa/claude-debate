@@ -305,12 +305,25 @@ check 2 $O Bash 'gh pr create -H"nonexistent" --base develop'
 # Natural ways to run a shell command string.
 check 2 $N Bash "bash -lc 'gh pr merge 5'"
 check 2 $N Bash "sh -xc 'gh pr create --fill'"
-check 2 $N Bash '"$SHELL" -c "gh pr merge 5"'
+check 2 $N Bash '$SHELL -c "gh pr merge 5"'
 check 2 $N Bash '${SHELL:-bash} -c "gh pr create --fill"'
 check 2 $N Bash "pwsh -c 'gh pr merge 5'"
-# ...and their innocent look-alikes.
+check 2 $N Bash "python3 -c 'gh pr merge 5'"
+# (A quoted interpreter, "$SHELL" -c, is LOW by the threat model: treating
+# any quoted word as an interpreter blocked the searches below.)
+# ...and their innocent look-alikes, from the round-3 accuser.
 check 0 $N Bash 'grep -rc "gh pr merge" docs'
 check 0 $N Bash "node --check 'gh pr merge.js'"
+check 0 $N Bash 'rg -g "*.md" -c "gh pr create"'
+check 0 $N Bash 'grep --include "*.md" -rc "gh pr merge" .'
+check 0 $N Bash "grep \"foo\" -c 'gh pr merge' f"
+check 0 $N Bash "find docs -name \"*.md\" -exec grep -c 'gh pr merge' {} +"
+check 0 $N Bash "perl -pe 's/gh pr create/x/' f"
+check 0 $N Bash "perl -i -pe 's/gh pr merge 5/x/' docs.md"
+check 0 $N Bash "perl -ne 'print if /gh pr merge/' f"
+check 0 $N Bash "ruby -ne 'puts \$_ if /gh pr merge 5/' f"
+check 0 $N Bash "python3 tool.py -vc 'gh pr merge 5'"
+check 0 $N Bash "psql -c 'select 1' -c \"gh pr merge 5\""
 unset STUB_LOG
 
 # --- Other hosts' input shapes ----------------------------------------------

@@ -49,6 +49,8 @@ $(record $HEAD origin/main nothing APPROVED)"
 run 1 "$CODE" "$(record $HEAD origin/main '1 HIGH race on retry' APPROVED)"
 run 1 "$CODE" "$(record $HEAD origin/main '4, HIGH, x.ts:3, race' APPROVED)"
 run 0 "$CODE" "$(record $HEAD origin/main '1 MEDIUM highlight color off' APPROVED)"
+run 0 "$CODE" "$(record $HEAD origin/main '10, high-level note' APPROVED)"
+run 0 "$CODE" "$(record $HEAD origin/main '- High-risk area untouched (MEDIUM)' APPROVED)"
 # The structured count: required, and zero to approve.
 OPENLINE="" run 1 "$CODE" "$(OPENLINE="" record $HEAD origin/main nothing APPROVED)"
 run 1 "$CODE" "$(OPENLINE="OPEN: BLOCKER=0 HIGH=1" record $HEAD origin/main '- MEDIUM: x' APPROVED)"

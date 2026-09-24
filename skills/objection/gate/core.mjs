@@ -190,15 +190,25 @@ export function gate(input) {
             i = j + 1;
             continue;
           }
-          // Allowlist of what executes its argument as code: `-c` (alone or
-          // combined, as in `bash -lc`) after a shell, python or a program
-          // that runs a shell; `-e` after node, perl or ruby; and `eval`.
-          // A quoted or variable interpreter (`"$SHELL" -c`, `${SHELL} -c`)
-          // counts too. Any other `-c` (grep -c, psql -c, tar -czf) is a flag.
-          const interp = String.raw`(?:\S*\/)?(?:bash|sh|zsh|dash|ksh|fish|pwsh|powershell|python[0-9.]*|su|runuser|script|flock|''|\$\{?\w*SHELL\w*(?::-[^}\s]*)?\}?)`;
+          // Allowlist of what executes its argument as code, with only
+          // options between the program and the flag (never a script name):
+          //   a shell (or $SHELL) then -c, alone or combined (`bash -lc`);
+          //   python, su, runuser, script, flock then exactly -c;
+          //   node, perl, ruby then exactly -e (`perl -pe`/`-ne` take a
+          //   regex, not a command);
+          //   eval.
+          // Any other -c (grep -c, rg -c, psql -c, tar -czf) is a flag. The
+          // round-3 accuser showed the cost of a wider list: counting any
+          // quoted word as an interpreter blocked `rg -g "*.md" -c "gh pr
+          // create"`. A quoted interpreter (`"$SHELL" -c`) is LOW, not listed.
+          const opts = String.raw`(?:\s+-[^\s;&|]*)*`;
+          const shell = String.raw`(?:\S*\/)?(?:bash|sh|zsh|dash|ksh|fish|pwsh|powershell|\$\{?SHELL(?::-[^}\s]*)?\}?)`;
+          const runsC = String.raw`(?:\S*\/)?(?:python[0-9.]*|su|runuser|script|flock)`;
+          const runsE = String.raw`(?:\S*\/)?(?:node|perl|ruby)`;
           const executes =
-            new RegExp(String.raw`(^|[\s;&|(\`])${interp}(\s[^;&|\n]*)?\s-[A-Za-z]*c\s*$`).test(before) ||
-            /(^|[\s;&|(`])(?:\S*\/)?(node|perl|ruby)\b[^;&|\n]*\s-[A-Za-z]*e\s*$/.test(before) ||
+            new RegExp(String.raw`(^|[\s;&|(\`])${shell}${opts}\s+-[A-Za-z]*c\s*$`).test(before) ||
+            new RegExp(String.raw`(^|[\s;&|(\`])${runsC}${opts}\s+-c\s*$`).test(before) ||
+            new RegExp(String.raw`(^|[\s;&|(\`])${runsE}${opts}\s+-e\s*$`).test(before) ||
             /(^|[\s;&|(`])eval\s*$/.test(before) ||
             (c === '"' && /\$\(|`/.test(inside));
           out += executes ? ` ${inside} ` : " '' ";

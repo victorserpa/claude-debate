@@ -97,9 +97,10 @@ if [ "$verdict" = 'VERDICT: APPROVED' ] && [ "$docs_only" = no ]; then
   # A line that STARTS with the severity (list marker and bold optional):
   # "- HIGH: x", "HIGH: x", "1. **High** x", "1 HIGH x", "4, HIGH, x" (the
   # template's "#, severity" order). Whole word, so "no HIGH finding is
-  # left" does not count (does not start with the severity).
+  # left" (does not start with it) and "high-level note" (hyphenated) do
+  # not count.
   open=$(awk '/^## Open$/{f=1;next} /^## /{f=0} f' "$record")
-  if printf '%s\n' "$open" | grep -qiE '^[[:space:]]*([-*]|[0-9]+[.),]?)?[[:space:]]*,?[[:space:]]*[*_]*(blocker|high)([^[:alpha:]]|$)'; then
+  if printf '%s\n' "$open" | grep -qiE '^[[:space:]]*([-*]|[0-9]+[.),]?)?[[:space:]]*,?[[:space:]]*[*_]*(blocker|high)([^[:alpha:]-]|$)'; then
     echo "APPROVED with a BLOCKER/HIGH finding still open: fix it or reject." >&2
     exit 1
   fi
