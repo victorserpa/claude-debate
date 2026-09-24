@@ -98,6 +98,35 @@ OBJECTION_TIMEOUT=2 OBJECTION_CLAUDE="$T/claude-hang" bash "$REVIEW" accuser "$T
 rc=$?
 [ "$rc" = 1 ] && [ $(( $(date +%s) - start )) -lt 15 ] || { echo "FAIL: a hung claude was not stopped (rc=$rc)"; failures=$((failures + 1)); }
 
+# The timeout ends the whole process group: a child of a hung claude
+# (a subprocess, a tool) must not survive it.
+cat >"$T/claude-kids" <<'EOF2'
+#!/bin/bash
+cat >/dev/null
+sleep 60 &
+echo $! >"$FAKE_DIR/child"
+wait
+EOF2
+chmod +x "$T/claude-kids"
+rm -f "$T/child"
+OBJECTION_TIMEOUT=2 OBJECTION_CLAUDE="$T/claude-kids" bash "$REVIEW" accuser "$T/brief.md" >/dev/null 2>&1
+sleep 1
+if [ -s "$T/child" ] && kill -0 "$(cat "$T/child")" 2>/dev/null; then
+  echo "FAIL: a child of the timed-out claude is still running"; failures=$((failures + 1))
+  kill "$(cat "$T/child")" 2>/dev/null
+fi
+[ -s "$T/child" ] || { echo "FAIL: the child-spawning stub never ran"; failures=$((failures + 1)); }
+
+# A focus (one reviewers entry) goes into the prompt; roles can come from
+# another directory (debate.sh passes the base branch's roles).
+OBJECTION_FOCUS="money math only" bash "$REVIEW" accuser "$T/brief.md" >/dev/null 2>&1
+has "$T/args" "money math only"
+mkdir -p "$T/roles" && printf 'BASE ROLE\n' >"$T/roles/accuser.md"
+OBJECTION_ROLES_DIR="$T/roles" bash "$REVIEW" accuser "$T/brief.md" >/dev/null 2>&1
+has "$T/args" "$T/roles/accuser.md"
+bash "$REVIEW" accuser "$T/brief.md" >/dev/null 2>&1
+hasnt "$T/args" "money math only"
+
 # Refusals: unknown role, missing files, no claude CLI (exit 3).
 bash "$REVIEW" judge "$T/brief.md" >/dev/null 2>&1 && { echo "FAIL: unknown role accepted"; failures=$((failures + 1)); }
 bash "$REVIEW" defender "$T/brief.md" >/dev/null 2>&1 && { echo "FAIL: defender without findings accepted"; failures=$((failures + 1)); }

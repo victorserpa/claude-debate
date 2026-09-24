@@ -73,6 +73,34 @@ function block(reason, withHint = true) {
 
 const ALLOW = { blocked: false };
 
+// On Windows the shell commands come from Git Bash, so their paths look
+// like /c/Users/x or /tmp/x, which node would read as C:\c\Users\x.
+// cygpath (shipped with Git Bash) knows the mapping; /<drive>/ is the
+// fallback when it is not on PATH.
+export function nativePath(p) {
+  if (process.platform !== "win32" || !p || !p.startsWith("/")) return p;
+  try {
+    return execFileSync("cygpath", ["-w", p], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 5000 }).trim() || p;
+  } catch {
+    const m = /^\/([a-zA-Z])(\/.*)?$/.exec(p);
+    return m ? `${m[1].toUpperCase()}:${m[2] || "/"}` : p;
+  }
+}
+
+// The gh CLI. OBJECTION_GH (a JSON array, e.g. ["bash","/path/stub"]) is
+// for tests on Windows, where node cannot run a bash script named gh.
+const GH = (() => {
+  try {
+    const v = JSON.parse(process.env.OBJECTION_GH || "null");
+    return Array.isArray(v) && v.length && v.every((x) => typeof x === "string") ? v : ["gh"];
+  } catch {
+    return ["gh"];
+  }
+})();
+function gh(args, opts) {
+  return execFileSync(GH[0], [...GH.slice(1), ...args], opts);
+}
+
 export function gate(input) {
   try {
     function git(dir, ...args) {
@@ -87,8 +115,8 @@ export function gate(input) {
     }
 
     // --- Opt-in ------------------------------------------------------------------
-    const sessionDir =
-      input.cwd && existsSync(input.cwd) ? input.cwd : process.cwd();
+    const inputCwd = nativePath(input.cwd);
+    const sessionDir = inputCwd && existsSync(inputCwd) ? inputCwd : process.cwd();
 
     function loadConfig(dir) {
       let top;
@@ -134,7 +162,7 @@ export function gate(input) {
       const args = ["repo", "view"];
       if (repo) args.push(repo);
       args.push("--json", "defaultBranchRef", "-q", ".defaultBranchRef.name");
-      const name = execFileSync("gh", args, {
+      const name = gh(args, {
         cwd: dir,
         encoding: "utf8",
         stdio: ["ignore", "pipe", "ignore"],
@@ -529,6 +557,7 @@ export function gate(input) {
           let p = m[2] || m[3] || m[4];
           if (toRoot) p = git(dir, "rev-parse", "--show-toplevel");
           else if (p.startsWith("~")) p = join(process.env.HOME || "", p.slice(1));
+          p = nativePath(p);
           dir = isAbsolute(p) ? p : resolve(dir, p);
         }
       }
@@ -541,7 +570,7 @@ export function gate(input) {
       if (target) args.push(target);
       if (repo) args.push("-R", repo);
       args.push("--json", "headRefOid,baseRefName", "-q", '.headRefOid + " " + .baseRefName');
-      const [sha, base] = execFileSync("gh", args, {
+      const [sha, base] = gh(args, {
         cwd: dir,
         encoding: "utf8",
         stdio: ["ignore", "pipe", "ignore"],

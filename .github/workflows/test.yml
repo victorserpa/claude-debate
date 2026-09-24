@@ -25,13 +25,15 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
-      - run: bash test/gate.test.sh
-      - run: bash test/check-pr.test.sh
-      - run: bash test/roles-in-sync.test.sh
-      - run: bash test/precedents.test.sh
-      - run: bash test/brief.test.sh
-      - run: bash test/review.test.sh
-      - run: bash test/debate.test.sh
+      # Every suite runs even when one fails, so one run shows them all.
+      - run: |
+          rc=0
+          for t in gate check-pr roles-in-sync precedents brief review debate; do
+            echo "::group::$t"
+            bash "test/$t.test.sh" || rc=1
+            echo "::endgroup::"
+          done
+          exit $rc
   # The ruleset requires a check named "test": one job that passes only
   # when every system passed.
   test:

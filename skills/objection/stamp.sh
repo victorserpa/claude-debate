@@ -2,13 +2,15 @@
 # Registers a /objection record for the current HEAD, where the
 # objection gate (gate/core.mjs) looks for it.
 #
-# Usage: stamp.sh <record.md> <base>     (base: origin/<branch the PR targets>)
+# Usage: stamp.sh <record.md> [base]     (base: origin/<branch the PR targets>;
+#                                          default origin/<defaultBase>)
 #
 # Refuses the record when:
 # - there are uncommitted tracked changes: the record describes HEAD, and
 #   code outside the commit was not debated;
 # - the base is not one of the PR targets in .objection.json;
 # - a required section or the verdict line is missing;
+# - a TODO(judge) line from debate.sh's draft was never replaced;
 # - the verdict is APPROVED but "## Open" still lists a BLOCKER or HIGH
 #   finding.
 #
@@ -19,8 +21,8 @@
 # code, lives in SKILL.md. This is a process guard, not a security boundary.
 set -eu
 
-record="${1:?usage: stamp.sh <record.md> <base>}"
-base="${2:?usage: stamp.sh <record.md> <base>}"
+record="${1:?usage: stamp.sh <record.md> [base]}"
+base="${2:-}"
 
 [ -f "$record" ] || { echo "record not found: $record" >&2; exit 1; }
 
@@ -42,6 +44,14 @@ const c = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
 const b = c.bases || (c.defaultBase ? [c.defaultBase] : []);
 console.log(b.map((x) => "origin/" + x).join(" "));
 ' "$config")
+if [ -z "$base" ]; then
+  base=$(node -e '
+const c = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+const d = c.defaultBase || (c.bases || [])[0];
+if (d) console.log("origin/" + d);
+' "$config")
+  [ -n "$base" ] || base=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null || echo origin/main)
+fi
 if [ -z "$allowed" ]; then
   allowed=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null || echo origin/main)
 fi
@@ -79,6 +89,11 @@ if [ "$docs_only" = no ]; then
   for section in '## Accusation' '## Defense' '## Judge' '## Open'; do
     grep -qx "$section" "$record" || { echo "missing section '$section' in the record." >&2; exit 1; }
   done
+fi
+
+if grep -qF 'TODO(judge)' "$record"; then
+  echo "the record still has TODO(judge) lines from debate.sh's draft: the judge has not ruled." >&2
+  exit 1
 fi
 
 verdict=$(grep -E '^VERDICT: ' "$record" | tail -1)

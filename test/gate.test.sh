@@ -50,6 +50,11 @@ exit 1
 EOF
 chmod +x "$T/bin/gh"
 export PATH="$T/bin:$PATH"
+# Windows (Git Bash): node cannot run a bash script named gh, so the gate
+# is told to run the stub through bash.
+case "$(uname -s)" in
+  MINGW* | MSYS* | CYGWIN*) export OBJECTION_GH="[\"bash\",\"$(cygpath -m "$T/bin/gh")\"]" ;;
+esac
 
 failures=0
 check() { # expected cwd tool command
@@ -229,6 +234,18 @@ full '4, HIGH, x.ts:3, race' 'OPEN: BLOCKER=0 HIGH=0'
 stampcheck 1 origin/develop "$T/rec.md"
 full '1 MEDIUM highlight color off' 'OPEN: BLOCKER=0 HIGH=0'
 stampcheck 0 origin/develop "$T/rec.md"
+# A draft from debate.sh whose judge sections were never filled is refused,
+# even with a count and a verdict; a TODO in the findings' own text is not.
+full 'TODO(judge): what stays open'
+stampcheck 1 origin/develop "$T/rec.md"
+full '- MEDIUM: the TODO list in a.ts is stale'
+stampcheck 0 origin/develop "$T/rec.md"
+# No base given: origin/<defaultBase> (master here); the stamp names it.
+git -C "$R" update-ref refs/remotes/origin/master refs/remotes/origin/develop
+full '- MEDIUM: x'
+stampcheck 0 "" "$T/rec.md"
+head -1 "$R/.git/objection/$(git -C "$R" rev-parse HEAD).md" | grep -q "base=origin/master -->$" \
+  || { echo "FAIL: stamp.sh without a base did not use defaultBase"; failures=$((failures + 1)); }
 # The structured count is required and must be zero to approve.
 full 'nothing' 'no count line here'
 stampcheck 1 origin/develop "$T/rec.md"

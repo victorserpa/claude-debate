@@ -87,6 +87,22 @@ printf 'y\n' >>"src/a dir/f.ts" && git add . && gitc commit -q -m more
 out=$(bash "$BRIEF" origin/main)
 has "$out" "turned off"
 
+# Precedents come from the base, like the rules: a branch that deletes
+# them still gets them. Matching reviewers are listed for debate.sh.
+P="$T/prec"
+git init -q "$P" && cd "$P" || exit 1
+printf '{"bases":["main"],"reviewers":[{"paths":"^src/","focus":"money math","agent":"money"},{"paths":"^docs/","focus":"prose","agent":"docs"}]}\n' >.objection.json
+mkdir -p src && printf 'a\n' >src/pay.ts
+node "$ROOT/skills/objection/precedents.mjs" add --area src/ --pattern "rounding lost a cent" --sha abc1234 >/dev/null
+git add . && gitc commit -q -m base
+git update-ref refs/remotes/origin/main HEAD
+git rm -q .objection/precedents.md && printf 'b\n' >>src/pay.ts && git add . && gitc commit -q -m "drop precedents"
+out=$(bash "$BRIEF" origin/main)
+# Checked in its section: the deletion itself shows the line in the diff.
+awk '/^## Defects/{f=1;next} /^## /{f=0} f' "$out" | grep -qF "rounding lost a cent" || { echo "FAIL: precedents read from the branch"; failures=$((failures + 1)); }
+has "$out" "<!-- objection-reviewer: money	money math -->"
+hasnt "$out" "objection-reviewer: docs"
+
 # Nothing to review, or an unknown base: refuse.
 (cd "$T/fresh" && git update-ref refs/remotes/origin/main HEAD && bash "$BRIEF" origin/main >/dev/null 2>&1) && { echo "FAIL: empty diff accepted"; failures=$((failures + 1)); }
 (cd "$R" && bash "$BRIEF" origin/nope >/dev/null 2>&1) && { echo "FAIL: unknown base accepted"; failures=$((failures + 1)); }

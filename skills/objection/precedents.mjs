@@ -44,7 +44,9 @@ try {
 } catch {
   fail("not inside a git repository.");
 }
-const file = join(top, ".objection", "precedents.md");
+// OBJECTION_PRECEDENTS_FILE: brief.sh passes the base branch copy, so a
+// branch cannot drop its own precedents from its review.
+const file = process.env.OBJECTION_PRECEDENTS_FILE || join(top, ".objection", "precedents.md");
 
 function load() {
   if (!existsSync(file)) return [];
