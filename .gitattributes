@@ -1,0 +1,4 @@
+# Scripts must keep LF endings on Windows checkouts, or bash fails on
+# the carriage returns.
+* text=auto eol=lf
+*.png binary
