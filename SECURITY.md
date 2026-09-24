@@ -45,6 +45,10 @@ reviewer.
   but the maintainer need a code owner's approval, and workflows from
   outside contributors only run after a maintainer approves them. Read
   every change under `.github/` before approving either.
+- The maintainer's own PRs skip that approval. An agent working with the
+  maintainer's credentials could still add a fake `record` job; that is
+  deliberate disguise (see "What does not"), not something a check can
+  stop, and it shows up in the PR diff.
 
 ## Supply chain
 
