@@ -59,7 +59,10 @@ if [ "$role" = defender ]; then
   top=$(git rev-parse --show-toplevel)
   # Every path:line in the findings that exists in HEAD, once per file and
   # line, with OBJECTION_EXCERPT_LINES lines each side.
+  : >"$work/excerpts"
   grep -oE '[A-Za-z0-9_./-]+\.[A-Za-z0-9]+:[0-9]+' "$findings" | sort -u | while IFS=: read -r path line; do
+    # Stop reading files once the cap is passed (the rest would be cut).
+    [ "$(wc -l <"$work/excerpts")" -gt "${OBJECTION_EXCERPT_MAX:-1500}" ] && break
     git -C "$top" cat-file -e "HEAD:$path" 2>/dev/null || continue
     n="${OBJECTION_EXCERPT_LINES:-40}"
     from=$((line > n ? line - n : 1))
@@ -107,7 +110,15 @@ if ! perl -e 'alarm shift; exec @ARGV' "${OBJECTION_TIMEOUT:-900}" "$claude_bin"
 fi
 
 node -e '
-const j = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+const raw = require("fs").readFileSync(process.argv[1], "utf8");
+let j;
+try {
+  j = JSON.parse(raw);
+} catch {
+  // Not JSON (a banner, a notice): show it rather than lose a paid answer.
+  process.stderr.write(`objection: the ${process.argv[2]} run returned something that is not JSON:\n${raw}\n`);
+  process.exit(1);
+}
 const u = j.usage || {};
 const inTok = (u.input_tokens || 0) + (u.cache_creation_input_tokens || 0) + (u.cache_read_input_tokens || 0);
 process.stdout.write((j.result || "") + "\n");

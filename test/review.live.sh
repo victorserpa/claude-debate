@@ -22,5 +22,5 @@ cat "$T/err"
 used=$(grep -oE 'used [0-9]+ input' "$T/err" | grep -oE '[0-9]+')
 [ -n "$used" ] || { echo "live: no token count reported"; exit 1; }
 [ "$used" -lt "$LIMIT" ] || { echo "live: $used input tokens, above $LIMIT: something leaked into the isolated run"; exit 1; }
-grep -qi 'add\|subtract\|minus\|a - b' "$T/out" || { echo "live: the answer does not mention the defect:"; cat "$T/out"; exit 1; }
+grep -qiE 'subtract|minus|a - b|instead of|should be .?\+' "$T/out" || { echo "live: the answer does not mention the defect:"; cat "$T/out"; exit 1; }
 echo "live: isolated accuser used $used input tokens (limit $LIMIT) and found the defect"

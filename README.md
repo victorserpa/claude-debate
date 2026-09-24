@@ -254,7 +254,8 @@ it runs them in one session and says so in the record.
 - It is not free, and it is built to cost little. **Each reviewer runs as
   an isolated `claude -p` process** (`review.sh`): no tools, no MCP
   servers, no skills, no project CLAUDE.md, only its role and the brief.
-  Measured in this repository: **2-12k input tokens per reviewer**,
+  Measured in this repository: **2-12k input tokens per reviewer** (plus
+  your user-level `~/.claude/CLAUDE.md`, which still loads),
   against 87-134k when the same role ran as a subagent, which inherits the
   session's prompt, every tool and your project's instructions (a
   37k-token CLAUDE.md in one adopter's repository). Without the `claude`

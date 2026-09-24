@@ -86,6 +86,12 @@ OBJECTION_CLAUDE="$T/claude-fail" bash "$REVIEW" accuser "$T/brief.md" >/dev/nul
 [ $? = 1 ] || { echo "FAIL: a failing claude did not exit 1"; failures=$((failures + 1)); }
 has "$T/err" "PARTIAL ANSWER"
 has "$T/err" "auth error"
+# Exit 0 but not JSON (a banner): shown, exit 1, not a stack trace.
+printf '#!/bin/bash\ncat >/dev/null\necho "UPDATE BANNER"\n' >"$T/claude-banner" && chmod +x "$T/claude-banner"
+OBJECTION_CLAUDE="$T/claude-banner" bash "$REVIEW" accuser "$T/brief.md" >/dev/null 2>"$T/err"
+[ $? = 1 ] || { echo "FAIL: non-JSON output did not exit 1"; failures=$((failures + 1)); }
+has "$T/err" "UPDATE BANNER"
+hasnt "$T/err" "SyntaxError"
 printf '#!/bin/bash\nsleep 30\n' >"$T/claude-hang" && chmod +x "$T/claude-hang"
 start=$(date +%s)
 OBJECTION_TIMEOUT=2 OBJECTION_CLAUDE="$T/claude-hang" bash "$REVIEW" accuser "$T/brief.md" >/dev/null 2>&1

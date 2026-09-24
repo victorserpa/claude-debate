@@ -110,8 +110,9 @@ generic accuser (`roles/accuser.md`) whose prompt also carries the
    MCP servers, no skills and no project CLAUDE.md, only its role and the
    brief (the defender also gets the code its findings cite): measured at
    2-12k input tokens per reviewer, against 87-134k for a subagent. Save
-   each answer to a file; it prints the tokens used. Exit 3 means no
-   `claude` CLI: go to the next option.
+   each answer to a file; it prints the tokens used. Exit 3 (no `claude`
+   CLI) or 2 (no `node` or `perl`): go to the next option. Your user-level
+   `~/.claude/CLAUDE.md` still loads, so keep it short.
 2. **Subagents**, if your tool has them and not the CLI. In Claude Code,
    the plugin ships them as `objection:accuser` and `objection:defender`;
    elsewhere, pass the role file's content as the subagent's
