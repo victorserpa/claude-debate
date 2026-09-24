@@ -8,9 +8,7 @@ Maintained by precedents.mjs; edit by hand only to delete a line.
 - [3x, 2026-09-24, f68452f] skills/objection/gate/: widening an allowlist to close one bypass starts blocking innocent commands nearby
 - [2x, 2026-09-24, db4fe2e] skills/objection/gate/: a normalization shared by several rules fixes one form and breaks a neighboring one
 - [2x, 2026-09-24, ab823c2] skills/objection/gate/: a value the gate cannot read was skipped silently instead of failing closed
-- [1x, 2026-09-24, 4dc01af] skills/objection/gate/: a hardcoded or first-found name (origin, first matching remote) stands in for the one gh really uses
 - [2x, 2026-09-24, 80722b1] skills/objection/: two instructions an agent reads together contradict each other (write a test, never change files)
-- [1x, 2026-09-24, ffa9cd5] skills/objection/: a rule moved or trimmed stops reaching an agent that never reads the file it moved to
 - [1x, 2026-09-24, 80722b1] skills/objection/: rules read from the branch under review instead of its base let a change rewrite its own rules
 - [2x, 2026-09-24, 471e520] skills/objection/: a paid external call whose failure or odd output discards the answer instead of showing it
 - [1x, 2026-09-24, dc942c5] test/: a live check that passes on a word the prompt already contains cannot report a miss
@@ -34,3 +32,5 @@ Maintained by precedents.mjs; edit by hand only to delete a line.
 - [1x, 2026-09-24, 8e6ef56] skills/objection/: a command run inside a while-read loop inherits the loop's stdin and eats the lines still to come
 - [1x, 2026-09-24, 8e6ef56] skills/objection/gate/: a new rule in a moving tag is applied to records made before it existed
 - [1x, 2026-09-24, 8e6ef56] eval/: a harness that matched nothing reports 0 of 0 as a pass
+- [1x, 2026-09-24, 119f23a] skills/objection/: a parser that only counts rows in one exact shape reads a model's other valid shape as zero findings and passes it
+- [1x, 2026-09-24, 119f23a] skills/objection/gate/: narrowing what counts as a finding, to stop asking for one ruling too many, lets a real finding ship unruled
