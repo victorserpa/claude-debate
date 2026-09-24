@@ -131,13 +131,8 @@ nothing added.
 
 **Rules that go into every accuser's prompt:**
 
-- Each finding has a severity (BLOCKER, HIGH, MEDIUM, LOW), a kind (BUG,
-  REGRESSION, SCOPE, INVARIANT), `file:line`, **how to prove it** (the
-  test that would fail or the execution path that reaches the defect),
-  and the **evidence** it rests on, weakest to strongest: `read` (reading
-  code), `static` (a checker or type error), `test` (an existing test
-  fails), `new-test` (a test written for it fails), `reproduced` (run and
-  observed).
+- The finding format (severity, kind, file:line, evidence, proof path) is
+  in the role file; do not repeat it in the prompt.
 - **No quota.** Never ask for "at least three problems": a quota makes
   the reviewer invent the third, and an invented finding is rework. Ask
   what it could not evaluate.
@@ -159,17 +154,20 @@ the main session judges, with these rules, not with opinion:
 |---|---|
 | REFUTED | opens the citation and checks it covers **exactly** the accused case. It does not: UPHELD. |
 | UPHELD | fixes it, or moves it to "Open" with a reason. |
-| CANNOT VERIFY | BLOCKER or HIGH: treated as UPHELD. **Tie-break by test:** write the test the accuser said would fail. Fails: UPHELD. Passes: REFUTED, and the test stays in the repository. |
+| CANNOT VERIFY | BLOCKER or HIGH: treated as UPHELD. **Tie-break by test:** write the test the accuser said would fail. Fails: UPHELD. Passes: REFUTED only with a negative control (below), and the test stays in the repository. |
 
 **The judge never refutes a finding alone.** Refuting requires the
-defender's citation, checked. The judge wrote the code, and that is the
-bias the debate exists to cut.
+defender's citation, checked, or a tie-break test with a **negative
+control**: the test fails when the accused defect is put back (revert the
+fix, or inject the defect in a scratch copy). A test that cannot fail
+proves nothing, and the judge wrote the code: that is the bias the
+debate exists to cut.
 
 **Evidence decides disputes, not eloquence.** When accuser and defender
 disagree on a BLOCKER or HIGH and neither side has more than `read`, the
-finding is not settled: raise the evidence (write the test, run the
-path) before deciding. Uncertainty never becomes approval: an unsettled
-BLOCKER or HIGH stays UPHELD.
+finding is not settled: raise the evidence (a test with a negative
+control, or run the path) before deciding. Uncertainty never becomes
+approval: an unsettled BLOCKER or HIGH stays UPHELD.
 
 ## 4. Rounds
 

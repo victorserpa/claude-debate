@@ -185,8 +185,11 @@ first, negative controls, both sides every round). Every case is in
 
 Every finding names its kind (BUG, REGRESSION, SCOPE, INVARIANT) and the
 evidence it rests on, from `read` (someone read the code) up to
-`reproduced` (someone ran it and saw it). Disputes are settled by raising
-the evidence, and uncertainty never turns into approval.
+`reproduced` (someone ran it and saw it). The skill tells the judge to
+settle disputes by raising the evidence and to keep an unsettled BLOCKER
+or HIGH open. Those are rules for the judge: `stamp.sh` and the GitHub
+check verify the stamp, the verdict and the `OPEN:` count, not the
+content of each finding. The record is public in the PR so a person can.
 
 ```markdown
 <!-- objection: sha=4dc01af... base=origin/main -->
