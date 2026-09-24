@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.12.0 (2026-09-24)
+
+**Easier to try, easier to live with.**
+
+- `init.sh`: `/objection init` asks nothing it can read. Bases from
+  origin (develop becomes the default when origin has it), `verify` from
+  the project's own scripts (package.json with its package manager,
+  Cargo, Go, Make, pytest), the hook for your agent (`--host`), the CI
+  check for GitHub or GitLab. Never overwrites a file.
+- Advisory mode: `"enforce": false` (or `init.sh --advisory`) keeps the
+  debate and turns the gate into a warning: the hook lets the PR through
+  and says what it would have blocked. Only a literal `false` counts; an
+  invalid config still blocks.
+- `pr-body.sh`: puts the stamped record into the PR body (`--update`
+  replaces it in an open PR, keeping the description), so nobody pastes
+  records after every push.
+- README: an animated demo of a real debate ($0.041, 3 bugs), the track
+  record from this repository's own PRs, a section on trying it without
+  blocking anyone, and how it differs from a review command.
+
 ## 0.11.0 (2026-09-24)
 
 **Less per PR, the same reviews.** Every cut was measured on real

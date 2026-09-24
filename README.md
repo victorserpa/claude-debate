@@ -17,6 +17,56 @@ security boundary against an agent that sets out to cheat (see
 [Honest limits](#honest-limits)). The reviewers run on your own `claude`
 or `codex` CLI, billed to your plan or key.
 
+![A real debate on a toy cart: the accuser finds a negative total and a NaN, the gate blocks gh pr create, round 2 finds one more NaN, then the record is APPROVED and the PR opens](docs/demo.svg)
+
+That run is real (sonnet, `debate.sh`, a planted bug in a
+[toy cart](docs/make-demo.mjs)): 3 bugs, 2 rounds, **$0.041** of
+reviewers.
+
+## Track record
+
+objection reviews its own pull requests, and every record is public in
+the PR body. Over the last five feature PRs
+([#20](https://github.com/victorserpa/objection/pull/20) to
+[#28](https://github.com/victorserpa/objection/pull/28)): **43 findings
+the judge upheld**, every BLOCKER and HIGH fixed before merge (the rest
+fixed or kept as open LOW items in the record), among them a gate that let a
+PR through when `ssh` could not answer (#22), a CI check that passed on
+bash 3.2 after a crash (#26), and a size rule that read binary files as
+zero lines and skipped the review (#26). The same debates cost $1.22 to
+$2.36 with opus forced on everything; on today's defaults the last one
+(#28, two rounds) cost **$0.135**.
+
+## Try it without blocking anyone
+
+```bash
+bash <skill dir>/init.sh --advisory
+```
+
+writes a config with `"enforce": false`: the debate runs, the hook says
+what it would have blocked and lets it through, and no CI check is added.
+Run it on a few PRs in the riskiest part of your code, compare with the
+review you already use, then drop the line to enforce.
+
+## How it differs from a code review command
+
+A review command (`/code-review`, a review bot) finds issues and hands
+you a list. objection is built around three things a list does not do:
+
+- **A defender.** Every finding must survive a second model trying to
+  refute it with `file:line`; what cannot be proven wrong stands, what can
+  is dropped. Fewer false positives reach you, and none are dismissed
+  without evidence.
+- **A gate.** The PR cannot be opened or merged until a judged record
+  says APPROVED for that exact commit, locally and, with the Action, in
+  CI. A review you can skip is a review that gets skipped when the agent
+  is in a hurry.
+- **Memory.** Confirmed defects become precedents
+  (`.objection/precedents.md`) that the next accuser checks first.
+
+They combine: run your review command, and let objection be the step that
+cannot be skipped.
+
 When you ask an AI to build something, it plans, writes, checks, and
 approves its own work. It is the same mind grading its own exam. This
 skill splits that into roles that argue:
@@ -92,7 +142,9 @@ Then, in each repository you want to protect, ask your agent:
 /objection init
 ```
 
-It creates `.objection.json` and installs a gate. **Nothing is enforced
+It runs `init.sh`, which asks nothing it can read for itself: bases from
+origin, `verify` from the project's own scripts, the hook for your agent,
+the CI check for GitHub or GitLab. It never overwrites a file. **Nothing is enforced
 in a repository without that file**, so installing the skill never blocks
 work anywhere you did not opt in.
 
@@ -117,6 +169,7 @@ work anywhere you did not opt in.
 | `budget` | `lean` (default), `standard` or `thorough`: how many reviewers and rounds a debate runs |
 | `models` | `{"default": "sonnet", "strong": "opus", "effort": "medium"}` (the defaults): the reviewers' model, and the stronger one used when an invariant or `strongPaths` matches, or under `thorough`; `strongEffort` sets the strong tier's effort apart (opus at `low` found the same HIGH as at its default, for $0.13 instead of $0.33); `defender` is the defender's model (default `sonnet`, whatever the accuser runs on); `laterEffort` is the accuser's effort in later rounds, which review only the fix (default `low`) |
 | `strongPaths` | a regex of paths that deserve the strong model (a gate, a validator, billing) |
+| `enforce` | `false` for advisory mode: the hook reports what it would block and lets it through |
 | `smallDiff` | under `lean`, a diff of at most this many changed lines that no invariant or `strongPaths` touches runs no reviewer; the judge reads it alone (default 20, `0` turns it off) |
 
 Requirements: `node`, `git`, `bash` and `perl`, plus the `claude` CLI or
@@ -405,6 +458,8 @@ skills/objection/            the skill, self-contained
   review.sh                  runs a reviewer as an isolated claude -p process
   debate.sh                  runs a round up to the judge, writes the draft record
   ci-review.sh               the accuser in CI, for the Action's review input
+  init.sh                    opts a repository in without questions
+  pr-body.sh                 puts the stored record into the PR body
   usage.sh                   what the reviewers cost, per branch
   precedents.mjs             keeps .objection/precedents.md
   gate/core.mjs              gate logic, tool-neutral

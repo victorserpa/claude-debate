@@ -1,7 +1,11 @@
 #!/bin/bash
 # Opts a repository in without asking anything it can read for itself.
 #
-#   init.sh [--host plugin|claude|cursor|codex|gemini] [--dry-run]
+#   init.sh [--host plugin|claude|cursor|codex|gemini] [--advisory] [--dry-run]
+#
+# --advisory: try it without blocking anyone. The config gets
+# "enforce": false (the local hook reports what it would block and lets
+# it through) and no CI check is written. Remove the line to enforce.
 #
 # Writes .objection.json from what the repository shows:
 #   bases       origin's default branch, plus develop when origin has it
@@ -23,11 +27,13 @@ set -eu
 
 host=plugin
 dry=""
+advisory=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --host) host="${2:?--host needs plugin, claude, cursor, codex or gemini}"; shift 2 ;;
     --dry-run) dry=yes; shift ;;
-    *) echo "usage: init.sh [--host plugin|claude|cursor|codex|gemini] [--dry-run]" >&2; exit 2 ;;
+    --advisory) advisory=yes; shift ;;
+    *) echo "usage: init.sh [--host plugin|claude|cursor|codex|gemini] [--advisory] [--dry-run]" >&2; exit 2 ;;
   esac
 done
 case "$host" in plugin | claude | cursor | codex | gemini) ;; *) echo "unknown host: $host" >&2; exit 2 ;; esac
@@ -64,7 +70,7 @@ esac
 
 config=$(node -e '
 const fs = require("fs");
-const [bases, def] = [process.argv[1].split(" "), process.argv[2]];
+const [bases, def, advisory] = [process.argv[1].split(" "), process.argv[2], process.argv[3] === "yes"];
 const has = (f) => fs.existsSync(f);
 const verify = [];
 if (has("package.json")) {
@@ -82,9 +88,9 @@ if (has("Cargo.toml")) verify.push("cargo check", "cargo test");
 if (has("go.mod")) verify.push("go vet ./...", "go test ./...");
 if (!verify.length && has("Makefile") && /^test:/m.test(fs.readFileSync("Makefile", "utf8"))) verify.push("make test");
 if (!verify.length && (has("pytest.ini") || (has("pyproject.toml") && /pytest/.test(fs.readFileSync("pyproject.toml", "utf8"))))) verify.push("python -m pytest");
-const c = { bases, defaultBase: def, verify, budget: "lean" };
+const c = { bases, defaultBase: def, verify, budget: "lean", ...(advisory && { enforce: false }) };
 process.stdout.write(JSON.stringify(c, null, 2) + "\n");
-' "$bases" "$base_default")
+' "$bases" "$base_default" "$advisory")
 
 # The skill directory as the hook should name it: relative to the
 # repository when the skill lives inside it, absolute otherwise.
@@ -122,7 +128,8 @@ case "$host" in
   codex) put .codex/hooks.json "$(template codex/hooks.json)" ;;
   gemini) put .gemini/settings.json "$(template gemini/settings.json)" ;;
 esac
-case "$forge" in
+[ -z "$advisory" ] || forge_gate=none
+case "${forge_gate:-$forge}" in
   github) put .github/workflows/objection.yml "$(cat "$here/templates/github/objection.yml")" ;;
   gitlab) put .gitlab/objection.gitlab-ci.yml "$(cat "$here/templates/gitlab/objection.gitlab-ci.yml")" ;;
 esac
@@ -138,7 +145,8 @@ printf '%s\n' "$config" | grep -q '"verify": \[\]' &&
 echo "next:"
 [ "$host" = plugin ] && echo "- local gate: the Claude Code plugin's hook (nothing written); other agents: init.sh --host cursor|codex|gemini"
 [ "$host" = codex ] && echo "- Codex hooks are experimental: enable them in Codex's config."
-case "$forge" in
+[ -z "$advisory" ] || echo "- advisory: nothing blocks; the hook says what it would block. Remove \"enforce\": false to enforce; for the CI check copy templates/github/objection.yml (or the GitLab one)."
+[ -n "$advisory" ] || case "$forge" in
   github) echo "- GitHub: make the \"record\" check required in a ruleset on $default (Settings > Rules)." ;;
   gitlab) echo "- GitLab: include .gitlab/objection.gitlab-ci.yml from .gitlab-ci.yml and turn on \"Pipelines must succeed\"." ;;
   *) echo "- no GitHub or GitLab origin: there is no CI gate, the debate is advice there." ;;

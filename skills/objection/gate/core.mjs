@@ -123,6 +123,10 @@ function glab(args, opts) {
 }
 
 export function gate(input) {
+  // "enforce": false in the config (advisory mode): the debate still runs,
+  // and what would block is reported instead. Only a literal false counts;
+  // anything else (a string, a typo) keeps the gate on.
+  let advisory = false;
   try {
     function git(dir, ...args) {
       // Timeout: without it a hung git/gh pushes the hook past the harness
@@ -158,6 +162,7 @@ export function gate(input) {
 
     const config = loadConfig(sessionDir);
     if (!config) return ALLOW;
+    advisory = config.enforce === false;
 
     // The base `gh pr create` uses without --base: the branch's
     // gh-merge-base setting, else the repository's default branch as GitHub
@@ -870,7 +875,10 @@ export function gate(input) {
 
     return ALLOW;
   } catch (e) {
-    if (e instanceof Blocked) return { blocked: true, reason: e.reason, hint: e.withHint };
+    if (e instanceof Blocked)
+      return advisory
+        ? { blocked: false, warning: e.reason }
+        : { blocked: true, reason: e.reason, hint: e.withHint };
     throw e;
   }
 }

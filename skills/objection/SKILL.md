@@ -23,6 +23,8 @@ Everything this skill needs sits next to this file:
 | `roles/accuser.md` | the prosecution's instructions |
 | `roles/defender.md` | the defense's instructions |
 | `stamp.sh` | validates a record and stores it for the current commit |
+| `pr-body.sh` | puts the stored record into the PR body (`--update` for an open PR) |
+| `init.sh` | opts a repository in without questions (`--advisory` to try it without blocking) |
 | `brief.sh` | builds the one context file every reviewer of a round reads |
 | `review.sh` | runs a reviewer as an isolated `claude -p` process (2-12k tokens) |
 | `gate/hook.mjs` | local gate for Claude Code, Codex, Gemini CLI and Cursor |
@@ -294,11 +296,19 @@ The base defaults to `origin/<defaultBase>`. It refuses a record without
 the sections, with a `TODO(judge)` line left, with a dirty tree, with a
 base outside `bases`, or APPROVED with a serious finding open. It stores the
 record with a stamp (`<!-- objection: sha=... base=... -->`) on the first
-line and prints where. Then push the debated commit and **paste the
-stored record, stamp line included, into the PR body**: the GitHub check
-reads it from there, and reviewers see what was rejected and what was
-fixed because of it. A later push changes the SHA: debate the new
-commits and replace the record in the body.
+line and prints where. Then push the debated commit and put the stored
+record, stamp line included, into the PR body: `bash <this skill's
+directory>/pr-body.sh` writes the body and prints its path (`gh pr create
+--body-file <path>`; `OBJECTION_SUMMARY` sets the text above the record),
+and `pr-body.sh --update` replaces the record in an open PR's body,
+keeping the description. The GitHub check reads it from there, and
+reviewers see what was rejected and what was fixed because of it. A
+later push changes the SHA: debate the new commits (`debate.sh --since`)
+and run `pr-body.sh --update`.
+
+With `"enforce": false` in the config (advisory mode), the hook lets the
+PR through and says what it would have blocked: run the debate anyway,
+it is the point.
 
 ## Cost
 

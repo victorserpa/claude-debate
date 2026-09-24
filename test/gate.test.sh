@@ -78,6 +78,21 @@ check 0 $F Bash 'gh pr create --fill'
 check 0 $F Bash 'gh pr merge 5 --auto'
 check 0 $F mcp__github__create_pull_request ''
 
+# Advisory mode ("enforce": false): what would block is allowed, with the
+# reason on stderr; an invalid config still blocks (fail closed).
+A="$T/adv"
+git init -q "$A" && printf '{"bases":["main"],"enforce":false}\n' >"$A/.objection.json" && gitc -C "$A" add . && gitc -C "$A" commit -q -m adv
+check 0 $A Bash 'gh pr create --fill'
+printf '{"cwd":"%s","tool_name":"Bash","tool_input":{"command":"gh pr create --fill"}}' "$A" | node "$HOOK" >"$T/adv.out" 2>"$T/adv.err"
+grep -qF "[objection] Advisory (enforce is false), would block:" "$T/adv.err" || { echo "FAIL: advisory mode did not warn"; failures=$((failures + 1)); }
+grep -qF '"systemMessage"' "$T/adv.out" || { echo "FAIL: advisory mode did not tell the Claude Code user"; failures=$((failures + 1)); }
+printf '{"cwd":"%s","command":"gh pr create --fill"}' "$A" | node "$HOOK" --host cursor >"$T/adv.out" 2>/dev/null
+grep -qF '"permission":"allow"' "$T/adv.out" || { echo "FAIL: advisory mode denied in Cursor"; failures=$((failures + 1)); }
+printf '{"bases":["main"],"enforce":"false"}\n' >"$A/.objection.json"
+check 2 $A Bash 'gh pr create --fill'
+printf '{"bases":["main"],"enforce":false\n' >"$A/.objection.json"
+check 2 $A Bash 'gh pr create --fill'
+
 # Not about a PR: allowed.
 check 0 $N Bash 'git status'
 check 0 $N Bash 'gh pr list'

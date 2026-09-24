@@ -72,6 +72,13 @@ hasnt .gemini/settings.json "hook.mjs"
 has "$T/out" "merge by hand: .gemini/settings.json"
 has "$T/out" "--host gemini"
 
+# Advisory: enforce false, no CI check.
+repo adv git@github.com:me/adv.git
+bash "$INIT" --advisory >"$T/out" 2>&1 || fail "advisory init failed ($(cat "$T/out"))"
+has .objection.json '"enforce": false'
+[ -e .github ] && fail "advisory init wrote a CI check"
+has "$T/out" "advisory: nothing blocks"
+
 # Nothing to verify: said so. Dry run: writes nothing.
 repo dry git@github.com:me/dry.git
 bash "$INIT" --dry-run >"$T/out" 2>&1 || fail "dry run failed"

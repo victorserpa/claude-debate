@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="488" viewBox="0 0 940 488" role="img" aria-label="objection catches a negative cart total and a NaN, blocks the PR, then approves it after the fixes">
+<style>
+text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13.5px;white-space:pre;opacity:0}
+@media (prefers-reduced-motion: reduce){text{animation:none!important;opacity:1}}
+@keyframes l0{0%,1.86%{opacity:0}1.87%,98%{opacity:1}100%{opacity:0}}.l0{animation:l0 21.5s linear infinite}
+@keyframes l1{0%,7.44%{opacity:0}7.45%,98%{opacity:1}100%{opacity:0}}.l1{animation:l1 21.5s linear infinite}
+@keyframes l2{0%,13.95%{opacity:0}13.96%,98%{opacity:1}100%{opacity:0}}.l2{animation:l2 21.5s linear infinite}
+@keyframes l3{0%,16.28%{opacity:0}16.29%,98%{opacity:1}100%{opacity:0}}.l3{animation:l3 21.5s linear infinite}
+@keyframes l4{0%,18.60%{opacity:0}18.61%,98%{opacity:1}100%{opacity:0}}.l4{animation:l4 21.5s linear infinite}
+@keyframes l5{0%,21.86%{opacity:0}21.87%,98%{opacity:1}100%{opacity:0}}.l5{animation:l5 21.5s linear infinite}
+@keyframes l6{0%,24.19%{opacity:0}24.20%,98%{opacity:1}100%{opacity:0}}.l6{animation:l6 21.5s linear infinite}
+@keyframes l7{0%,26.51%{opacity:0}26.52%,98%{opacity:1}100%{opacity:0}}.l7{animation:l7 21.5s linear infinite}
+@keyframes l8{0%,33.02%{opacity:0}33.03%,98%{opacity:1}100%{opacity:0}}.l8{animation:l8 21.5s linear infinite}
+@keyframes l9{0%,35.81%{opacity:0}35.82%,98%{opacity:1}100%{opacity:0}}.l9{animation:l9 21.5s linear infinite}
+@keyframes l10{0%,43.26%{opacity:0}43.27%,98%{opacity:1}100%{opacity:0}}.l10{animation:l10 21.5s linear infinite}
+@keyframes l11{0%,47.44%{opacity:0}47.45%,98%{opacity:1}100%{opacity:0}}.l11{animation:l11 21.5s linear infinite}
+@keyframes l12{0%,53.02%{opacity:0}53.03%,98%{opacity:1}100%{opacity:0}}.l12{animation:l12 21.5s linear infinite}
+@keyframes l13{0%,58.60%{opacity:0}58.61%,98%{opacity:1}100%{opacity:0}}.l13{animation:l13 21.5s linear infinite}
+@keyframes l14{0%,62.79%{opacity:0}62.80%,98%{opacity:1}100%{opacity:0}}.l14{animation:l14 21.5s linear infinite}
+@keyframes l15{0%,65.58%{opacity:0}65.59%,98%{opacity:1}100%{opacity:0}}.l15{animation:l15 21.5s linear infinite}
+@keyframes l16{0%,70.23%{opacity:0}70.24%,98%{opacity:1}100%{opacity:0}}.l16{animation:l16 21.5s linear infinite}
+@keyframes l17{0%,73.02%{opacity:0}73.03%,98%{opacity:1}100%{opacity:0}}.l17{animation:l17 21.5s linear infinite}
+@keyframes l18{0%,76.74%{opacity:0}76.75%,98%{opacity:1}100%{opacity:0}}.l18{animation:l18 21.5s linear infinite}
+</style>
+<rect width="940" height="488" rx="10" fill="#0d1117"/>
+<circle cx="22" cy="20" r="6" fill="#ff5f57"/><circle cx="42" cy="20" r="6" fill="#febc2e"/><circle cx="62" cy="20" r="6" fill="#28c840"/>
+<text x="470" y="24" fill="#8b949e" text-anchor="middle" style="opacity:1">objection: a real debate on a toy cart</text>
+<text class="l0" x="20" y="52" fill="#8b949e"># the agent added fixed-amount coupons to a cart; invariant: a total is never negative</text>
+<text class="l1" x="20" y="74" fill="#e6edf3">$ bash debate.sh main &quot;Add fixed-amount coupons&quot;</text>
+<text class="l2" x="20" y="96" fill="#8b949e">objection: accuser used 2708 input + 632 output tokens ($0.010)</text>
+<text class="l3" x="20" y="118" fill="#8b949e">objection: defender used 3168 input + 292 output tokens ($0.008)</text>
+<text class="l4" x="20" y="140" fill="#e6edf3">findings: 1 BLOCKER, 1 HIGH, 1 MEDIUM, 0 LOW</text>
+<text class="l5" x="20" y="162" fill="#ff7b72"> 1 BLOCKER  cart.js:10  $10 off a $4 cart: total = -600 (invariant broken)</text>
+<text class="l6" x="20" y="184" fill="#ffa657"> 2 HIGH     cart.js:10  amount: 0 falls through to percent: total = NaN</text>
+<text class="l7" x="20" y="206" fill="#79c0ff"> defender:  UPHELD both: no clamp anywhere (cart.js:4)</text>
+<text class="l8" x="20" y="228" fill="#e6edf3">$ gh pr create --base main --fill</text>
+<text class="l9" x="20" y="250" fill="#ff7b72">[objection] Blocked: no /objection record for commit 2b5d414.</text>
+<text class="l10" x="20" y="272" fill="#8b949e"># the agent fixes both, runs round 2 on the fix only</text>
+<text class="l11" x="20" y="294" fill="#e6edf3">$ bash debate.sh --since 2b5d414 main</text>
+<text class="l12" x="20" y="316" fill="#ffa657"> 1 HIGH     cart.js:10  amount: NaN still passes the check: total = NaN</text>
+<text class="l13" x="20" y="338" fill="#8b949e"># fixed again; the session judges every finding, then stamps the record</text>
+<text class="l14" x="20" y="360" fill="#e6edf3">$ bash stamp.sh record.md</text>
+<text class="l15" x="20" y="382" fill="#7ee787">record stored for 69e9b18   VERDICT: APPROVED</text>
+<text class="l16" x="20" y="404" fill="#e6edf3">$ gh pr create --base main --fill</text>
+<text class="l17" x="20" y="426" fill="#7ee787">(allowed: gh runs and opens the PR)</text>
+<text class="l18" x="20" y="448" fill="#e3b341">3 real bugs caught before the PR existed: 2 rounds, $0.041 of reviewers</text>
+</svg>

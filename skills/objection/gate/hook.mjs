@@ -71,5 +71,11 @@ const call = command
 
 const result = gate(call);
 if (result.blocked) deny(result.reason, result.hint);
-if (host === "cursor") process.stdout.write(JSON.stringify({ continue: true, permission: "allow" }));
+// Advisory mode: allowed, and both the agent (stderr) and the user hear why
+// it would have been blocked.
+const note = result.warning ? `[objection] Advisory (enforce is false), would block: ${result.warning}` : "";
+if (note) process.stderr.write(`${note}\n`);
+if (host === "cursor")
+  process.stdout.write(JSON.stringify({ continue: true, permission: "allow", ...(note && { userMessage: note, agentMessage: note }) }));
+else if (note && host === "claude") process.stdout.write(JSON.stringify({ systemMessage: note }));
 process.exit(0);
