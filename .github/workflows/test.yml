@@ -21,3 +21,4 @@ jobs:
       - run: bash test/roles-in-sync.test.sh
       - run: bash test/precedents.test.sh
       - run: bash test/brief.test.sh
+      - run: bash test/review.test.sh

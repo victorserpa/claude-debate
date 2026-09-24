@@ -50,7 +50,9 @@ bash test/check-pr.test.sh
 bash test/roles-in-sync.test.sh
 bash test/precedents.test.sh
 bash test/brief.test.sh
+bash test/review.test.sh
 claude plugin validate .
+bash test/review.live.sh    # optional: the real claude CLI, a few cents
 ```
 
 - Changing the gate, a check or a validator? Follow "When the diff is a

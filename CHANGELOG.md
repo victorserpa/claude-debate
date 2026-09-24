@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.6.0 (2026-09-24)
+
+**Reviewers run isolated: 2-12k input tokens each instead of 87-134k.**
+
+- `review.sh accuser <brief>` / `review.sh defender <brief> <findings>`
+  run a role as a `claude -p` process with no tools, no MCP servers, no
+  skills, no user or project settings and no project CLAUDE.md: the role
+  is the whole system prompt and the brief is the only input. Measured in
+  this repository: 6,843 (accuser) and 11,634 (defender) input tokens,
+  against 87-134k for the same roles run as subagents. The defender also
+  gets the code around every file:line its findings cite. A timeout stops
+  a hung call, and a failed call shows what came back.
+- SKILL.md: isolated runs first; subagents only when the `claude` CLI is
+  not available.
+- `test/review.live.sh` proves the isolation against the real CLI (1,678
+  input tokens for a small diff).
+
 ## 0.5.0 (2026-09-24)
 
 **Cheaper by default.** An adopter measured ~9 reviewer subagents at

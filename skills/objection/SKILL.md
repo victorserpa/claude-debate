@@ -24,6 +24,7 @@ Everything this skill needs sits next to this file:
 | `roles/defender.md` | the defense's instructions |
 | `stamp.sh` | validates a record and stores it for the current commit |
 | `brief.sh` | builds the one context file every reviewer of a round reads |
+| `review.sh` | runs a reviewer as an isolated `claude -p` process (2-12k tokens) |
 | `gate/hook.mjs` | local gate for Claude Code, Codex, Gemini CLI and Cursor |
 | `gate/check-pr.mjs` | the same gate as a GitHub check, for any tool or human |
 
@@ -61,10 +62,11 @@ code that does not pass.
 
 ## Token budget
 
-The debate must cost less than the rework it prevents. Every subagent
-starts by reloading your tool's system prompt and the project's
-instructions (a large CLAUDE.md is paid again by each one), so the
-number of subagents is the main cost, then how much each one reads.
+The debate must cost less than the rework it prevents. A reviewer costs
+its start-up plus what it reads. `review.sh` makes the start-up small
+(no tools, no project instructions); a subagent pays your whole session's
+prompt, tools and CLAUDE.md again. Either way, the number of reviewers
+multiplies the cost, and the brief keeps the reading small.
 
 **One brief per round.** Run `bash <this skill's directory>/brief.sh
 origin/<base> "<goal in one sentence>" "<scope, if the task states one>"`.
@@ -100,14 +102,26 @@ generic accuser (`roles/accuser.md`) whose prompt also carries the
 
 **How to run a role**, in order of preference:
 
-1. **Subagents, in parallel**, if your tool has them. In Claude Code, the
-   plugin ships them as `objection:accuser` and `objection:defender`.
-   Elsewhere, pass the role file's content as the subagent's instructions.
-2. **Sequentially in a fresh context** if there are no subagents: a new
-   chat or session per role, given the role file, the diff, and nothing
-   of your own reasoning. The point is that the accuser has not seen why
-   you wrote the code the way you did.
-3. **Last resort, in this same session:** reread the role file and adopt
+1. **Isolated process, when the `claude` CLI is available** (any tool can
+   call it):
+   `bash <this skill's directory>/review.sh accuser <brief>` and, for the
+   defense, `review.sh defender <brief> <findings.md>` (the findings the
+   budget sends it, as the accuser's table). Each runs with no tools, no
+   MCP servers, no skills and no project CLAUDE.md, only its role and the
+   brief (the defender also gets the code its findings cite): measured at
+   2-12k input tokens per reviewer, against 87-134k for a subagent. Save
+   each answer to a file; it prints the tokens used. Exit 3 means no
+   `claude` CLI: go to the next option.
+2. **Subagents**, if your tool has them and not the CLI. In Claude Code,
+   the plugin ships them as `objection:accuser` and `objection:defender`;
+   elsewhere, pass the role file's content as the subagent's
+   instructions. They inherit your session's prompt, tools and project
+   instructions, so they cost several times more.
+3. **Sequentially in a fresh context** if there are neither: a new chat or
+   session per role, given the role file, the brief, and nothing of your
+   own reasoning. The point is that the accuser has not seen why you wrote
+   the code the way you did.
+4. **Last resort, in this same session:** reread the role file and adopt
    it fully, then write the findings before looking at your own code
    again. Say in the record that the roles ran in one context; it is a
    weaker debate and the reader should know.

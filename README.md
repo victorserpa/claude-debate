@@ -251,22 +251,23 @@ it runs them in one session and says so in the record.
   the record is public in the PR body.
 - `curl` against the GitHub API with a token from `gh auth token` is not
   blocked by the local hook (the GitHub check still catches the PR).
-- It is not free. Each reviewer is a subagent, and every subagent starts
-  by reloading your tool's system prompt and **your project's
-  instructions**: a 37k-token CLAUDE.md, measured in one adopter's
-  repository, is paid again by each reviewer. The biggest saving is a
-  short CLAUDE.md (history in `docs/`, rules in the file). On top of that,
-  objection keeps the count and the reading low:
+- It is not free, and it is built to cost little. **Each reviewer runs as
+  an isolated `claude -p` process** (`review.sh`): no tools, no MCP
+  servers, no skills, no project CLAUDE.md, only its role and the brief.
+  Measured in this repository: **2-12k input tokens per reviewer**,
+  against 87-134k when the same role ran as a subagent, which inherits the
+  session's prompt, every tool and your project's instructions (a
+  37k-token CLAUDE.md in one adopter's repository). Without the `claude`
+  CLI, the skill falls back to subagents. On top of that, objection keeps
+  the count and the reading low:
   - `lean` is the default: one accuser per round, the defender only for
     BLOCKER or HIGH findings, a second round only when a fix touches a
     gate or exceeds 40 lines (otherwise the tests verify it), at most two
     rounds; `standard` and `thorough` spend more for more coverage;
   - every reviewer of a round reads one brief (`brief.sh`): the trimmed
     diff, changed files, invariants, reviewer focus and precedents, and
-    opens at most 5 other files, each for a named suspicion. This cuts the
-    exploring, not the start-up cost: in this repository a reviewer with
-    the brief still used about 110k tokens, most of it the session's own
-    tools and instructions. Fewer reviewers is what saves the most;
+    opens at most 5 other files, each for a named suspicion (in an isolated
+    run it has no tools at all and judges from the brief);
   - answers come in a fixed table capped at 15 rows, and the gate hook
     runs outside the model and costs no tokens.
 
@@ -296,6 +297,7 @@ skills/objection/            the skill, self-contained
   reference/                 init and gate-change rules, read only when needed
   stamp.sh                   validates and stores the record
   brief.sh                   the one context file every reviewer of a round reads
+  review.sh                  runs a reviewer as an isolated claude -p process
   precedents.mjs             keeps .objection/precedents.md
   gate/core.mjs              gate logic, tool-neutral
   gate/hook.mjs              local hook for Claude Code, Codex, Gemini CLI, Cursor

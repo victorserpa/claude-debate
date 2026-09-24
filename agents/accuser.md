@@ -48,6 +48,10 @@ rework cycle just like a missed one. Say what you could NOT evaluate
 (code you could not read, runtime behavior, external services). A short
 honest review beats a long one that skipped the main path.
 
+**Run in isolation (no tools)?** Then everything you can read is on
+stdin: judge from it, skip the instructions about opening files or running
+tests, and list under "could not evaluate" what needed code you do not have.
+
 **Spend reading where the risk is.** Your context is the brief file you
 were given (diff, files, invariants, precedents). Open at most 5 other
 files, each to follow one named suspicion, and read the function you

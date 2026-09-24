@@ -57,11 +57,40 @@ has "$T/stdin" "## src/a.ts (lines 60-140)"
 has "$T/stdin" "  100  code line 100"
 hasnt "$T/stdin" "code line 141"
 hasnt "$T/stdin" "## missing/file.ts"
-# A dirty working copy does not leak: excerpts come from HEAD.
+# A dirty working copy does not leak: excerpts come from HEAD. The recorded
+# stdin is removed first, so the case cannot pass on the previous run.
 printf 'UNCOMMITTED\n' >>src/a.ts
+rm -f "$T/stdin"
 bash "$REVIEW" defender "$T/brief.md" "$T/findings.md" >/dev/null 2>&1
+has "$T/stdin" "## src/a.ts (lines 60-140)"
 hasnt "$T/stdin" "UNCOMMITTED"
 git checkout -q src/a.ts
+# Cited code past the cap is cut with a notice.
+rm -f "$T/stdin"
+OBJECTION_EXCERPT_MAX=10 bash "$REVIEW" defender "$T/brief.md" "$T/findings.md" >/dev/null 2>&1
+has "$T/stdin" "TRUNCATED: the cited code"
+# The accuser runs outside a git repository (it needs none).
+rm -f "$T/stdin"
+(cd "$T" && bash "$REVIEW" accuser "$T/brief.md" >/dev/null 2>&1) || { echo "FAIL: accuser needs a git repository"; failures=$((failures + 1)); }
+has "$T/stdin" "the diff"
+# A failing or hung claude: exit 1, and whatever came back is shown.
+cat >"$T/claude-fail" <<'EOF'
+#!/bin/bash
+cat >/dev/null
+echo "PARTIAL ANSWER"
+echo "auth error" >&2
+exit 7
+EOF
+chmod +x "$T/claude-fail"
+OBJECTION_CLAUDE="$T/claude-fail" bash "$REVIEW" accuser "$T/brief.md" >/dev/null 2>"$T/err"
+[ $? = 1 ] || { echo "FAIL: a failing claude did not exit 1"; failures=$((failures + 1)); }
+has "$T/err" "PARTIAL ANSWER"
+has "$T/err" "auth error"
+printf '#!/bin/bash\nsleep 30\n' >"$T/claude-hang" && chmod +x "$T/claude-hang"
+start=$(date +%s)
+OBJECTION_TIMEOUT=2 OBJECTION_CLAUDE="$T/claude-hang" bash "$REVIEW" accuser "$T/brief.md" >/dev/null 2>&1
+rc=$?
+[ "$rc" = 1 ] && [ $(( $(date +%s) - start )) -lt 15 ] || { echo "FAIL: a hung claude was not stopped (rc=$rc)"; failures=$((failures + 1)); }
 
 # Refusals: unknown role, missing files, no claude CLI (exit 3).
 bash "$REVIEW" judge "$T/brief.md" >/dev/null 2>&1 && { echo "FAIL: unknown role accepted"; failures=$((failures + 1)); }

@@ -36,6 +36,10 @@ or behind a disabled flag defends nothing.
 propose the new severity with the reason. Lowering severity is not
 refuting.
 
+**Run in isolation (no tools)?** Then everything you can read is on
+stdin: judge from it, skip the instructions about opening files or running
+tests, and list under "could not evaluate" what needed code you do not have.
+
 **Read only what a verdict needs:** the cited lines and the code that
 could defend them, at most 5 files beyond the brief. You get findings,
 not the whole diff; open the brief only when a finding depends on it.
