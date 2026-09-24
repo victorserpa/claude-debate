@@ -2,12 +2,20 @@
 
 > **OBJECTION!** Your PR goes on trial before it ships.
 
-Adversarial review for AI coding agents: accusers attack the diff, a
-defender refutes them with evidence, a judge rules, and a gate keeps the
-PR from being created or merged until the verdict is APPROVED. Works with
-Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot, and anything else
-that reads [Agent Skills](https://agentskills.io) or opens pull requests
-on GitHub.
+**A skill and plugin for AI coding agents**, not an app or a service.
+You install it into your agent (Claude Code, Codex, Cursor, Gemini CLI,
+GitHub Copilot, or anything else that reads
+[Agent Skills](https://agentskills.io)), and the agent follows it before
+it opens a pull request: accusers attack the diff, a defender refutes them
+with evidence, the agent's own session judges, and a gate keeps the PR
+from being created or merged until the verdict is APPROVED.
+
+What it is: instructions and role prompts the agent reads, a few bash and
+node scripts it runs, a local hook, and an optional GitHub Action or
+GitLab CI job. What it is not: a hosted reviewer, a bot account, or a
+security boundary against an agent that sets out to cheat (see
+[Honest limits](#honest-limits)). The reviewers run on your own `claude`
+or `codex` CLI, billed to your plan or key.
 
 When you ask an AI to build something, it plans, writes, checks, and
 approves its own work. It is the same mind grading its own exam. This
@@ -107,8 +115,9 @@ work anywhere you did not opt in.
 | `reviewers` | your own reviewers, added as accusers when the diff touches `paths` (under `standard` and `thorough`); an `agent` named `opus`, `sonnet`, `haiku` or `claude-*` runs on that model in `debate.sh`; any other `agent` (another tool) is a label there, run it by hand for a second opinion |
 | `invariants` | rules that must never break, each with the `paths` it guards; a violation is a BLOCKER |
 | `budget` | `lean` (default), `standard` or `thorough`: how many reviewers and rounds a debate runs |
-| `models` | `{"default": "sonnet", "strong": "opus", "effort": "medium"}` (the defaults): the reviewers' model, and the stronger one used when an invariant or `strongPaths` matches, or under `thorough` |
+| `models` | `{"default": "sonnet", "strong": "opus", "effort": "medium"}` (the defaults): the reviewers' model, and the stronger one used when an invariant or `strongPaths` matches, or under `thorough`; `strongEffort` sets the strong tier's effort apart (opus at `low` found the same HIGH as at its default, for $0.13 instead of $0.33) |
 | `strongPaths` | a regex of paths that deserve the strong model (a gate, a validator, billing) |
+| `smallDiff` | under `lean`, a diff of at most this many changed lines that no invariant or `strongPaths` touches runs no reviewer; the judge reads it alone (default 20, `0` turns it off) |
 
 Requirements: `node`, `git`, `bash` and `perl`, plus the `claude` CLI or
 the `codex` CLI to run the reviewers cheaply, and `gh` or `glab` for the
@@ -141,7 +150,7 @@ each host's hook format; templates live in
 | host | hook | status |
 |---|---|---|
 | Claude Code | `PreToolUse` (ships with the plugin) | used daily |
-| Cursor | `beforeShellExecution` + `beforeMCPExecution` | built from Cursor's docs; input shapes covered by tests, not yet run in Cursor |
+| Cursor | `beforeShellExecution` + `beforeMCPExecution` | run live with the `cursor-agent` CLI: blocked `gh pr create` without a record (gh never ran), allowed it with one. The hook does not inherit the agent's shell `PATH`: put `node` where the hook's environment finds it |
 | Codex CLI | `PreToolUse` (experimental in Codex, must be enabled) | built from Codex's docs; not yet run in Codex |
 | Gemini CLI | `BeforeTool` | built from Gemini CLI's docs; not yet run in Gemini |
 | GitHub Copilot | hook format not confirmed | use the GitHub check |
@@ -168,6 +177,32 @@ jobs:
 
 A push changes the head SHA, so the check fails again until the new
 commits are debated and the body is updated.
+
+**3. Independent review in CI (optional).** The record is written on the
+agent's machine, with your credentials, so an agent that sets out to
+cheat can forge one. `review: true` adds a second step that runs the
+accuser itself, on GitHub's runner, with a key the agent never sees, on
+the head SHA GitHub reports, and fails when it finds a BLOCKER
+(`fail-on: high` for HIGH too, `none` to only report). The findings go
+to the job summary. The PR's code is never checked out or run: the base
+and the PR head are fetched as commits, and the scripts come from the
+action. About $0.05 per push on sonnet.
+
+```yaml
+      - uses: victorserpa/objection@v1
+        with:
+          review: true
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+It is a barrier only when the agent cannot get around it: the token the
+agent uses must not be able to bypass the ruleset or push to the base
+branch (where this workflow lives). For a solo admin whose agent uses
+the admin's own `gh` login, GitHub cannot tell the two apart; use a
+fine-grained token without admin rights for the agent. One reviewer with
+no defense can be wrong, and the diff it reads is written by the agent:
+text in the diff can try to talk it out of a finding. It has no tools,
+so the worst case is a missed finding, not an action.
 
 **GitLab CI.** Copy [`templates/gitlab/objection.gitlab-ci.yml`](skills/objection/templates/gitlab/objection.gitlab-ci.yml),
 include it from `.gitlab-ci.yml`, and turn on *Pipelines must succeed*
@@ -280,7 +315,14 @@ it runs them in one session and says so in the record.
 
 - It is a **process guard, not a security boundary.** An agent determined
   to cheat could write a fake record. The skill forbids it in writing, and
-  the record is public in the PR body.
+  the record is public in the PR body. No signature fixes that: the key
+  would sit on the same machine as the agent. What does is a reviewer the
+  agent cannot reach (the CI review above) plus a token for the agent
+  that cannot bypass the ruleset.
+- The local hook reads commands with patterns, not a shell parser. It
+  catches an agent that forgets the debate, including the spellings the
+  tests list, not one that disguises the command (an alias, a script that
+  calls `gh`, `curl` to the API). The CI check covers those.
 - `curl` against the GitHub API with a token from `gh auth token` is not
   blocked by the local hook (the GitHub check still catches the PR).
 - **What a PR costs.** Measured with `usage.sh` on one brief with a known
@@ -313,6 +355,10 @@ it runs them in one session and says so in the record.
   - `debate.sh` runs a whole round up to the judge (brief, accuser,
     defender for what the budget sends, a draft record), so your session
     reads one file instead of driving every step;
+  - under `lean`, a small diff (`smallDiff`, 20 changed lines) that no
+    invariant or `strongPaths` touches runs no reviewer at all;
+  - each finding is numbered once and the draft record does not repeat
+    the table, so the judging session reads less;
   - `usage.sh` shows what each branch's reviewers cost, from a log
     `review.sh` keeps in `.git/objection/usage.log`;
   - answers come in a fixed table capped at 15 rows, and the gate hook
@@ -346,6 +392,7 @@ skills/objection/            the skill, self-contained
   brief.sh                   the one context file every reviewer of a round reads
   review.sh                  runs a reviewer as an isolated claude -p process
   debate.sh                  runs a round up to the judge, writes the draft record
+  ci-review.sh               the accuser in CI, for the Action's review input
   usage.sh                   what the reviewers cost, per branch
   precedents.mjs             keeps .objection/precedents.md
   gate/core.mjs              gate logic, tool-neutral

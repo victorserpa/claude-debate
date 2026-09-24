@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.10.0 (2026-09-24)
+
+**Say what it is, spend less, and a reviewer the agent cannot reach.**
+
+- README opens with what objection is: a skill and plugin installed into
+  AI coding agents, not an app or a hosted service, and what it is not.
+- Under `lean`, a diff of at most `smallDiff` changed lines (default 20,
+  `0` turns it off) that no invariant or `strongPaths` touches runs no
+  reviewer: the draft says so and the judge reads the diff alone.
+- `models.strongEffort` sets the strong tier's effort apart (opus at low
+  found the same HIGH as at its default effort for $0.13, not $0.33).
+- The draft record numbers each finding once, in the Accusation; the
+  defender gets the same numbers and the table is not repeated.
+- The Action takes `review: true` (with `anthropic-api-key`, `model`,
+  `effort`, `fail-on`): `ci-review.sh` runs the accuser on the PR head in
+  CI, never checking out or running the PR's code, and fails on a BLOCKER
+  (or HIGH). It fails closed, including on bash 3.2, which exits 0 from a
+  `set -u` error under an EXIT trap.
+- Cursor: the hook was run live with the `cursor-agent` CLI (blocks
+  without a record, allows with one); its environment does not inherit
+  the agent's shell `PATH`.
+- Honest limits say why a signature would not stop a forged record, and
+  that the local hook catches forgetting, not disguise.
+
 ## 0.9.0 (2026-09-24)
 
 **Cheap enough for several projects at once, and not only GitHub.**
