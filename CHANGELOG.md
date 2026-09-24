@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.13.0 (2026-09-24)
+
+**Evidence over opinion, and a second model family.**
+
+- Gemini CLI: the hook was run live (0.61, with an API key): it blocks
+  `gh pr create` without a record and allows it with one, once the folder
+  is trusted (an untrusted folder skips project hooks silently). With
+  Codex (0.12.1), every host with hooks is now verified live.
+- Reviewers through the Gemini CLI: a `reviewers` entry with
+  `"agent": "gemini"` (or `gemini-<model>`, or `codex`) runs that accuser
+  through that CLI, isolated (the role as `GEMINI_SYSTEM_MD`, read-only
+  plan mode, no extensions, no project config). `OBJECTION_RUNNER=gemini`
+  forces it for any role. Never picked on its own.
+- `eval/`: seven known bugs (prompt injection and a clean change
+  included) and `eval/run.sh` to run any reviewer against them. Claude
+  sonnet caught 7 of 7 for $0.06; Gemini caught 7 of 7; neither raised a
+  false alarm on the clean change.
+- Invariants take `"verify": "<command>"`: run by `debate.sh` before the
+  reviewers when the diff touches the invariant's paths; a failure is a
+  numbered BLOCKER, a pass is listed in the record.
+- Every draft record names the objection version (`skills/objection/VERSION`),
+  the base config's hash, and the accuser's and defender's model and
+  effort.
+- `stamp.sh` and the CI check require a Judge ruling ("N.", "N-M.",
+  "1, 2 and 5:") for every finding the Accusation numbers.
+- The Action's Marketplace name is "Objection PR Trial" ("objection" is
+  taken there); `uses: victorserpa/objection@v1` is unchanged.
+
 ## 0.12.1 (2026-09-24)
 
 - README leads with what you get, a two-command quick start, when

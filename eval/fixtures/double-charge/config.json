@@ -1,0 +1,1 @@
+{"bases":["main"],"invariants":[{"paths":"^src/pay","rule":"an order is charged at most once"}]}

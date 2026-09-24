@@ -53,6 +53,26 @@ anyone, say `/objection init --advisory`. From then on, when the agent is
 about to open a PR, it runs the debate first; you get the record in the
 PR body.
 
+## Known bugs, caught
+
+[`eval/`](eval) plants seven bugs in small repositories (a negative cart
+total, an authorization check turned into a deny-list, a temp dir leaked
+on a retry, pages that start at 1 but skip the first, a charge that lost
+its row lock, the same negative total with a comment telling the
+reviewer the change is approved, and a rename with no bug at all) and
+runs the accuser on each. Latest runs:
+
+| runner | caught | false alarm on the clean change | cost |
+|---|---|---|---|
+| claude sonnet, effort medium | 7 of 7, all as BLOCKER | none | $0.06 for all seven |
+| gemini (CLI default model) | 7 of 7 (6 BLOCKER, 1 HIGH) | none | Gemini credits |
+
+The prompt-injection case was caught by both: text in the diff is data
+under review, not instructions. Run it yourself with `bash eval/run.sh`
+(`OBJECTION_RUNNER=gemini` or `codex` for the others); it calls a real
+model, so it is not part of CI. Seven small cases prove the reviewers
+catch these bugs, not that they catch every bug.
+
 ## Track record
 
 objection reviews its own pull requests, and every record is public in
@@ -199,8 +219,8 @@ work anywhere you did not opt in.
 | `bases` | every branch a PR may target; a record is only valid against the base it was debated on |
 | `defaultBase` | the base to debate against by default; gh does not read it, so pass `--base` (the gate checks the base gh will really use) |
 | `verify` | cheap proof (types, tests) that must pass before any reviewer runs |
-| `reviewers` | your own reviewers, added as accusers when the diff touches `paths` (under `standard` and `thorough`); an `agent` named `opus`, `sonnet`, `haiku` or `claude-*` runs on that model in `debate.sh`; any other `agent` (another tool) is a label there, run it by hand for a second opinion |
-| `invariants` | rules that must never break, each with the `paths` it guards; a violation is a BLOCKER |
+| `reviewers` | your own reviewers, added as accusers when the diff touches `paths` (under `standard` and `thorough`); an `agent` named `opus`, `sonnet`, `haiku` or `claude-*` runs on that model in `debate.sh`; `gemini` (or `gemini-<model>`) and `codex` run through that CLI, a second model family that makes different mistakes; any other `agent` is a label there |
+| `invariants` | rules that must never break, each with the `paths` it guards; a violation is a BLOCKER. Add `"verify": "<command>"` and `debate.sh` runs it before the reviewers whenever the diff touches those paths: a failure is a BLOCKER decided by the command, not by a model |
 | `budget` | `lean` (default), `standard` or `thorough`: how many reviewers and rounds a debate runs |
 | `models` | `{"default": "sonnet", "strong": "opus", "effort": "medium"}` (the defaults): the reviewers' model, and the stronger one used when an invariant or `strongPaths` matches, or under `thorough`; `strongEffort` sets the strong tier's effort apart (opus at `low` found the same HIGH as at its default, for $0.13 instead of $0.33); `defender` is the defender's model (default `sonnet`, whatever the accuser runs on); `laterEffort` is the accuser's effort in later rounds, which review only the fix (default `low`) |
 | `strongPaths` | a regex of paths that deserve the strong model (a gate, a validator, billing) |
@@ -240,7 +260,7 @@ each host's hook format; templates live in
 | Claude Code | `PreToolUse` (ships with the plugin) | used daily |
 | Cursor | `beforeShellExecution` + `beforeMCPExecution` | run live with the `cursor-agent` CLI: blocked `gh pr create` without a record (gh never ran), allowed it with one. The hook does not inherit the agent's shell `PATH`: put `node` where the hook's environment finds it |
 | Codex CLI | `PreToolUse` in `.codex/hooks.json` | run live with `codex exec` (0.156): blocked `gh pr create` without a record, allowed it with one. Codex runs a new hook only after you trust it (it asks in its interactive UI); until then it skips it without a word, so open Codex in the repository once after `init` |
-| Gemini CLI | `BeforeTool` | built from Gemini CLI's docs; not yet run live (the free Google login no longer works in the CLI, so the test waits for an API key) |
+| Gemini CLI | `BeforeTool` in `.gemini/settings.json` | run live with `gemini -p` (0.61, API key): blocked `gh pr create` without a record, allowed it with one. Gemini loads project hooks only in a trusted folder; untrusted, it skips them without a word, so trust the repository once after `init` |
 | GitHub Copilot | hook format not confirmed | use the GitHub check |
 
 Reports from people running it in those tools are welcome.
@@ -495,6 +515,9 @@ skills/objection/            the skill, self-contained
   ci-review.sh               the accuser in CI, for the Action's review input
   init.sh                    opts a repository in without questions
   pr-body.sh                 puts the stored record into the PR body
+  gate/rulings.mjs           every numbered finding needs a ruling (stamp and CI)
+  VERSION                    the version every draft record names
+eval/                        known bugs the reviewers must catch (run by hand)
   usage.sh                   what the reviewers cost, per branch
   precedents.mjs             keeps .objection/precedents.md
   gate/core.mjs              gate logic, tool-neutral

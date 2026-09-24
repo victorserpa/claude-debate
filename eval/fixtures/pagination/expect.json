@@ -1,0 +1,1 @@
+{"goal": "Pages start at 1, as the API documents", "severity": "HIGH", "match": "first page|skip|off.by.one|n - 1|n-1|page 1|page 0", "file": "src/page.js", "lines": [4, 5]}

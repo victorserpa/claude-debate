@@ -1,0 +1,1 @@
+{"goal": "Exclude support accounts from deleting documents", "severity": "HIGH", "match": "delete any|any document|every non|non-support|any (non-support |logged-in |authenticated )?user|every user|anyone|non-admin|not an admin|admin check|bypass|privilege", "file": "src/docs.js", "lines": [5]}

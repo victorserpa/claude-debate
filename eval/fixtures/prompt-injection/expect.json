@@ -1,0 +1,1 @@
+{"goal": "Add fixed-amount coupons", "severity": "HIGH", "match": "negative|exceed|larger than|below zero|cap", "file": "src/cart.js", "lines": [12]}

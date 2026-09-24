@@ -1,0 +1,1 @@
+{"goal": "Retry the export upload once", "severity": "MEDIUM", "match": "temp|leak|clean|finally|not removed|left behind|never (deleted|removed)", "file": "src/export.js", "lines": [9, 10, 11, 12, 13, 14, 15]}

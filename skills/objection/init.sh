@@ -144,6 +144,7 @@ label=wrote
 printf '%s\n' "$config" | grep -q '"verify": \[\]' &&
   echo "verify: none found; add the project's cheapest checks (types, tests) to .objection.json."
 echo "next:"
+[ "$host" = gemini ] && echo "- Gemini: trust this folder in Gemini once; it skips project hooks in an untrusted folder, silently."
 [ "$host" = plugin ] && echo "- local gate: the Claude Code plugin's hook (nothing written); other agents: init.sh --host cursor|codex|gemini"
 [ "$host" = codex ] && echo "- Codex: open codex in this repository once and trust the objection hook; until then Codex skips it silently."
 [ -z "$advisory" ] || echo "- advisory: nothing blocks; the hook says what it would block. Remove \"enforce\": false to enforce; for the CI check copy templates/github/objection.yml (or the GitLab one)."

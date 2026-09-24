@@ -1,4 +1,4 @@
-name: objection
+name: Objection PR Trial
 description: Fails a PR without an APPROVED /objection record for its head; can also run an independent accuser in CI.
 author: Victor Serpa
 branding:

@@ -77,7 +77,9 @@ Then install a gate, and tell the user which one you installed:
      silently until then: tell the user to open Codex in the repository
      once and trust it.
    - Gemini CLI: `.gemini/settings.json`, `BeforeTool` running
-     `node <SKILL_DIR>/gate/hook.mjs --host gemini`.
+     `node <SKILL_DIR>/gate/hook.mjs --host gemini`. Gemini loads project
+     hooks only in a trusted folder and skips them silently otherwise: tell
+     the user to trust the repository in Gemini once.
 2. **GitHub check**, which works whatever tool (or person) opens the PR:
    `.github/workflows/objection.yml` from `templates/github/objection.yml`
    (it uses `victorserpa/objection@v1`),

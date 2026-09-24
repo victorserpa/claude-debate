@@ -1,0 +1,1 @@
+{"goal": "Remove the slow row lock from pay", "severity": "HIGH", "match": "concurren|race|twice|double|at most once|lock", "file": "src/pay.js", "lines": [4, 5, 6, 7, 8]}
