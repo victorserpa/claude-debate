@@ -53,6 +53,20 @@ fi
 if [ -z "$base" ]; then
   for c in .objection.json .claude/objection.json; do
     [ -f "$c" ] || continue
+    # A base the config lists but origin lacks is a missing fetch, not a
+    # goal: running against defaultBase instead would review the wrong diff.
+    if [ $# -gt 0 ] && node -e '
+      try {
+        const c = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+        process.exit([...(c.bases || []), c.defaultBase].includes(process.argv[2]) ? 0 : 1);
+      } catch { process.exit(1); }' "$c" "$1"; then
+      echo "origin/$1 is not here: run git fetch origin $1, then debate again." >&2
+      exit 1
+    fi
+    break
+  done
+  for c in .objection.json .claude/objection.json; do
+    [ -f "$c" ] || continue
     base=$(node -e '
       try {
         const c = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
@@ -120,8 +134,12 @@ if [ "$budget" != lean ]; then
     while IFS="$(printf '\t')" read -r agent focus; do
       [ -n "$agent" ] || continue
       accusers="$accusers + $agent"
-      printf '\n### %s (focus: %s)\n\n' "$agent" "$focus" >>"$tmp/all"
-      if OBJECTION_FOCUS="$focus" bash "$here/review.sh" accuser "$brief" >"$tmp/one" </dev/null; then
+      # An agent that names a Claude model runs on it; any other agent (a
+      # different tool) is only a label here: this is review.sh's model.
+      model="${OBJECTION_MODEL:-opus}"
+      case "$agent" in opus | sonnet | haiku | claude-*) model="$agent" ;; esac
+      printf '\n### %s (focus: %s; run by review.sh on %s)\n\n' "$agent" "$focus" "$model" >>"$tmp/all"
+      if OBJECTION_MODEL="$model" OBJECTION_FOCUS="$focus" bash "$here/review.sh" accuser "$brief" >"$tmp/one" </dev/null; then
         cat "$tmp/one" >>"$tmp/all"
       else
         rc=$?

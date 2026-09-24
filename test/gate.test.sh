@@ -244,6 +244,10 @@ full 'TODO(judge): what stays open'
 stampcheck 1 origin/develop "$T/rec.md"
 full '- MEDIUM: the TODO list in a.ts is stale'
 stampcheck 0 origin/develop "$T/rec.md"
+# A finding that quotes the marker (reviewing debate.sh itself) is not an
+# unfilled draft: only a line that starts with it is.
+full '- LOW: debate.sh writes TODO(judge): lines into the draft'
+stampcheck 0 origin/develop "$T/rec.md"
 # No base given: origin/<defaultBase> (master here); the stamp names it.
 git -C "$R" update-ref refs/remotes/origin/master refs/remotes/origin/develop
 full '- MEDIUM: x'
@@ -476,6 +480,15 @@ check 0 "$T/named" Bash 'gh pr create --head me:feat --base develop -R up/repo'
 git -C "$T/named" remote set-url mirror "https://github.com/me/repo.git"
 check 2 "$T/named" Bash 'gh pr create --head me:feat --base develop -R up/repo'
 git -C "$T/named" remote remove mirror
+# SSH aliases for GitHub (Host github-work, github.com-work in ~/.ssh/config)
+# are where the fork is: still read. The alias is never contacted here,
+# so the fork keeps the real (local) URL and the alias is a second remote
+# that makes the match ambiguous only if it is kept: blocked means kept.
+git -C "$T/named" remote add alias1 "git@github-work:me/repo.git"
+check 2 "$T/named" Bash 'gh pr create --head me:feat --base develop -R up/repo'
+git -C "$T/named" remote set-url alias1 "git@github.com-work:me/repo.git"
+check 2 "$T/named" Bash 'gh pr create --head me:feat --base develop -R up/repo'
+git -C "$T/named" remote remove alias1
 gitc -C "$T/named" commit -q --allow-empty -m later
 git -C "$T/named" push -q fork HEAD:feat
 git -C "$T/named" reset -q --hard "$NAMED_SHA"

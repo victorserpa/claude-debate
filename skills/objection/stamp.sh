@@ -91,7 +91,9 @@ if [ "$docs_only" = no ]; then
   done
 fi
 
-if grep -qF 'TODO(judge)' "$record"; then
+# Only a line that starts with the marker, as debate.sh writes it: a
+# finding that quotes it (a review of debate.sh itself) is not a draft.
+if grep -qE '^[[:space:]]*TODO\(judge\)' "$record"; then
   echo "the record still has TODO(judge) lines from debate.sh's draft: the judge has not ruled." >&2
   exit 1
 fi

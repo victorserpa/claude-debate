@@ -104,7 +104,7 @@ work anywhere you did not opt in.
 | `bases` | every branch a PR may target; a record is only valid against the base it was debated on |
 | `defaultBase` | the base to debate against by default; gh does not read it, so pass `--base` (the gate checks the base gh will really use) |
 | `verify` | cheap proof (types, tests) that must pass before any reviewer runs |
-| `reviewers` | your own reviewers, added as accusers when the diff touches `paths`; `agent` can be another tool or model for a second opinion on risky paths |
+| `reviewers` | your own reviewers, added as accusers when the diff touches `paths` (under `standard` and `thorough`); an `agent` named `opus`, `sonnet`, `haiku` or `claude-*` runs on that model in `debate.sh`; any other `agent` (another tool) is a label there, run it by hand for a second opinion |
 | `invariants` | rules that must never break, each with the `paths` it guards; a violation is a BLOCKER |
 | `budget` | `lean` (default), `standard` or `thorough`: how many reviewers and rounds a debate runs |
 

@@ -77,14 +77,20 @@ const ALLOW = { blocked: false };
 // like /c/Users/x or /tmp/x, which node would read as C:\c\Users\x.
 // cygpath (shipped with Git Bash) knows the mapping; /<drive>/ is the
 // fallback when it is not on PATH.
+// Cached: a long chain of cd targets must not spawn cygpath per segment.
+const nativeCache = new Map();
 export function nativePath(p) {
   if (process.platform !== "win32" || !p || !p.startsWith("/")) return p;
+  if (nativeCache.has(p)) return nativeCache.get(p);
+  let out;
   try {
-    return execFileSync("cygpath", ["-w", p], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 5000 }).trim() || p;
+    out = execFileSync("cygpath", ["-w", p], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 5000 }).trim() || p;
   } catch {
     const m = /^\/([a-zA-Z])(\/.*)?$/.exec(p);
-    return m ? `${m[1].toUpperCase()}:${m[2] || "/"}` : p;
+    out = m ? `${m[1].toUpperCase()}:${m[2] || "/"}` : p;
   }
+  nativeCache.set(p, out);
+  return out;
 }
 
 // The gh CLI. OBJECTION_GH (a JSON array, e.g. ["bash","/path/stub"]) is
@@ -203,9 +209,14 @@ export function gate(input) {
           // "C:/x" is a Windows drive, not a host.
           return m && !/^[a-zA-Z]$/.test(m[1]) ? m[1].toLowerCase() : null;
         };
+        // Kept: no host (a path), GitHub itself, and SSH aliases for it
+        // (github-work, github.com-work in ~/.ssh/config: no dot, or the
+        // GitHub host as prefix). Dropped: another real host (gitlab.com).
+        // Keeping too much only makes the match ambiguous (blocked).
         const onGh = (u) => {
           const h = hostOf(u);
-          return h === null || h === ghHost || (ghHost === "github.com" && h === "ssh.github.com");
+          return h === null || !h.includes(".") || h.startsWith(ghHost) ||
+            (ghHost === "github.com" && h === "ssh.github.com");
         };
         const under = remotes.filter((r) => onGh(url(r)) && new RegExp(`[:/]${esc(owner)}/`, "i").test(url(r)));
         const exact = name

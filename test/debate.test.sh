@@ -28,6 +28,8 @@ touch "$FAKE_DIR/ran-$role"
 for last; do :; done
 printf '%s\n' "$last" >>"$FAKE_DIR/prompts-$role"
 prev=""
+for a in "$@"; do [ "$prev" = --model ] && printf '%s\n' "$a" >>"$FAKE_DIR/models-$role"; prev="$a"; done
+prev=""
 for a in "$@"; do [ "$prev" = --system-prompt-file ] && cat "$a" >"$FAKE_DIR/sysprompt-$role"; prev="$a"; done
 node -e 'process.stdout.write(JSON.stringify({result: require("fs").readFileSync(process.argv[1], "utf8"),
   usage: {input_tokens: 1000, output_tokens: 200}, total_cost_usd: 0.05}))' "$FAKE_DIR/$role.txt"
@@ -42,7 +44,7 @@ accuse() {
     printf '\nCould not evaluate: nothing.\n'
   } >"$T/accuser.txt"
 }
-reset() { rm -f "$T"/ran-* "$T"/stdin-* "$T"/prompts-* "$T"/sysprompt-*; }
+reset() { rm -f "$T"/ran-* "$T"/stdin-* "$T"/prompts-* "$T"/sysprompt-* "$T"/models-*; }
 
 R="$T/r"
 git init -q "$R" && cd "$R" || exit 1
@@ -203,6 +205,19 @@ done
 [ "$(ls "$qdir"/accusation-*.md | wc -l | tr -d ' ')" = 2 ] || fail "accusations were not pruned to 2"
 [ "$(ls "$qdir"/brief-*.md | wc -l | tr -d ' ')" = 2 ] || fail "briefs were not pruned to 2"
 [ -f "$qdir/0123456789012345678901234567890123456789.md" ] || fail "pruning removed a stamped record"
+# A base the config lists but origin lacks (not fetched) is an error, not
+# a goal: the round must not silently run against defaultBase.
+printf '{"bases":["develop","release"],"defaultBase":"develop","budget":"standard","reviewers":[{"paths":"^src/","focus":"money math","agent":"sonnet"}]}\n' >.objection.json
+git add . && gitc commit -q -m "release base"
+out=$(bash "$QDEBATE" release "the goal" 2>&1) && fail "an unfetched listed base ran ($out)"
+printf '%s\n' "$out" | grep -qF "git fetch" || fail "no fetch hint for an unfetched base"
+# An agent that names a Claude model runs the extra accuser on that model
+# (the reviewers come from the base, so the base gets this config).
+git update-ref refs/remotes/origin/develop HEAD
+printf 'z\n' >>src/pay.ts && git add . && gitc commit -q -m "after the base"
+reset
+bash "$QDEBATE" develop >/dev/null 2>&1
+grep -qx sonnet "$T/models-accuser" || fail "the sonnet reviewer did not run on sonnet"
 cd "$R" || exit 1
 
 # usage.sh sums the log review.sh wrote, per branch.

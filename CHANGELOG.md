@@ -13,7 +13,9 @@
 - `stamp.sh` refuses a record that still has `TODO(judge)` lines.
 - Under `standard` and `thorough`, `debate.sh` runs each matching
   `reviewers` entry as its own isolated accuser with its focus
-  (`OBJECTION_FOCUS` in `review.sh`).
+  (`OBJECTION_FOCUS` in `review.sh`); an `agent` that names a Claude
+  model runs on it. A base the config lists but origin lacks stops the
+  round with a fetch hint instead of falling back to `defaultBase`.
 - `debate.sh` keeps the newest `OBJECTION_KEEP` (10) artifacts of each
   kind in `<git-common-dir>/objection`; stamped records are never pruned.
 - `review.sh`'s timeout ends the reviewer's whole process group, and an
@@ -22,7 +24,8 @@
   skill under review is in the repository itself, `debate.sh` gives the
   reviewers the base branch's roles.
 - The gate's `--head <owner>:<branch>` only matches remotes on GitHub's
-  host (or `GH_HOST`): a mirror elsewhere no longer blocks.
+  host (or `GH_HOST`) or an SSH alias for it: a mirror elsewhere no
+  longer blocks.
 
 ## 0.7.0 (2026-09-24)
 
