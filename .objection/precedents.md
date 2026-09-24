@@ -9,9 +9,7 @@ Maintained by precedents.mjs; edit by hand only to delete a line.
 - [2x, 2026-09-24, db4fe2e] skills/objection/gate/: a normalization shared by several rules fixes one form and breaks a neighboring one
 - [2x, 2026-09-24, ab823c2] skills/objection/gate/: a value the gate cannot read was skipped silently instead of failing closed
 - [2x, 2026-09-24, 80722b1] skills/objection/: two instructions an agent reads together contradict each other (write a test, never change files)
-- [1x, 2026-09-24, 80722b1] skills/objection/: rules read from the branch under review instead of its base let a change rewrite its own rules
 - [2x, 2026-09-24, 471e520] skills/objection/: a paid external call whose failure or odd output discards the answer instead of showing it
-- [1x, 2026-09-24, dc942c5] test/: a live check that passes on a word the prompt already contains cannot report a miss
 - [1x, 2026-09-24, 1952d54] skills/objection/: a parser of model output that silently drops rows written in a format it did not expect
 - [1x, 2026-09-24, 471e520] test/: an assertion behind a guard or only a negative grep passes when nothing was checked
 - [1x, 2026-09-24, 7cff2bf] skills/objection/: a marker matched anywhere in free text refuses content that only quotes it
@@ -34,3 +32,5 @@ Maintained by precedents.mjs; edit by hand only to delete a line.
 - [1x, 2026-09-24, 8e6ef56] eval/: a harness that matched nothing reports 0 of 0 as a pass
 - [1x, 2026-09-24, 119f23a] skills/objection/: a parser that only counts rows in one exact shape reads a model's other valid shape as zero findings and passes it
 - [1x, 2026-09-24, 119f23a] skills/objection/gate/: narrowing what counts as a finding, to stop asking for one ruling too many, lets a real finding ship unruled
+- [1x, 2026-09-24, 354347c] skills/objection/: a checker validates the working copy when the tool it checks for reads the base branch's copy
+- [1x, 2026-09-24, 354347c] skills/objection/: a name search across the repository picks up unrelated locals and test helpers with the same name
