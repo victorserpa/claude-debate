@@ -20,3 +20,5 @@ Maintained by precedents.mjs; edit by hand only to delete a line.
 - [2x, 2026-09-24, 80722b1] skills/objection/: two instructions an agent reads together contradict each other (write a test, never change files)
 - [1x, 2026-09-24, ffa9cd5] skills/objection/: a rule moved or trimmed stops reaching an agent that never reads the file it moved to
 - [1x, 2026-09-24, 80722b1] skills/objection/: rules read from the branch under review instead of its base let a change rewrite its own rules
+- [1x, 2026-09-24, dc942c5] skills/objection/: a paid external call whose failure or odd output discards the answer instead of showing it
+- [1x, 2026-09-24, dc942c5] test/: a live check that passes on a word the prompt already contains cannot report a miss
