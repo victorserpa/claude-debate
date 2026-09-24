@@ -75,11 +75,8 @@ run 0 "$CODE" "$(ruled '1. x
 # A number inside the text is not a finding; the Defense does not rule.
 run 0 "$CODE" "$(ruled 'Round 1 found 3 issues, see #20.' 'Nothing to rule on.')"
 run 1 "$CODE" "$(ruled '1. HIGH: x' 'The defense said 1. UPHELD.')"
-# A numbered step in the Accusation prose is not a finding.
-run 0 "$CODE" "$(ruled '| 1 | HIGH | BUG | a.ts:3 | x | read | p |
-To reproduce:
-1. open the page
-2. click save' '1. UPHELD, fixed.')"
+# A list finding with no severity word still needs its ruling.
+run 1 "$CODE" "$(ruled '1. the cart total goes negative' 'Nothing to rule on.')"
 # A Judge table rules too.
 run 0 "$CODE" "$(ruled '| 1 | HIGH | BUG | a.ts:3 | x | read | p |' '| # | ruling |
 |---|---|

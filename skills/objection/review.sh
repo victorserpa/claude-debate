@@ -192,21 +192,22 @@ failed() {
 # Some models write the findings table without its outer pipes
 # ("HIGH | BUG | a.ts:3 | ..."). Every reader (debate.sh, ci-review.sh,
 # eval/run.sh) counts rows that start with "|", so a BLOCKER in such a
-# table would count as none and the CI check would pass it. A run of
-# pipe-less lines that holds a delimiter row ("--- | ---") gets the outer
-# pipes; nothing else in the answer changes.
+# table would count as none and the CI check would pass it. A table is
+# its header row, the delimiter row right below it ("--- | ---", with or
+# without a leading pipe) and the rows that follow while they hold a
+# pipe; every row of it without the outer pipes gets them. Prose around
+# it does not change.
 print_answer() {
   node -e '
 const lines = require("fs").readFileSync(process.argv[1], "utf8").split("\n");
-const bare = (l) => l.includes("|") && !/^\s*\|/.test(l);
-const delim = (l) => /^\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(l);
-for (let i = 0; i < lines.length; ) {
-  if (!bare(lines[i])) { i++; continue; }
-  let j = i;
-  while (j < lines.length && bare(lines[j])) j++;
-  if (lines.slice(i, j).some(delim))
-    for (let k = i; k < j; k++) lines[k] = "| " + lines[k].trim().replace(/\|\s*$/, "").trim() + " |";
-  i = j;
+const delim = (l) => /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(l);
+const wrap = (l) => (/^\s*\|/.test(l) ? l : "| " + l.trim().replace(/\|\s*$/, "").trim() + " |");
+for (let d = 1; d < lines.length; d++) {
+  if (!delim(lines[d]) || !lines[d - 1].includes("|")) continue;
+  let end = d + 1;
+  while (end < lines.length && lines[end].includes("|") && lines[end].trim()) end++;
+  for (let k = d - 1; k < end; k++) lines[k] = wrap(lines[k]);
+  d = end - 1;
 }
 process.stdout.write(lines.join("\n"));
 ' "$work/answer"

@@ -19,9 +19,6 @@
   cell next to the file, so an unrelated finding in the same file is no
   longer a catch. test/eval.test.sh checks the scoring against a fake
   reviewer and runs in CI.
-- The rulings rule no longer counts a numbered step in the Accusation's
-  prose ("1. open the page") as a finding: a "N." line needs a severity
-  word.
 - The Gemini CI review runs on a GitHub runner: this repository's
   `review (gemini)` job reviews every same-repository PR with it. First
   live run: PR #42, authenticated by `GEMINI_API_KEY` alone, 4433 input +

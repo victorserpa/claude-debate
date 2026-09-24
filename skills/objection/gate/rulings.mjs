@@ -2,8 +2,9 @@
 // Shared by stamp.sh (node rulings.mjs <record>) and check-pr.mjs.
 //
 // A numbered finding is a line of the Accusation section that starts with
-// "| N |" (the table debate.sh numbers), or with "N." and names a severity
-// (a list: "1. HIGH: ..."; a numbered step in prose is not a finding). A ruling is a
+// "N." (a list) or "| N |" (the table debate.sh numbers). A numbered step
+// in prose counts too: asking for one ruling too many fails closed, and
+// requiring a severity word on the line would let a finding through. A ruling is a
 // line of the Judge section that starts with "N." / "N)" / "N:", a range
 // "N-M.", or a list "1, 2 and 5:" covering it, or a table row "| N |".
 // Anything else in the text
@@ -22,7 +23,7 @@ export function missingRulings(text) {
   };
   const accused = new Set();
   for (const l of section("## Accusation")) {
-    const m = (/\b(BLOCKER|HIGH|MEDIUM|LOW)\b/i.test(l) && /^\s*(\d+)\.\s/.exec(l)) || /^\s*\|\s*(\d+)\s*\|/.exec(l);
+    const m = /^\s*(\d+)\.\s/.exec(l) || /^\s*\|\s*(\d+)\s*\|/.exec(l);
     if (m) accused.add(Number(m[1]));
   }
   const ruled = new Set();

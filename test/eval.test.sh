@@ -21,6 +21,8 @@ row='| HIGH | BUG | src/export.js:%s | %s | read | %s |'
 # A cited bug line, or the bug said in the defect cell: caught.
 [ "$(score missing-cleanup "$(printf "$row" 11 'x' 'p')")" = CAUGHT ] || fail "a cited bug line was not caught"
 [ "$(score missing-cleanup "$(printf "$row" 40 'the temp dir leaks on retry' 'p')")" = CAUGHT ] || fail "the bug in words was not caught"
+# The file named in the defect cell too: the file:line cell still counts.
+[ "$(score missing-cleanup '| HIGH | BUG | the temp dir in src/export.js leaks | src/export.js:11 | read | p |')" = CAUGHT ] || fail "a file named twice was not caught"
 # An unrelated finding in the same file is not a catch, even when a
 # keyword appears elsewhere in the row.
 [ "$(score missing-cleanup "$(printf "$row" 40 'unrelated: the code is not clean' 'p')")" = MISSED ] || fail "an unrelated finding was caught"

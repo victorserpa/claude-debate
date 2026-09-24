@@ -63,7 +63,9 @@ for name in "${names[@]}"; do
     // says the bug in words: a keyword elsewhere in the row does not count.
     const about = (r) => {
       const cells = r.text.split("|");
-      const i = cells.findIndex((c) => c.includes(e.file));
+      // The file:line cell, else the first cell that names the file.
+      let i = cells.findIndex((c) => c.includes(e.file + ":"));
+      if (i < 0) i = cells.findIndex((c) => c.includes(e.file));
       return i >= 0 && (cites(cells[i]) || re.test(cells[i + 1] || ""));
     };
     const hit = rows.find((r) => rank[r.sev] >= rank[e.severity] && about(r));
