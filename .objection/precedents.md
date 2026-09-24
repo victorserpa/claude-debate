@@ -4,8 +4,6 @@ Defects confirmed by /objection debates in this repository, one per line:
 `- [<times seen>x, <last seen>, <record sha>] <area>: <pattern>`.
 Maintained by precedents.mjs; edit by hand only to delete a line.
 
-- [1x, 2026-09-24, 4bf9f11] .github/workflows/: a required check is matched by name only; a PR can add a job with the same name
-- [1x, 2026-09-24, 4bf9f11] .github/workflows/: skipping a check based on the event sender makes the result flip on the same commit
 - [1x, 2026-09-24, 4bf9f11] scripts/: an exemption keyed on subject text (Merge ...) lets ordinary commits skip every rule
 - [3x, 2026-09-24, 7cff2bf] *: a document promises protection the code does not enforce
 - [3x, 2026-09-24, f68452f] skills/objection/gate/: widening an allowlist to close one bypass starts blocking innocent commands nearby
@@ -34,3 +32,5 @@ Maintained by precedents.mjs; edit by hand only to delete a line.
 - [1x, 2026-09-24, 5fe2c5d] skills/objection/: a CI step treats every failure of a helper as one opaque exit, so a benign case (nothing to review) fails the check without saying why
 - [1x, 2026-09-24, 41a39ee] test/: a test reruns a command without capturing its output and asserts on the previous run's output
 - [1x, 2026-09-24, c4467fd] skills/objection/: a summary label set for one case stays when an override later changes the value it describes
+- [1x, 2026-09-24, fcd5724] skills/objection/: a package manager's shorthand runs its own tool instead of the project's script (bun test)
+- [1x, 2026-09-24, fcd5724] skills/objection/: a helper writes to a PR for a commit that is not the PR's head yet
