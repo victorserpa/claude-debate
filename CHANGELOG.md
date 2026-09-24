@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.12.1 (2026-09-24)
+
+- README leads with what you get, a two-command quick start, when
+  objection is worth it and when it is not, the friction it adds, and how
+  to pin a version. The fix-to-feat ratio is now the origin story, not
+  the argument.
+- A small diff's draft record comes pre-filled as APPROVED with one
+  `TODO(judge)` line: read the diff, delete the line, stamp.
+- Codex: the hook was run live (`codex exec` 0.156): it blocks
+  `gh pr create` without a record and allows it with one. Codex runs a new
+  hook only after the user trusts it, and skips it silently until then;
+  init and the docs now say so (they called Codex hooks experimental).
+
 ## 0.12.0 (2026-09-24)
 
 **Easier to try, easier to live with.**

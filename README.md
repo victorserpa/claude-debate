@@ -239,8 +239,8 @@ each host's hook format; templates live in
 |---|---|---|
 | Claude Code | `PreToolUse` (ships with the plugin) | used daily |
 | Cursor | `beforeShellExecution` + `beforeMCPExecution` | run live with the `cursor-agent` CLI: blocked `gh pr create` without a record (gh never ran), allowed it with one. The hook does not inherit the agent's shell `PATH`: put `node` where the hook's environment finds it |
-| Codex CLI | `PreToolUse` (experimental in Codex, must be enabled) | built from Codex's docs; not yet run in Codex |
-| Gemini CLI | `BeforeTool` | built from Gemini CLI's docs; not yet run in Gemini |
+| Codex CLI | `PreToolUse` in `.codex/hooks.json` | run live with `codex exec` (0.156): blocked `gh pr create` without a record, allowed it with one. Codex runs a new hook only after you trust it (it asks in its interactive UI); until then it skips it without a word, so open Codex in the repository once after `init` |
+| Gemini CLI | `BeforeTool` | built from Gemini CLI's docs; not yet run live (the free Google login no longer works in the CLI, so the test waits for an API key) |
 | GitHub Copilot | hook format not confirmed | use the GitHub check |
 
 Reports from people running it in those tools are welcome.
