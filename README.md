@@ -55,7 +55,9 @@ Then, in a repository, ask your agent for `/objection init` (other agents:
 checks, your forge) and asks nothing else. To try it without blocking
 anyone, say `/objection init --advisory`. From then on, when the agent is
 about to open a PR, it runs the debate first; you get the record in the
-PR body.
+PR body. Something seems off? `/objection doctor` checks the tools, the
+config, the hooks (and the trust Codex and Gemini need), the CI workflow
+and whether the check is required, one line each, with the fix.
 
 ## Known bugs, caught
 
@@ -240,6 +242,7 @@ work anywhere you did not opt in.
 | `models` | `{"default": "sonnet", "strong": "opus", "effort": "medium"}` (the defaults): the reviewers' model, and the stronger one used when an invariant or `strongPaths` matches, or under `thorough`; `strongEffort` sets the strong tier's effort apart (opus at `low` found the same HIGH as at its default, for $0.13 instead of $0.33); `defender` is the defender's model (default `sonnet`, whatever the accuser runs on); `laterEffort` is the accuser's effort in later rounds, which review only the fix (default `low`) |
 | `strongPaths` | a regex of paths that deserve the strong model (a gate, a validator, billing) |
 | `enforce` | `false` for advisory mode: the hook reports what it would block and lets it through |
+| `$schema` | `init` writes it: editors then complete and check every key against [`objection.schema.json`](skills/objection/objection.schema.json) |
 | `smallDiff` | under `lean`, a diff of at most this many changed lines that no invariant or `strongPaths` touches runs no reviewer; the judge reads it alone (default 20, `0` turns it off) |
 
 Requirements: `node`, `git`, `bash` and `perl`, plus the `claude` CLI or
@@ -548,6 +551,8 @@ skills/objection/            the skill, self-contained
   debate.sh                  runs a round up to the judge, writes the draft record
   ci-review.sh               the accuser in CI, for the Action's review input
   init.sh                    opts a repository in without questions
+  doctor.sh                  checks the setup, one line per item, with the fix
+  objection.schema.json      the config's keys, for editors and doctor.sh
   pr-body.sh                 puts the stored record into the PR body
   gate/rulings.mjs           every numbered finding needs a ruling (stamp and CI)
   VERSION                    the version every draft record names

@@ -1,0 +1,88 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/victorserpa/objection/v1/skills/objection/objection.schema.json",
+  "title": ".objection.json",
+  "description": "Opts a repository in to objection: the rules its debates follow. Read from the base branch, never from the branch under review.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "bases": {
+      "description": "Every branch a PR may target. A record is valid only against the base it was debated on.",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1
+    },
+    "defaultBase": {
+      "description": "The base to debate against by default. One of bases.",
+      "type": "string",
+      "minLength": 1
+    },
+    "verify": {
+      "description": "Cheap proof (types, tests) that must pass before any reviewer runs, as the base branch defines it.",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "budget": {
+      "description": "How many reviewers and rounds a debate runs. lean when absent.",
+      "enum": ["lean", "standard", "thorough"]
+    },
+    "invariants": {
+      "description": "Rules that must never break, each with the paths it guards. A violation is a BLOCKER.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["rule", "paths"],
+        "properties": {
+          "rule": { "type": "string", "minLength": 1 },
+          "paths": { "description": "A regex matched against changed paths.", "type": "string", "minLength": 1 },
+          "verify": { "description": "A command debate.sh runs from the repository root when the diff touches paths; a failure is a BLOCKER.", "type": "string" }
+        }
+      }
+    },
+    "reviewers": {
+      "description": "Extra accusers under standard and thorough, when the diff touches paths.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["paths"],
+        "properties": {
+          "agent": { "description": "opus, sonnet, haiku or claude-* run on that model; gemini, gemini-<model> and codex run through that CLI; anything else is a label.", "type": "string" },
+          "focus": { "type": "string" },
+          "paths": { "description": "A regex matched against changed paths.", "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "models": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "default": { "description": "The reviewers' model (sonnet).", "type": "string" },
+        "strong": { "description": "Used when an invariant or strongPaths matches, or under thorough (opus).", "type": "string" },
+        "effort": { "description": "The reviewers' effort (medium).", "type": "string" },
+        "strongEffort": { "description": "The strong tier's effort, apart from effort.", "type": "string" },
+        "defender": { "description": "The defender's model (sonnet).", "type": "string" },
+        "laterEffort": { "description": "The accuser's effort in later rounds, which review only the fix (low).", "type": "string" }
+      }
+    },
+    "strongPaths": {
+      "description": "A regex of paths that deserve the strong model (a gate, a validator, billing).",
+      "type": "string"
+    },
+    "smallDiff": {
+      "description": "Under lean, a diff of at most this many changed lines that no invariant or strongPaths touches runs no reviewer (20; 0 turns it off).",
+      "type": "integer",
+      "minimum": 0
+    },
+    "enforce": {
+      "description": "false for advisory mode: the local hook reports what it would block and lets it through.",
+      "type": "boolean"
+    },
+    "precedents": {
+      "description": "false stops reading .objection/precedents.md.",
+      "type": "boolean"
+    }
+  }
+}

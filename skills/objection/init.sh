@@ -89,7 +89,9 @@ if (has("Cargo.toml")) verify.push("cargo check", "cargo test");
 if (has("go.mod")) verify.push("go vet ./...", "go test ./...");
 if (!verify.length && has("Makefile") && /^test:/m.test(fs.readFileSync("Makefile", "utf8"))) verify.push("make test");
 if (!verify.length && (has("pytest.ini") || (has("pyproject.toml") && /pytest/.test(fs.readFileSync("pyproject.toml", "utf8"))))) verify.push("python -m pytest");
-const c = { bases, defaultBase: def, verify, budget: "lean", ...(advisory && { enforce: false }) };
+// $schema: editors complete and check the keys (objection.schema.json).
+const c = { $schema: "https://raw.githubusercontent.com/victorserpa/objection/v1/skills/objection/objection.schema.json",
+  bases, defaultBase: def, verify, budget: "lean", ...(advisory && { enforce: false }) };
 process.stdout.write(JSON.stringify(c, null, 2) + "\n");
 ' "$bases" "$base_default" "$advisory")
 
@@ -154,4 +156,5 @@ echo "next:"
   *) echo "- no GitHub or GitLab origin: there is no CI gate, the debate is advice there." ;;
 esac
 echo "- invariants (optional): the few rules that must never break, each with the paths it guards."
+echo "- doctor.sh: checks the setup (config, hooks, CI, required check) whenever something seems off."
 echo "- commit these files; from then on a PR needs an APPROVED record."

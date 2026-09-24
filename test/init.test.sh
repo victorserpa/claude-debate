@@ -28,7 +28,7 @@ touch pnpm-lock.yaml
 bash "$INIT" >"$T/out" 2>&1 || fail "init failed ($(cat "$T/out"))"
 node -e '
 const c = JSON.parse(require("fs").readFileSync(".objection.json", "utf8"));
-const want = { bases: ["develop", "main"], defaultBase: "develop", verify: ["pnpm typecheck", "pnpm lint", "pnpm test"], budget: "lean" };
+const want = { $schema: "https://raw.githubusercontent.com/victorserpa/objection/v1/skills/objection/objection.schema.json", bases: ["develop", "main"], defaultBase: "develop", verify: ["pnpm typecheck", "pnpm lint", "pnpm test"], budget: "lean" };
 if (JSON.stringify(c) !== JSON.stringify(want)) { console.log("FAIL: config " + JSON.stringify(c)); process.exit(1); }
 ' || failures=$((failures + 1))
 has .github/workflows/objection.yml "victorserpa/objection@v1"

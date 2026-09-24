@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+- `/objection doctor` (doctor.sh): one line per item, ok, warn or FAIL,
+  with the fix. It checks the tools and the reviewer CLIs, and the
+  config: valid JSON, unknown keys (a typo like "invariant" used to be
+  ignored in silence), types, regexes that do not compile, and a
+  defaultBase that is not among bases. It says when the base branch's
+  config differs from the working copy, which one debates use until the
+  merge. It checks the hook files and the trust step Codex and Gemini
+  need, the CI workflow, and, through gh, whether "record" is a required
+  check. It only reads.
+- `objection.schema.json`: the config's keys and values for editors.
+  `init` writes `"$schema"`, so VS Code and others complete and check
+  `.objection.json`. A test keeps the schema and doctor.sh on the same
+  keys.
+
 ## 0.15.0 (2026-09-24)
 
 **One real fail-open closed, and a bigger eval.**

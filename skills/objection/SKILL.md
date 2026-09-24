@@ -1,6 +1,6 @@
 ---
 name: objection
-description: Adversarial review before opening or merging a pull request. Accusers review the diff, a defender tries to refute each finding with evidence from the code, and the main session judges and stores a record for the exact commit. With a gate installed, PR create, ready and merge are blocked until the record is APPROVED. Use when a branch is ready for a PR, when the gate blocks, or with "init" to opt a repository in.
+description: Adversarial review before opening or merging a pull request. Accusers review the diff, a defender tries to refute each finding with evidence from the code, and the main session judges and stores a record for the exact commit. With a gate installed, PR create, ready and merge are blocked until the record is APPROVED. Use when a branch is ready for a PR, when the gate blocks, with "init" to opt a repository in, or with "doctor" to check the setup.
 license: MIT
 ---
 
@@ -25,6 +25,7 @@ Everything this skill needs sits next to this file:
 | `stamp.sh` | validates a record and stores it for the current commit |
 | `pr-body.sh` | puts the stored record into the PR body (`--update` for an open PR) |
 | `init.sh` | opts a repository in without questions (`--advisory` to try it without blocking) |
+| `doctor.sh` | checks the setup: tools, config (against `objection.schema.json`), hooks, CI, the required check |
 | `brief.sh` | builds the one context file every reviewer of a round reads |
 | `review.sh` | runs a reviewer as an isolated `claude -p` process (2-12k tokens) |
 | `gate/hook.mjs` | local gate for Claude Code, Codex, Gemini CLI and Cursor |
@@ -39,6 +40,13 @@ or the user asked for `init`: read `reference/init.md` next to this file
 and follow it. It creates the config (bases, verify, reviewers,
 invariants, budget) and installs a gate. Nothing else in this file is
 needed until then.
+
+## doctor: when the setup seems off
+
+The user asks for `doctor`, the gate behaves unexpectedly, or `brief.sh`
+reports an invalid config: run `bash <this skill's directory>/doctor.sh`
+from the repository and show its output. Each line is ok, warn or FAIL,
+with the fix; it only reads.
 
 ## 0. Before the debate: the cheap proof
 
