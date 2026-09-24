@@ -4,7 +4,6 @@ Defects confirmed by /objection debates in this repository, one per line:
 `- [<times seen>x, <last seen>, <record sha>] <area>: <pattern>`.
 Maintained by precedents.mjs; edit by hand only to delete a line.
 
-- [1x, 2026-09-24, 4bf9f11] scripts/: an exemption keyed on subject text (Merge ...) lets ordinary commits skip every rule
 - [3x, 2026-09-24, 7cff2bf] *: a document promises protection the code does not enforce
 - [3x, 2026-09-24, f68452f] skills/objection/gate/: widening an allowlist to close one bypass starts blocking innocent commands nearby
 - [2x, 2026-09-24, db4fe2e] skills/objection/gate/: a normalization shared by several rules fixes one form and breaks a neighboring one
@@ -34,3 +33,4 @@ Maintained by precedents.mjs; edit by hand only to delete a line.
 - [1x, 2026-09-24, c4467fd] skills/objection/: a summary label set for one case stays when an override later changes the value it describes
 - [1x, 2026-09-24, fcd5724] skills/objection/: a package manager's shorthand runs its own tool instead of the project's script (bun test)
 - [1x, 2026-09-24, fcd5724] skills/objection/: a helper writes to a PR for a commit that is not the PR's head yet
+- [1x, 2026-09-24, da13e89] skills/objection/: a template pre-writes a statement that only the judge can make, so removing a marker turns it into a claim nobody made
