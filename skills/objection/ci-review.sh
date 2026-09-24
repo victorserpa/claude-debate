@@ -16,7 +16,10 @@
 # and review.sh (from this action, not from the PR) read the commits.
 # The rules (config, precedents) come from the base branch, as always.
 #
-# Env: ANTHROPIC_API_KEY (required), GITHUB_EVENT_PATH, GITHUB_REPOSITORY,
+# Env: OBJECTION_RUNNER (claude or gemini; default claude),
+#      ANTHROPIC_API_KEY (required for claude), GEMINI_API_KEY (for gemini),
+#      OBJECTION_GEMINI_MODEL (default: the Gemini CLI's own),
+#      GITHUB_EVENT_PATH, GITHUB_REPOSITORY,
 #      GITHUB_SERVER_URL, GITHUB_TOKEN (to fetch), GITHUB_STEP_SUMMARY,
 #      OBJECTION_FAIL_ON (blocker, high or none; default blocker),
 #      OBJECTION_MODEL / OBJECTION_EFFORT (default sonnet, medium),
@@ -26,7 +29,13 @@ set -eu
 here="$(cd "$(dirname "$0")" && pwd)"
 fail_on="${OBJECTION_FAIL_ON:-blocker}"
 case "$fail_on" in blocker | high | none) ;; *) echo "fail-on must be blocker, high or none (got $fail_on)." >&2; exit 2 ;; esac
-[ -n "${ANTHROPIC_API_KEY:-}" ] || { echo "objection review: ANTHROPIC_API_KEY is not set (the anthropic-api-key input)." >&2; exit 1; }
+runner="${OBJECTION_RUNNER:-claude}"
+case "$runner" in
+  claude) [ -n "${ANTHROPIC_API_KEY:-}" ] || { echo "objection review: ANTHROPIC_API_KEY is not set (the anthropic-api-key input)." >&2; exit 1; } ;;
+  gemini) [ -n "${GEMINI_API_KEY:-}" ] || { echo "objection review: GEMINI_API_KEY is not set (the gemini-api-key input)." >&2; exit 1; } ;;
+  *) echo "objection review: runner must be claude or gemini (got $runner)." >&2; exit 2 ;;
+esac
+export OBJECTION_RUNNER="$runner"
 [ -f "${GITHUB_EVENT_PATH:-}" ] || { echo "objection review: no pull request event (GITHUB_EVENT_PATH)." >&2; exit 1; }
 
 # number, base branch, head SHA and title, one per line.
@@ -119,8 +128,10 @@ fi
 
 summary=$(
   printf '## objection review: %s\n\n' "$verdict"
-  printf 'PR #%s @ %s against %s. Accuser: %s, effort %s, isolated. Fails on: %s.\n\n' \
-    "$number" "${head:0:7}" "$base" "$OBJECTION_MODEL" "$OBJECTION_EFFORT" "$fail_on"
+  accuser="$OBJECTION_MODEL, effort $OBJECTION_EFFORT"
+  [ "$runner" = gemini ] && accuser="gemini ${OBJECTION_GEMINI_MODEL:-(the CLI default model)}"
+  printf 'PR #%s @ %s against %s. Accuser: %s, isolated. Fails on: %s.\n\n' \
+    "$number" "${head:0:7}" "$base" "$accuser" "$fail_on"
   printf 'Findings: %s BLOCKER, %s HIGH, %s MEDIUM, %s LOW. One reviewer, no defense and no judge: a finding here is a claim to check, not a verdict.\n\n' \
     "$blocker" "$high" "$medium" "$low"
   cat "$accusation"

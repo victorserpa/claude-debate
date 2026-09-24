@@ -21,3 +21,6 @@ jobs:
         # with:
         #   review: true
         #   anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+        #   # or, with a Gemini key (free tier) instead:
+        #   # runner: gemini
+        #   # gemini-api-key: ${{ secrets.GEMINI_API_KEY }}

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.14.0 (2026-09-24)
+
+- The Action's review step runs through the Gemini CLI with
+  `runner: gemini` and `gemini-api-key`, so a repository without an
+  Anthropic account can still have an independent accuser in CI (Gemini
+  has a free tier). The CLI is pinned (`gemini-version`, default 0.61.0),
+  and `gemini-model` picks the model. Run live through `ci-review.sh` on
+  the negative-total fixture: caught as BLOCKER, the check failed. Not
+  yet run on a GitHub runner.
+- README: Marketplace, release and test badges.
+
 ## 0.13.0 (2026-09-24)
 
 **Evidence over opinion, and a second model family.**

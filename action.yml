@@ -6,11 +6,23 @@ branding:
   color: red
 inputs:
   review:
-    description: "true runs an isolated accuser on the PR head in CI, with a key the agent never sees, and fails on its findings (see fail-on). Needs anthropic-api-key."
+    description: "true runs an isolated accuser on the PR head in CI, with a key the agent never sees, and fails on its findings (see fail-on). Needs anthropic-api-key, or gemini-api-key with runner: gemini."
     default: "false"
   anthropic-api-key:
     description: Anthropic API key for the review (a repository secret).
     default: ""
+  runner:
+    description: "Which CLI runs the review: claude or gemini."
+    default: claude
+  gemini-api-key:
+    description: Gemini API key for the review with runner gemini (a repository secret).
+    default: ""
+  gemini-model:
+    description: "Gemini model for the review; empty uses the Gemini CLI's default."
+    default: ""
+  gemini-version:
+    description: "The @google/gemini-cli version installed for runner gemini: pinned, like claude-version."
+    default: "0.61.0"
   model:
     description: Claude model for the review.
     default: sonnet
@@ -40,10 +52,18 @@ runs:
       env:
         GITHUB_TOKEN: ${{ github.token }}
         ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
+        GEMINI_API_KEY: ${{ inputs.gemini-api-key }}
+        OBJECTION_RUNNER: ${{ inputs.runner }}
+        OBJECTION_GEMINI_MODEL: ${{ inputs.gemini-model }}
+        GEMINI_VERSION: ${{ inputs.gemini-version }}
         OBJECTION_MODEL: ${{ inputs.model }}
         OBJECTION_EFFORT: ${{ inputs.effort }}
         OBJECTION_FAIL_ON: ${{ inputs.fail-on }}
         CLAUDE_VERSION: ${{ inputs.claude-version }}
       run: |
-        npm install -g --silent "@anthropic-ai/claude-code@$CLAUDE_VERSION"
+        if [ "$OBJECTION_RUNNER" = gemini ]; then
+          npm install -g --silent "@google/gemini-cli@$GEMINI_VERSION"
+        else
+          npm install -g --silent "@anthropic-ai/claude-code@$CLAUDE_VERSION"
+        fi
         bash "$GITHUB_ACTION_PATH/skills/objection/ci-review.sh"

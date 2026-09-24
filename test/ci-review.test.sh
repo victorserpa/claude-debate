@@ -80,6 +80,24 @@ run && fail "a broken reviewer passed"
 has "$T/summary" "the accuser did not run"
 rm -f "$T/broken"
 ANTHROPIC_API_KEY= run && fail "no API key passed"
+# runner gemini: its own key, the Gemini CLI, named in the summary.
+cat >"$T/gemini" <<'STUB'
+#!/bin/bash
+printf '%s\n' "$@" >"$FAKE_DIR/gemini-args"
+cat >"$FAKE_DIR/stdin"
+node -e 'process.stdout.write(JSON.stringify({response: require("fs").readFileSync(process.argv[1], "utf8"), stats: {models: {g: {tokens: {prompt: 5, candidates: 5}}}}}))' "$FAKE_DIR/answer"
+STUB
+chmod +x "$T/gemini"
+event "Add x" "$head"; answer BLOCKER
+OBJECTION_RUNNER=gemini OBJECTION_GEMINI="$T/gemini" GEMINI_API_KEY=test ANTHROPIC_API_KEY= run && fail "a gemini BLOCKER passed"
+has "$T/summary" "Accuser: gemini (the CLI default model)"
+has "$T/summary" "1 BLOCKER"
+has "$T/gemini-args" "--approval-mode"
+[ -e "$T/args" ] && fail "runner gemini ran claude"
+OBJECTION_RUNNER=gemini OBJECTION_GEMINI="$T/gemini" GEMINI_API_KEY= run && fail "gemini without its key passed"
+has "$T/err" "GEMINI_API_KEY is not set"
+OBJECTION_RUNNER=codex run
+[ $? = 2 ] || fail "an unknown runner did not exit 2"
 event "Add x" "0000000000000000000000000000000000000000"
 run && fail "a stale head passed"
 has "$T/err" "pushed again?"
