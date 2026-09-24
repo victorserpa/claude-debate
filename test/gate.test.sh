@@ -354,6 +354,12 @@ check 0 $N Bash 'git commit -m "docs: explain gh pr merge ($(date +%F))"'
 check 0 $N Bash 'echo "run gh pr create after $(date)"'
 # ...but a substitution that runs gh inside a message still counts.
 check 2 $N Bash 'echo "created: $(gh pr create --fill)"'
+# Going back to the repository root with a substitution is resolved, not
+# read as a literal path; its twin without a record stays blocked.
+mkdir -p "$O/sub" "$N/sub"
+STUB_SHA=$OK_SHA STUB_WANT="12" check 0 "$O/sub" Bash 'cd "$(git rev-parse --show-toplevel)" && gh pr merge 12'
+STUB_SHA=$OK_SHA STUB_WANT="12" check 0 "$O/sub" Bash 'cd $(git rev-parse --show-toplevel) && gh pr merge 12'
+check 2 "$N/sub" Bash 'cd "$(git rev-parse --show-toplevel)" && gh pr merge 12'
 # Deep nesting does not crash the hook (a crash is a non-blocking error).
 deep="gh pr merge 7 -t "$(printf '"$(echo %.0s' $(seq 5000))
 check 2 $N Bash "$deep"

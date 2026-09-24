@@ -451,8 +451,15 @@ export function gate(input) {
       if (n > 0) {
         const m = [...noDocs.matchAll(reCdOriginal)][n - 1];
         if (m) {
+          // `cd "$(git rev-parse --show-toplevel)"` is how agents go back to
+          // the repository root: resolve it the same way instead of reading
+          // the substitution as a path (it used to block an innocent merge).
+          const toRoot = /^[\s;&|(]*cd\s+"?\$\(\s*git\s+rev-parse\s+--show-toplevel\s*\)"?(?=[\s;&|)]|$)/.test(
+            noDocs.slice(m.index),
+          );
           let p = m[2] || m[3] || m[4];
-          if (p.startsWith("~")) p = join(process.env.HOME || "", p.slice(1));
+          if (toRoot) p = git(dir, "rev-parse", "--show-toplevel");
+          else if (p.startsWith("~")) p = join(process.env.HOME || "", p.slice(1));
           dir = isAbsolute(p) ? p : resolve(dir, p);
         }
       }
