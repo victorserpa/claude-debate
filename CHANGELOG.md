@@ -1,0 +1,52 @@
+# Changelog
+
+## 0.3.0 (2026-09-24)
+
+**Breaking for existing records:** a record now needs the judge's
+structured count, `OPEN: BLOCKER=<n> HIGH=<n>`, and is APPROVED only with
+`OPEN: BLOCKER=0 HIGH=0`. `stamp.sh` and the GitHub check (`v1`) refuse a
+record without it. Debate open PRs again, or add the line from the
+record's own "Open" section.
+
+- **Precedents** (`precedents.mjs`, `.objection/precedents.md`): defects
+  the debates confirmed become one line each, with how often they
+  happened; the next accuser checks the ones covering the changed files
+  first. Capped at 30 lines, kept by a script, not rewritten by a model.
+- **Token budget**: the review diff drops lockfiles, snapshots and build
+  output; small diffs get one accuser and a defender only for serious
+  findings; roles answer in a capped table; `"budget": "lean"`.
+- **Gate, closed gaps** (from the first adopter's six-round debate and
+  six more rounds here): quoted values glued to flags (`--repo="o/r"`,
+  `-R"o/r"`), `-Ro/r`, command substitutions and backticks, a PR number
+  the gate cannot read (now blocked with a message instead of checking
+  the current branch's PR), `cd "$(git rev-parse --show-toplevel)"`, and
+  an allowlist for what executes code (`bash -lc`, `python -c`,
+  `node -e`), so `grep -c`, `rg -c` and `perl -pe` stay text.
+- **Threat model written down**: the local gate stops an agent that
+  forgets the debate, not one that disguises the command on purpose; the
+  GitHub check with a required status check is the gate that does not
+  read commands.
+- **Rules for changing a gate, check or validator** in the skill:
+  negative controls, both sides every round, stubs that can say no,
+  allowlists, one representation per rule.
+- **Repository governance**: `main` changes only through issue-linked
+  PRs, required checks (tests, commit rules, issue link, the objection
+  record) run from `main` through `pull_request_target`, outside PRs need
+  a code owner, and `v*` tags are protected. The user workflow template
+  now uses `pull_request_target` too.
+
+## 0.2.0 (2026-09-23)
+
+- Works with any AI coding agent: the skill is self-contained under
+  `skills/objection/` (Agent Skills layout), the gate core is tool-neutral,
+  and one hook script speaks Claude Code, Codex, Gemini CLI and Cursor.
+- GitHub Action (`victorserpa/objection@v1`): fails a PR whose body has
+  no APPROVED record for its head SHA and base, for any tool or human.
+- Opt-in file is `.objection.json` (`.claude/objection.json` still read).
+- Renamed from `claude-debate` to `objection` (`/objection`).
+
+## 0.1.0 (2026-09-23)
+
+- `/debate` for Claude Code: accusers, a defender and a judge debate the
+  diff; a record is stamped to the exact commit, and a hook blocks
+  `gh pr create`, `ready` and `merge` until it is APPROVED.
