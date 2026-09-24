@@ -10,8 +10,9 @@
 - `gh pr create --head` checks the branch on its remote (the fork's remote
   for `owner:branch`) and blocks when it differs from the local one.
 - Agent prompts, skills, instructions and the objection config are never
-  "documentation only", at any depth (`agents/`, `skills/`, `AGENTS.md`,
-  `CLAUDE.md`, `GEMINI.md`, `.objection.json`, `.claude/`...).
+  "documentation only": `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`,
+  `.objection.json` and agent config dirs (`.claude/`, `.cursor/`...) at
+  any depth; `agents/` and `skills/` at the repository root.
 - The GitHub check fails when the PR's file list hits the 3000-file API
   limit or is shorter than the PR's `changed_files`.
 
