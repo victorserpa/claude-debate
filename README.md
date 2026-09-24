@@ -106,7 +106,7 @@ work anywhere you did not opt in.
 | `verify` | cheap proof (types, tests) that must pass before any reviewer runs |
 | `reviewers` | your own reviewers, added as accusers when the diff touches `paths`; `agent` can be another tool or model for a second opinion on risky paths |
 | `invariants` | rules that must never break, each with the `paths` it guards; a violation is a BLOCKER |
-| `budget` | `lean`, `standard` or `thorough`: how many reviewers run per round |
+| `budget` | `lean` (default), `standard` or `thorough`: how many reviewers and rounds a debate runs |
 
 Requirements: `node`, `git`, and the `gh` CLI.
 
@@ -251,15 +251,21 @@ it runs them in one session and says so in the record.
   the record is public in the PR body.
 - `curl` against the GitHub API with a token from `gh auth token` is not
   blocked by the local hook (the GitHub check still catches the PR).
-- It is not free. It is built to stay cheap:
-  - a small diff (up to 80 changed lines) gets **one** accuser, and the
-    defender only runs if something serious was found;
-  - roles get a trimmed diff (no lockfiles, snapshots, build output, 5
-    lines of context), read beyond it only to chase a suspicion, and
-    answer in a fixed table capped at 15 rows;
-  - later rounds see only the fix diff;
-  - `"budget": "lean"` in `.objection.json` cuts it to one accuser per
-    round; the gate hook runs outside the model and costs no tokens.
+- It is not free. Each reviewer is a subagent, and every subagent starts
+  by reloading your tool's system prompt and **your project's
+  instructions**: a 37k-token CLAUDE.md, measured in one adopter's
+  repository, is paid again by each reviewer. The biggest saving is a
+  short CLAUDE.md (history in `docs/`, rules in the file). On top of that,
+  objection keeps the count and the reading low:
+  - `lean` is the default: one accuser per round, the defender only for
+    BLOCKER or HIGH findings, a second round only when a fix touches a
+    gate or exceeds 40 lines (otherwise the tests verify it), at most two
+    rounds; `standard` and `thorough` spend more for more coverage;
+  - every reviewer of a round reads one brief (`brief.sh`): the trimmed
+    diff, changed files, invariants and precedents, and opens at most 5
+    other files, each for a named suspicion;
+  - answers come in a fixed table capped at 15 rows, and the gate hook
+    runs outside the model and costs no tokens.
 
 ## How it compares to Ruflo
 
@@ -286,6 +292,7 @@ skills/objection/            the skill, self-contained
   roles/defender.md          defense
   reference/                 init and gate-change rules, read only when needed
   stamp.sh                   validates and stores the record
+  brief.sh                   the one context file every reviewer of a round reads
   precedents.mjs             keeps .objection/precedents.md
   gate/core.mjs              gate logic, tool-neutral
   gate/hook.mjs              local hook for Claude Code, Codex, Gemini CLI, Cursor

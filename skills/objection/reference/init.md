@@ -39,7 +39,7 @@ only what you cannot read from the repository:
   the paths it guards. When the diff touches those paths, the accuser gets
   the rule and a violation is a BLOCKER. Ask the user for the few that
   matter most; do not invent them.
-- `budget` (optional): `lean`, `standard` (default) or `thorough`. See
+- `budget` (optional): `lean` (default), `standard` or `thorough`. See
   "Token budget" in SKILL.md.
 - `precedents` (optional, default `true`): keep and use the repository's
   precedents (steps 1 and 5 of SKILL.md). `false` turns them off.

@@ -20,3 +20,4 @@ jobs:
       - run: bash test/check-pr.test.sh
       - run: bash test/roles-in-sync.test.sh
       - run: bash test/precedents.test.sh
+      - run: bash test/brief.test.sh

@@ -23,6 +23,7 @@ Everything this skill needs sits next to this file:
 | `roles/accuser.md` | the prosecution's instructions |
 | `roles/defender.md` | the defense's instructions |
 | `stamp.sh` | validates a record and stores it for the current commit |
+| `brief.sh` | builds the one context file every reviewer of a round reads |
 | `gate/hook.mjs` | local gate for Claude Code, Codex, Gemini CLI and Cursor |
 | `gate/check-pr.mjs` | the same gate as a GitHub check, for any tool or human |
 
@@ -60,44 +61,41 @@ code that does not pass.
 
 ## Token budget
 
-The debate must cost less than the rework it prevents. Every run obeys
-these, whatever the budget:
+The debate must cost less than the rework it prevents. Every subagent
+starts by reloading your tool's system prompt and the project's
+instructions (a large CLAUDE.md is paid again by each one), so the
+number of subagents is the main cost, then how much each one reads.
 
-- **The review diff**, the only code a role gets up front, excludes noise
-  and keeps little context. With `X` standing for
-  `-- . ':!*.lock' ':!*lock.json' ':!*lock.yaml' ':!*.snap' ':!*.min.*' ':!dist/**' ':!build/**' ':!**/generated/**'`:
-  - size first, never with `-U` (it would print the whole patch):
-    `git diff --shortstat origin/<base>...HEAD X`
-  - then the diff itself: `git diff -U5 origin/<base>...HEAD X`
-- **Size decides the cast** (insertions plus deletions from `--shortstat`):
+**One brief per round.** Run `bash <this skill's directory>/brief.sh
+origin/<base> "<goal in one sentence>" "<scope, if the task states one>"`.
+It writes one file with the review diff (noise filtered, 5 lines of
+context), the changed files, the invariants and precedents that cover
+them, and the reading rule, and prints its path. Give every role that
+path and its role file, nothing else: no pasted files, no prior rounds,
+no reasoning of yours. Roles open at most 5 other files, each for a
+named suspicion. For the size, `brief.sh` prints the diff's
+`--shortstat` in the brief.
 
-  | review diff | accusers | defender |
-  |---|---|---|
-  | docs only | none (step 0.4) | none |
-  | up to 80 lines, no `reviewers` match | generic accuser only | only if a finding is BLOCKER or HIGH |
-  | normal | generic + matching `reviewers` | once, if any finding is MEDIUM or above |
-  | over 800 lines | same, but tell the user the size and suggest splitting the PR before spending | same |
+**The budget** (`budget` in `.objection.json`; **`lean` when absent**):
 
-- **`budget: lean`**: one accuser total (matching `reviewers`' `focus`
-  lines are folded into the generic accuser's prompt), defender only for
-  BLOCKER or HIGH. **`budget: thorough`**: every matching reviewer, and
-  the defender sees LOW findings too.
-- **No findings, no defense.** Zero MEDIUM-or-above findings skips step 2.
-- **Roles report in their fixed table format** (see the role files) and
-  read beyond the diff only to chase a specific suspicion.
-- **Later rounds** debate only the fix diff, with only the accusers of
-  the area touched, and the defender sees only the new findings.
-- **Nothing else is loaded.** Do not paste whole files, prior rounds or
-  your own reasoning into a role's prompt: diff, goal in one sentence,
-  and for the defender the numbered findings.
+| | lean (default) | standard | thorough |
+|---|---|---|---|
+| accusers per round | one: the generic accuser, with every matching `reviewers` focus and invariant folded into its prompt | generic + each matching `reviewers` entry | same as standard |
+| defender | only for BLOCKER or HIGH findings | once, if any finding is MEDIUM or above | sees LOW too |
+| later rounds | only when the fix touches a gate, check or validator, or exceeds 40 changed lines; otherwise the judge verifies the fix with the tests (and a tie-break test when one applies) | on every fix, fix diff only | on every fix |
+| max rounds | 2 | 3 | 3 |
+
+Whatever the budget: docs-only diffs get no reviewers (step 0.4); no
+MEDIUM-or-above finding means no defense; roles answer in their fixed
+table; a diff over 800 lines is reported to the user with a suggestion
+to split the PR before anything is spent.
 
 ## 1. Accusation
 
-The cast comes from "Token budget" above. By default:
-
-- the generic accuser (`roles/accuser.md`) on the review diff;
-- each `reviewers` entry whose `paths` matches a changed file, with its
-  `focus`.
+The cast comes from the budget above. With `lean` (the default) it is one
+generic accuser (`roles/accuser.md`) whose prompt also carries the
+`focus` of every `reviewers` entry whose `paths` match; `standard` and
+`thorough` run those reviewers as accusers of their own.
 
 **How to run a role**, in order of preference:
 
@@ -113,21 +111,13 @@ The cast comes from "Token budget" above. By default:
    again. Say in the record that the roles ran in one context; it is a
    weaker debate and the reader should know.
 
-Give each accuser the review diff restricted to its files, the goal of
-the change in one sentence and, when the task says what may change (an
-issue's scope, "only the feedback layer"), that scope. Changes outside it
-are findings of kind SCOPE, even when they are correct.
-
-**Invariants.** Each `invariants` entry whose `paths` matches a changed
-file goes into the accuser's prompt as a rule that must hold. A violation
-is a BLOCKER of kind INVARIANT; the record lists which invariants were
-checked.
-
-**Precedents.** Unless `precedents` is `false`, run
-`node <this skill's directory>/precedents.mjs match <changed files>` and
-put its output (at most 10 lines) in the accuser's prompt as "Defects
-this repository has already shipped: check these first." Nothing printed,
-nothing added.
+Give each accuser the brief's path (see "Token budget"). The brief
+already holds the goal and, when the task says what may change (an
+issue's scope, "only the feedback layer"), that scope: changes outside it
+are findings of kind SCOPE, even when they are correct. It also holds
+the matching **invariants** (a violation is a BLOCKER of kind INVARIANT;
+the record lists which invariants were checked) and the **precedents**,
+the defects this repository already shipped in those files.
 
 **Rules that go into every accuser's prompt:**
 
@@ -176,15 +166,19 @@ approval: an unsettled BLOCKER or HIGH stays UPHELD.
 ## 4. Rounds
 
 Fixed something: commit (a `fix:` in the same branch, before the PR, is
-the cheap fix) and redo steps 0 to 3 **only on the fix diff** (`git diff
-<previous-round-sha>..HEAD`), with the accusers for that area. Tell the
-accuser to hunt **regressions from the fix** first: in practice they are
-the most common round-2 finding.
+the cheap fix). The budget decides whether another round runs (`lean`:
+only when the fix touches a gate, check or validator, or exceeds 40
+changed lines; otherwise run `verify` and the tests that cover the fix,
+and record that). When it runs, it covers **only the fix diff**: build
+the brief with the previous round's commit as the base
+(`brief.sh <previous-round-sha> ...`), and tell the accuser to hunt
+**regressions from the fix** first: in practice they are the most common
+round-2 finding.
 
-At most three rounds. What is still open after the third goes into
-"Open" with its severity: MEDIUM and LOW can ship with the record
-(tracked in an issue), BLOCKER and HIGH cannot, and the human decides
-what happens to them.
+After the last round the budget allows (2 for `lean`, 3 otherwise),
+what is still open goes into "Open" with its severity: MEDIUM and LOW can
+ship with the record (tracked in an issue), BLOCKER and HIGH cannot, and
+the human decides what happens to them.
 
 ## When the diff is a gate, check or validator
 

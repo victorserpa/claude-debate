@@ -49,6 +49,7 @@ bash test/gate.test.sh
 bash test/check-pr.test.sh
 bash test/roles-in-sync.test.sh
 bash test/precedents.test.sh
+bash test/brief.test.sh
 claude plugin validate .
 ```
 
