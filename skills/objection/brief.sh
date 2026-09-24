@@ -104,7 +104,11 @@ process.stdin.on("data", (c) => (raw += c)).on("end", () => {
   process.stdout.write(`${model} ${effort} ${reason}\n@@SPLIT@@\n`);
   // Small-diff threshold for debate.sh (lines changed); 0 turns it off.
   const n = Number(cfg.smallDiff);
-  process.stdout.write(`${cfg.smallDiff === undefined ? 20 : Number.isInteger(n) && n >= 0 ? n : 20}\n`);
+  process.stdout.write(`${cfg.smallDiff === undefined ? 20 : Number.isInteger(n) && n >= 0 ? n : 20}\n@@SPLIT@@\n`);
+  // The defender checks evidence already cited: sonnet gave the same
+  // verdicts as opus on a real round, for a quarter of the price. A later
+  // round reviews only the fix: effort low (opus low found a known HIGH).
+  process.stdout.write(`${word(m.defender, "sonnet")}\n@@SPLIT@@\n${word(m.laterEffort, "low")}\n`);
 });')
 section() { printf '%s\n' "$rules" | awk -v n="$1" '$0=="@@SPLIT@@"{k++; next} k==n-1' | sed '/^$/d'; }
 invariants=$(section 1)
@@ -113,6 +117,8 @@ use_precedents=$(section 3)
 reviewers=$(section 5)
 model_tier=$(section 6)
 small_diff=$(section 7)
+defender_model=$(section 8)
+later_effort=$(section 9)
 budget=$(section 4)
 
 precedents="none recorded for these files"
@@ -139,7 +145,7 @@ else
   rm -f "$err" "$prec"
 fi
 
-diff=$(git diff -U5 "$diff_base"...HEAD "${X[@]}")
+diff=$(git diff -U3 "$diff_base"...HEAD "${X[@]}")
 total=$(printf '%s\n' "$diff" | wc -l | tr -d ' ')
 # Lines added plus removed, for debate.sh's small-diff skip. A binary
 # file, or an entry with no lines (a rename, a mode change), has no
@@ -154,6 +160,8 @@ changed=$(git diff --numstat "$diff_base"...HEAD "${X[@]}" |
   printf '<!-- objection-model: %s -->\n' "$model_tier"
   printf '<!-- objection-lines: %s -->\n' "$changed"
   printf '<!-- objection-small-diff: %s -->\n' "${small_diff:-20}"
+  printf '<!-- objection-defender: %s -->\n' "${defender_model:-sonnet}"
+  printf '<!-- objection-later-effort: %s -->\n' "${later_effort:-low}"
   if [ -n "$reviewers" ]; then
     printf '%s\n' "$reviewers" | sed 's/^/<!-- objection-reviewer: /; s/$/ -->/'
   fi

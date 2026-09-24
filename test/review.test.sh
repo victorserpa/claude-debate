@@ -14,6 +14,7 @@ hasnt() { grep -qF -- "$2" "$1" && { echo "FAIL: $1 has [$2]"; failures=$((failu
 cat >"$T/claude" <<'EOF'
 #!/bin/bash
 printf '%s\n' "$@" >"$FAKE_DIR/args"
+printf '%s\n' "${DISABLE_PROMPT_CACHING:-unset}" >"$FAKE_DIR/cache"
 pwd >"$FAKE_DIR/cwd"
 cat >"$FAKE_DIR/stdin"
 printf '{"result":"| severity | kind |","usage":{"input_tokens":2,"cache_creation_input_tokens":10000,"output_tokens":300},"total_cost_usd":0.1}\n'
@@ -40,6 +41,12 @@ has "$T/args" "--no-session-persistence"
 has "$T/args" "$ROOT/skills/objection/roles/accuser.md"
 has "$T/args" "You have NO tools"
 has "$T/stdin" "the diff"
+# One-shot runs never read their cache back: no cache write (measured
+# -32% per run); OBJECTION_PROMPT_CACHE=1 keeps it.
+[ "$(cat "$T/cache")" = 1 ] || { echo "FAIL: the prompt cache was not turned off"; failures=$((failures + 1)); }
+OBJECTION_PROMPT_CACHE=1 bash "$REVIEW" accuser "$T/brief.md" >/dev/null 2>&1
+[ "$(cat "$T/cache")" = unset ] || { echo "FAIL: OBJECTION_PROMPT_CACHE=1 did not keep the cache"; failures=$((failures + 1)); }
+bash "$REVIEW" accuser "$T/brief.md" >/dev/null 2>"$T/err"
 has "$T/err" "accuser used 10002 input + 300 output tokens"
 # The empty tools value must reach claude as an empty argument.
 awk 'prev=="--tools" && $0!="" {bad=1} {prev=$0} END{exit bad}' "$T/args" || { echo "FAIL: --tools was not empty"; failures=$((failures + 1)); }

@@ -72,6 +72,17 @@ has "$T/out" "model: sonnet, effort medium (default)"
 grep -qx sonnet "$T/models-accuser" || fail "the accuser did not run on sonnet"
 grep -qx sonnet "$T/models-defender" || fail "the defender did not run on sonnet"
 grep -qx medium "$T/efforts-accuser" || fail "the accuser did not get effort medium"
+# The defender checks evidence already cited: sonnet even when the accuser
+# runs on the strong model; OBJECTION_DEFENDER_MODEL overrides it.
+reset
+OBJECTION_MODEL=opus bash "$DEBATE" main >/dev/null 2>&1
+grep -qx opus "$T/models-accuser" || fail "OBJECTION_MODEL did not reach the accuser"
+grep -qx sonnet "$T/models-defender" || fail "the defender did not stay on sonnet"
+reset
+OBJECTION_MODEL=opus OBJECTION_DEFENDER_MODEL=opus bash "$DEBATE" main >/dev/null 2>&1
+grep -qx opus "$T/models-defender" || fail "OBJECTION_DEFENDER_MODEL was ignored"
+reset
+bash "$DEBATE" main "the goal" >/dev/null 2>&1
 has "$T/out" "defender: answered 1 finding(s)"
 has "$T/stdin-defender" "| 1 | HIGH | BUG | src/a.ts:3 | defect HIGH"
 hasnt "$T/stdin-defender" "defect MEDIUM"
@@ -132,6 +143,11 @@ reset
 out=$(bash "$DEBATE" --since "$prev" main 2>/dev/null)
 printf '%s\n' "$out" | grep -qF "diff $prev...HEAD" || fail "--since did not set the diff base"
 has "$T/stdin-accuser" "hunt regressions from the fix first"
+# A later round reviews only the fix: effort low, unless the caller sets one.
+grep -qx low "$T/efforts-accuser" || fail "a later round did not run at effort low"
+reset
+OBJECTION_EFFORT=high bash "$DEBATE" --since "$prev" main >/dev/null 2>&1
+grep -qx high "$T/efforts-accuser" || fail "OBJECTION_EFFORT did not override the later-round effort"
 
 # An annotated severity ("HIGH (regression)") still counts and is defended.
 accuse "HIGH (regression)" MEDIUM

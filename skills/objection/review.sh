@@ -141,6 +141,11 @@ if [ -n "${OBJECTION_FOCUS:-}" ]; then
 fi
 
 cd "$work"
+# A reviewer run is one-shot: the CLI writes the whole input to a prompt
+# cache (at a premium, 1 hour by default here) that nothing reads back.
+# Measured on the same brief: accuser $0.104 -> $0.071, defender $0.100 ->
+# $0.067 with it off. OBJECTION_PROMPT_CACHE=1 keeps it.
+[ "${OBJECTION_PROMPT_CACHE:-}" = 1 ] || export DISABLE_PROMPT_CACHING=1
 out="$work/out.json"
 # A portable timeout (macOS has no coreutils timeout) that ends the whole
 # process group: claude and anything it started. The run gets its own

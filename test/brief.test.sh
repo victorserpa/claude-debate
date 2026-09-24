@@ -133,6 +133,21 @@ printf 'd\n' >>src/ui.ts && git add . && gitc commit -q -m ui3
 out=$(bash "$BRIEF" origin/main)
 has "$out" "<!-- objection-model: opus high thorough -->"
 has "$out" "<!-- objection-lines: 1 -->"
+# The defender's model and the later rounds' effort: defaults, then config.
+has "$out" "<!-- objection-defender: sonnet -->"
+has "$out" "<!-- objection-later-effort: low -->"
+printf '{"bases":["main"],"models":{"defender":"haiku","laterEffort":"medium"}}\n' >.objection.json
+git add . && gitc commit -q -m cfg3 && git update-ref refs/remotes/origin/main HEAD
+printf 'e\n' >>src/ui.ts && git add . && gitc commit -q -m ui4
+out=$(bash "$BRIEF" origin/main)
+has "$out" "<!-- objection-defender: haiku -->"
+has "$out" "<!-- objection-later-effort: medium -->"
+# Three lines of context, not five: the diff is what the reviewers pay for.
+seq 1 30 >src/ctx.ts && git add . && gitc commit -q -m ctx && git update-ref refs/remotes/origin/main HEAD
+sed 's/^15$/fifteen/' src/ctx.ts >src/ctx.tmp && mv src/ctx.tmp src/ctx.ts && git add . && gitc commit -q -m ctx2
+out=$(bash "$BRIEF" origin/main)
+grep -qx ' 12' "$out" || { echo "FAIL: the brief lost the third line of context"; failures=$((failures + 1)); }
+grep -qx ' 11' "$out" && { echo "FAIL: the brief has more than three lines of context"; failures=$((failures + 1)); }
 
 # Nothing to review, or an unknown base: refuse.
 (cd "$T/fresh" && git update-ref refs/remotes/origin/main HEAD && bash "$BRIEF" origin/main >/dev/null 2>&1) && { echo "FAIL: empty diff accepted"; failures=$((failures + 1)); }

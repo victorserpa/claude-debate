@@ -129,7 +129,18 @@ tier_effort="${2:-medium}"
 tier_reason="${3:-default}"
 brief_reason="$tier_reason"
 if [ -n "${OBJECTION_MODEL:-}" ]; then tier_model="$OBJECTION_MODEL"; tier_reason="OBJECTION_MODEL"; fi
-[ -z "${OBJECTION_EFFORT:-}" ] || tier_effort="$OBJECTION_EFFORT"
+defender_effort="$tier_effort"
+# A later round reviews only the fix: the accuser runs at the config's
+# laterEffort (default low); the defender keeps the round's effort.
+if [ -n "$since" ]; then
+  later=$(sed -n 's/^<!-- objection-later-effort: \([A-Za-z]*\) -->$/\1/p' "$brief" | head -n 1)
+  tier_effort="${later:-low}"
+fi
+if [ -n "${OBJECTION_EFFORT:-}" ]; then tier_effort="$OBJECTION_EFFORT"; defender_effort="$OBJECTION_EFFORT"; fi
+# The defender's model: the config's models.defender (default sonnet),
+# whatever the accuser runs on; OBJECTION_DEFENDER_MODEL overrides it.
+defender_model=$(sed -n 's/^<!-- objection-defender: \([A-Za-z0-9._-]*\) -->$/\1/p' "$brief" | head -n 1)
+defender_model="${OBJECTION_DEFENDER_MODEL:-${defender_model:-sonnet}}"
 export OBJECTION_MODEL="$tier_model" OBJECTION_EFFORT="$tier_effort"
 sha=$(git rev-parse HEAD)
 dir="$(cd "$(git rev-parse --git-common-dir)" && pwd)/objection"
@@ -254,7 +265,8 @@ if [ -n "$(rows "$sent")" ]; then
   } >"$findings"
   # A failed defense must not lose the accusation already paid for: the
   # draft is written anyway and the exit code reports the failure.
-  if bash "$here/review.sh" defender "$brief" "$findings" >"$defense"; then
+  if OBJECTION_MODEL="$defender_model" OBJECTION_EFFORT="$defender_effort" \
+    bash "$here/review.sh" defender "$brief" "$findings" >"$defense"; then
     n=$(rows "$sent" | wc -l | tr -d ' ')
     defended="answered $n finding(s) ($sent)"
   else
@@ -294,7 +306,7 @@ done
 
 echo "objection: $(git rev-parse --abbrev-ref HEAD) @ ${sha:0:7}, budget $budget, diff $diff_base...HEAD"
 [ -z "$defaulted" ] || echo "$base_note"
-echo "model: $tier_model, effort $tier_effort ($tier_reason)"
+echo "model: $tier_model, effort $tier_effort ($tier_reason); defender $defender_model, effort $defender_effort"
 echo "accusers: $accusers"
 echo "findings: $(count BLOCKER) BLOCKER, $(count HIGH) HIGH, $(count MEDIUM) MEDIUM, $(count LOW) LOW"
 echo "defender: $defended"
