@@ -3,9 +3,23 @@
 Read this only when opting a repository in (no `.objection.json` yet, or the
 user asked for `init`). Paths below are relative to the skill directory.
 
-If `.objection.json` does not exist at the repository root and the user
-asked for `init` (or this is the first debate), create it. Ask the user
-only what you cannot read from the repository:
+**Start with the script; it asks nothing:**
+
+```bash
+bash <this skill's directory>/init.sh --host <plugin|claude|cursor|codex|gemini>
+```
+
+(`plugin` is Claude Code with the plugin installed; `--dry-run` shows
+what it would write.) It writes `.objection.json` from what the
+repository shows (bases from origin, `verify` from the project's own
+scripts, `budget: lean`), the local hook for your tool, and the CI check
+for GitHub or GitLab. It never overwrites a file: when one exists it
+prints the snippet to merge. Show the user what it wrote, ask only for
+invariants (the few rules that must never break), then commit.
+
+The rest of this page is what the script writes, for editing by hand or
+for an agent that cannot run it. Ask the user only what you cannot read
+from the repository:
 
 ```json
 {
