@@ -17,5 +17,6 @@ Maintained by precedents.mjs; edit by hand only to delete a line.
 - [1x, 2026-09-24, db4fe2e] skills/objection/gate/: a value the gate cannot read was skipped silently instead of failing closed
 - [1x, 2026-09-24, 291590a] .github/workflows/: trusting the commit author alone: whoever writes a commit sets its author; check committer and signature too
 - [1x, 2026-09-24, 4dc01af] skills/objection/gate/: a hardcoded or first-found name (origin, first matching remote) stands in for the one gh really uses
-- [1x, 2026-09-24, ffa9cd5] skills/objection/: two instructions an agent reads together contradict each other (write a test, never change files)
+- [2x, 2026-09-24, 80722b1] skills/objection/: two instructions an agent reads together contradict each other (write a test, never change files)
 - [1x, 2026-09-24, ffa9cd5] skills/objection/: a rule moved or trimmed stops reaching an agent that never reads the file it moved to
+- [1x, 2026-09-24, 80722b1] skills/objection/: rules read from the branch under review instead of its base let a change rewrite its own rules
