@@ -104,7 +104,9 @@ work anywhere you did not opt in.
 | `bases` | every branch a PR may target; a record is only valid against the base it was debated on |
 | `defaultBase` | the base to debate against by default; gh does not read it, so pass `--base` (the gate checks the base gh will really use) |
 | `verify` | cheap proof (types, tests) that must pass before any reviewer runs |
-| `reviewers` | your own reviewers, added as accusers when the diff touches `paths` |
+| `reviewers` | your own reviewers, added as accusers when the diff touches `paths`; `agent` can be another tool or model for a second opinion on risky paths |
+| `invariants` | rules that must never break, each with the `paths` it guards; a violation is a BLOCKER |
+| `budget` | `lean`, `standard` or `thorough`: how many reviewers run per round |
 
 Requirements: `node`, `git`, and the `gh` CLI.
 
@@ -179,6 +181,39 @@ previous fix; what that taught is now part of the skill (threat model
 first, negative controls, both sides every round). Every case is in
 [`test/gate.test.sh`](test/gate.test.sh).
 
+## What a record looks like
+
+Every finding names its kind (BUG, REGRESSION, SCOPE, INVARIANT) and the
+evidence it rests on, from `read` (someone read the code) up to
+`reproduced` (someone ran it and saw it). Disputes are settled by raising
+the evidence, and uncertainty never turns into approval.
+
+```markdown
+<!-- objection: sha=4dc01af... base=origin/main -->
+# Debate: fix/9-external-review @ 4dc01af
+
+## Accusation
+1, HIGH, BUG, accuser, gate/core.mjs:568, reproduced, --head checked a remote hardcoded as origin
+2, MEDIUM, BUG, accuser, check-pr.mjs:74, reproduced, nested CLAUDE.md files counted as docs
+Invariants checked: none configured
+
+## Defense
+1, UPHELD, core.mjs:568 (ls-remote origin), new-test
+2, UPHELD, check-pr.mjs:74 (anchored at ^), reproduced
+
+## Judge
+1: fixed in 3f72169 (the remote is found, not assumed); the new case fails on the previous commit
+2: fixed in 3f72169 (instruction files count at any depth)
+
+## Open
+nothing
+
+OPEN: BLOCKER=0 HIGH=0
+VERDICT: APPROVED
+```
+
+Real ones are in the body of every merged PR in this repository.
+
 ## Precedents
 
 After each debate, the defects that survived the defense are distilled
@@ -246,6 +281,7 @@ skills/objection/            the skill, self-contained
   SKILL.md                   the procedure
   roles/accuser.md           prosecution
   roles/defender.md          defense
+  reference/                 init and gate-change rules, read only when needed
   stamp.sh                   validates and stores the record
   precedents.mjs             keeps .objection/precedents.md
   gate/core.mjs              gate logic, tool-neutral

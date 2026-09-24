@@ -30,60 +30,11 @@ Below, "this skill's directory" means the directory containing this file.
 
 ## init: opting a repository in
 
-If `.objection.json` does not exist at the repository root and the user
-asked for `init` (or this is the first debate), create it. Ask the user
-only what you cannot read from the repository:
-
-```json
-{
-  "bases": ["main"],
-  "defaultBase": "main",
-  "verify": ["npm run typecheck", "npm test"],
-  "reviewers": [
-    { "paths": "^src/(auth|billing)/", "agent": "security-reviewer", "focus": "the project's security checklist" }
-  ]
-}
-```
-
-- `bases`: every branch a PR may target (e.g. `["develop", "main"]`).
-- `defaultBase`: the base to debate against when the task does not say.
-  gh never reads it: pass `--base` to `gh pr create` (the gate checks the
-  base gh will really use: `--base`, else the branch's `gh-merge-base`,
-  else the repository default on GitHub).
-- `verify`: the cheap proof that runs before any accuser (step 0).
-- `reviewers`: extra accusers by path regex. `agent` names a reviewer the
-  project already defines for your tool (subagent, custom agent, or a
-  prompt file path); `focus` goes into its prompt. The generic accuser
-  always runs on code, so this list can start empty.
-- `budget` (optional): `lean`, `standard` (default) or `thorough`. See
-  "Token budget".
-- `precedents` (optional, default `true`): keep and use the repository's
-  precedents (step 1 and step 5). `false` turns them off.
-
-Then install a gate, and tell the user which one you installed:
-
-1. **Local gate for your tool**, so the PR command itself is blocked.
-   Copy the matching file from `templates/` next to this file
-   (or write it from the snippet below), replacing `<SKILL_DIR>` with this
-   skill's directory, relative to the repository root when the skill is
-   inside the repository:
-   - Claude Code: nothing to do if installed as the plugin (the hook ships
-     with it). Otherwise a `PreToolUse` hook on `Bash|mcp__.*` running
-     `node <SKILL_DIR>/gate/hook.mjs`.
-   - Cursor: `.cursor/hooks.json`, `beforeShellExecution` and
-     `beforeMCPExecution` running `node <SKILL_DIR>/gate/hook.mjs --host cursor`.
-   - Codex CLI: `.codex/hooks.json`, `PreToolUse` running
-     `node <SKILL_DIR>/gate/hook.mjs --host codex` (Codex hooks are
-     experimental and must be enabled).
-   - Gemini CLI: `.gemini/settings.json`, `BeforeTool` running
-     `node <SKILL_DIR>/gate/hook.mjs --host gemini`.
-2. **GitHub check**, which works whatever tool (or person) opens the PR:
-   `.github/workflows/objection.yml` from `templates/github/objection.yml`
-   (it uses `victorserpa/objection@v1`),
-   then ask the user to make it a required status check. Recommend it
-   always; it is the only gate for tools without hooks.
-
-Commit the files. From then on the debate is enforced in this repository.
+No `.objection.json` (or `.claude/objection.json`) at the repository root,
+or the user asked for `init`: read `reference/init.md` next to this file
+and follow it. It creates the config (bases, verify, reviewers,
+invariants, budget) and installs a gate. Nothing else in this file is
+needed until then.
 
 ## 0. Before the debate: the cheap proof
 
@@ -162,8 +113,15 @@ The cast comes from "Token budget" above. By default:
    again. Say in the record that the roles ran in one context; it is a
    weaker debate and the reader should know.
 
-Give each accuser the review diff restricted to its files and the goal
-of the change in one sentence.
+Give each accuser the review diff restricted to its files, the goal of
+the change in one sentence and, when the task says what may change (an
+issue's scope, "only the feedback layer"), that scope. Changes outside it
+are findings of kind SCOPE, even when they are correct.
+
+**Invariants.** Each `invariants` entry whose `paths` matches a changed
+file goes into the accuser's prompt as a rule that must hold. A violation
+is a BLOCKER of kind INVARIANT; the record lists which invariants were
+checked.
 
 **Precedents.** Unless `precedents` is `false`, run
 `node <this skill's directory>/precedents.mjs match <changed files>` and
@@ -173,9 +131,13 @@ nothing added.
 
 **Rules that go into every accuser's prompt:**
 
-- Each finding has a severity (BLOCKER, HIGH, MEDIUM, LOW), `file:line`,
-  and **how to prove it**: the test that would fail or the execution path
-  that reaches the defect.
+- Each finding has a severity (BLOCKER, HIGH, MEDIUM, LOW), a kind (BUG,
+  REGRESSION, SCOPE, INVARIANT), `file:line`, **how to prove it** (the
+  test that would fail or the execution path that reaches the defect),
+  and the **evidence** it rests on, weakest to strongest: `read` (reading
+  code), `static` (a checker or type error), `test` (an existing test
+  fails), `new-test` (a test written for it fails), `reproduced` (run and
+  observed).
 - **No quota.** Never ask for "at least three problems": a quota makes
   the reviewer invent the third, and an invented finding is rework. Ask
   what it could not evaluate.
@@ -203,6 +165,12 @@ the main session judges, with these rules, not with opinion:
 defender's citation, checked. The judge wrote the code, and that is the
 bias the debate exists to cut.
 
+**Evidence decides disputes, not eloquence.** When accuser and defender
+disagree on a BLOCKER or HIGH and neither side has more than `read`, the
+finding is not settled: raise the evidence (write the test, run the
+path) before deciding. Uncertainty never becomes approval: an unsettled
+BLOCKER or HIGH stays UPHELD.
+
 ## 4. Rounds
 
 Fixed something: commit (a `fix:` in the same branch, before the PR, is
@@ -218,32 +186,10 @@ what happens to them.
 
 ## When the diff is a gate, check or validator
 
-Changes to anything that blocks or allows (this skill's gate, a CI check,
-a permission rule, an input validator) need a written threat model, or
-the debate cannot converge: every new way of disguising the input looks
-HIGH, and every fix opens the next hole. The first adopter debated this
-skill's own gate for six rounds before writing this down.
-
-1. **Write the threat model before the code**, in one sentence at the top
-   of the file: what it stops, and what it does not. This skill's gate
-   stops *forgetting* (the natural ways of writing a command), not
-   *deliberate disguise* (a command assembled from pieces, hidden in an
-   alias, a file, a variable or another language); disguise already breaks
-   the rule, and the effect-based gate (a required check) covers it.
-2. **Severity follows the threat model.** HIGH: a natural form passes, or
-   an innocent command gets blocked. LOW: a form that only exists to evade.
-3. **Negative control.** Every new test case must fail on the previous
-   version (`git show <sha>:<file>` into a scratch directory, or `git stash`
-   the fix). A case that passes on both versions guards against regression
-   but proves nothing about the fix.
-4. **Both sides, every round:** "the natural form is blocked" and "the
-   similar innocent command still passes". Half of the regressions in that
-   six-round debate were false blocks.
-5. **Stubs must be able to say no.** A fake API that returns the same
-   answer for every input cannot tell a right parse from a wrong one.
-6. **Prefer allowlists** (what executes, what is permitted) over lists of
-   what is harmless, and decide once which representation of the input
-   each rule reads.
+If the change blocks or allows something (this skill's gate, a CI check,
+a permission rule, an input validator), read `reference/gate-changes.md`
+before the accusation: threat model first, negative controls, both sides
+every round. Without it, that kind of debate does not converge.
 
 ## 5. Record and stamp
 
@@ -253,7 +199,8 @@ Write the record to a scratch file, with these exact sections:
 # Debate: <branch> @ <sha7>
 
 ## Accusation
-<one finding per line: #, severity, accuser, file:line, sentence>
+<one finding per line: #, severity, kind, accuser, file:line, evidence, sentence>
+<invariants checked, if any: one line each>
 
 ## Defense
 <#, defender verdict, evidence>
