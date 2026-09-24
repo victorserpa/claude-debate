@@ -57,12 +57,31 @@ jobs:
           exit $status
   issue-link:
     name: issue-link
-    # Skipped only when Dependabot opened the PR AND made this event: a
-    # human pushing to a Dependabot branch gets every check.
-    if: github.event.pull_request.user.login != 'dependabot[bot]' || github.event.sender.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
+      - id: who
+        name: Is this a Dependabot-only PR?
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: |
+          set -euo pipefail
+          # Decided by content, not by who sent the event: Dependabot opened
+          # the PR and wrote every non-merge commit. Editing the title or body
+          # changes nothing here, so the result cannot flip on the same SHA;
+          # "Update branch" adds a merge commit, which is ignored; a human
+          # pushing code adds a commit of their own, and every check runs.
+          only=false
+          if [ "$AUTHOR" = "dependabot[bot]" ]; then
+            authors=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR/commits" --paginate \
+              -q '.[] | select((.parents | length) == 1) | (.author.login // "unknown")')
+            if [ -n "$authors" ] && ! grep -qvx 'dependabot\[bot\]' <<<"$authors"; then only=true; fi
+          fi
+          echo "dependabot_only=$only" >>"$GITHUB_OUTPUT"
+          echo "dependabot_only=$only"
       - name: The PR closes an issue
+        if: steps.who.outputs.dependabot_only != 'true'
         env:
           BODY: ${{ github.event.pull_request.body }}
         run: |
@@ -76,12 +95,31 @@ jobs:
           exit 1
   record:
     name: record
-    # Skipped only when Dependabot opened the PR AND made this event: a
-    # human pushing to a Dependabot branch gets every check.
-    if: github.event.pull_request.user.login != 'dependabot[bot]' || github.event.sender.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       # main's own action, not the v1 tag: a fix to the check guards this
       # repository as soon as it merges.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1, main (the base), not the PR
+      - id: who
+        name: Is this a Dependabot-only PR?
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: |
+          set -euo pipefail
+          # Decided by content, not by who sent the event: Dependabot opened
+          # the PR and wrote every non-merge commit. Editing the title or body
+          # changes nothing here, so the result cannot flip on the same SHA;
+          # "Update branch" adds a merge commit, which is ignored; a human
+          # pushing code adds a commit of their own, and every check runs.
+          only=false
+          if [ "$AUTHOR" = "dependabot[bot]" ]; then
+            authors=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR/commits" --paginate \
+              -q '.[] | select((.parents | length) == 1) | (.author.login // "unknown")')
+            if [ -n "$authors" ] && ! grep -qvx 'dependabot\[bot\]' <<<"$authors"; then only=true; fi
+          fi
+          echo "dependabot_only=$only" >>"$GITHUB_OUTPUT"
+          echo "dependabot_only=$only"
       - uses: ./
+        if: steps.who.outputs.dependabot_only != 'true'
