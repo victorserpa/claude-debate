@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.5.0 (2026-09-24)
+
+**Cheaper by default.** An adopter measured ~9 reviewer subagents at
+80-160k tokens each in one session.
+
+- `budget` defaults to `lean` when absent: one accuser per round (with
+  every matching reviewer focus in its brief), the defender only for
+  BLOCKER or HIGH, a second round only when a fix touches a gate, check or
+  validator or exceeds 40 lines, at most two rounds. A fix for a BLOCKER
+  or HIGH without a second round needs a test that fails before the fix.
+  Set `"budget": "standard"` to get the previous behavior.
+- `brief.sh`: one context file per round (filtered diff, changed files,
+  size, reviewer focus, invariants and precedents that cover them, the
+  reading rule). Rules come from the PR's base branch; invalid invariant
+  regexes are flagged; reviewers open at most 5 other files.
+- The docs say where the tokens go: every subagent reloads the tool's
+  prompt and the project's instructions, so a short CLAUDE.md and fewer
+  reviewers save the most; the brief cuts exploring (~110k per reviewer
+  measured here, with the brief).
+
 ## 0.4.0 (2026-09-24)
 
 **Stricter, may block what used to pass:**

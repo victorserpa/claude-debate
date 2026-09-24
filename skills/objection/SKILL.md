@@ -71,8 +71,9 @@ origin/<base> "<goal in one sentence>" "<scope, if the task states one>"`.
 It writes one file with the review diff (noise filtered, 5 lines of
 context), the changed files, the invariants, reviewer focus and
 precedents that cover them, and the reading rule, and prints its path.
-Give every role that path, its role file and the accuser rules of step 1,
-nothing else: no pasted files, no prior rounds, no reasoning of yours. Roles open at most 5 other files, each for a
+Give each accuser that path, its role file and the rules of step 1; the
+defender gets that path, its role file and the numbered findings (step
+2). Nothing else: no pasted files, no prior rounds, no reasoning of yours. Roles open at most 5 other files, each for a
 named suspicion. For the size, `brief.sh` prints the diff's
 `--shortstat` in the brief.
 
@@ -172,8 +173,9 @@ approval: an unsettled BLOCKER or HIGH stays UPHELD.
 Fixed something: commit (a `fix:` in the same branch, before the PR, is
 the cheap fix). The budget decides whether another round runs (`lean`:
 only when the fix touches a gate, check or validator, or exceeds 40
-changed lines; otherwise run `verify` and the tests that cover the fix,
-and record that). When it runs, it covers **only the fix diff**: build
+changed lines; otherwise run `verify`, and a fix for a BLOCKER or HIGH
+comes with a test that fails before the fix and passes after; record
+both). When it runs, it covers **only the fix diff**: build
 the brief with the previous round's commit as the diff base and the PR's
 base as the config base (`brief.sh <previous-round-sha> "<goal>" "<scope>"
 origin/<base>`), so the rules still come from the base branch, and tell

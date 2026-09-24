@@ -1,7 +1,7 @@
 {
   "name": "objection",
   "description": "Adversarial review before every PR: accusers look for defects, a defender refutes them with evidence, the main session judges, and a hook blocks gh pr create/ready/merge until an APPROVED record exists for the exact commit. Opt-in per repository via .objection.json. The skill and gate also work in Codex, Cursor, Gemini CLI and Copilot.",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "author": {
     "name": "Victor Serpa",
     "url": "https://github.com/victorserpa"

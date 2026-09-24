@@ -88,11 +88,16 @@ if [ "$use_precedents" = no ]; then
 else
   # xargs -0 keeps paths with spaces whole; a failure is reported, not
   # passed off as "no precedents".
-  if p=$(printf '%s\n' "$files" | tr '\n' '\0' | xargs -0 node "$here/precedents.mjs" match 2>&1); then
+  # stderr apart (a warning is not a precedent); xargs may split a huge list
+  # into several runs, so repeated lines are dropped and the cap re-applied.
+  err=$(mktemp)
+  if p=$(printf '%s\n' "$files" | tr '\n' '\0' | xargs -0 node "$here/precedents.mjs" match 2>"$err"); then
+    p=$(printf '%s\n' "$p" | awk 'NF && !seen[$0]++' | head -n 10)
     [ -n "$p" ] && precedents="$p"
   else
-    precedents="(precedents could not be read: $(printf '%s' "$p" | head -1))"
+    precedents="(precedents could not be read: $(head -1 "$err"))"
   fi
+  rm -f "$err"
 fi
 
 diff=$(git diff -U5 "$diff_base"...HEAD "${X[@]}")
