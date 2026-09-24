@@ -24,10 +24,10 @@ inputs:
     description: "The @google/gemini-cli version installed for runner gemini: pinned, like claude-version."
     default: "0.61.0"
   model:
-    description: Claude model for the review.
+    description: Claude model for the review (runner claude; runner gemini uses gemini-model).
     default: sonnet
   effort:
-    description: Effort for the review (low, medium, high, xhigh, max).
+    description: Effort for the review (low, medium, high, xhigh, max; runner claude only).
     default: medium
   fail-on:
     description: "Which findings fail the review: blocker, high (BLOCKER or HIGH) or none (report only)."
