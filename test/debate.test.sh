@@ -82,7 +82,7 @@ reset
 OBJECTION_MODEL=opus OBJECTION_DEFENDER_MODEL=opus bash "$DEBATE" main >/dev/null 2>&1
 grep -qx opus "$T/models-defender" || fail "OBJECTION_DEFENDER_MODEL was ignored"
 reset
-bash "$DEBATE" main "the goal" >/dev/null 2>&1
+bash "$DEBATE" main "the goal" >"$T/out" 2>/dev/null
 has "$T/out" "defender: answered 1 finding(s)"
 has "$T/stdin-defender" "| 1 | HIGH | BUG | src/a.ts:3 | defect HIGH"
 hasnt "$T/stdin-defender" "defect MEDIUM"
@@ -145,6 +145,7 @@ printf '%s\n' "$out" | grep -qF "diff $prev...HEAD" || fail "--since did not set
 has "$T/stdin-accuser" "hunt regressions from the fix first"
 # A later round reviews only the fix: effort low, unless the caller sets one.
 grep -qx low "$T/efforts-accuser" || fail "a later round did not run at effort low"
+printf '%s\n' "$out" | grep -qF "effort low (default, later round)" || fail "the summary hides the later-round effort ($out)"
 reset
 OBJECTION_EFFORT=high bash "$DEBATE" --since "$prev" main >/dev/null 2>&1
 grep -qx high "$T/efforts-accuser" || fail "OBJECTION_EFFORT did not override the later-round effort"

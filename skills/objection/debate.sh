@@ -135,6 +135,7 @@ defender_effort="$tier_effort"
 if [ -n "$since" ]; then
   later=$(sed -n 's/^<!-- objection-later-effort: \([A-Za-z]*\) -->$/\1/p' "$brief" | head -n 1)
   tier_effort="${later:-low}"
+  tier_reason="$tier_reason, later round"
 fi
 if [ -n "${OBJECTION_EFFORT:-}" ]; then tier_effort="$OBJECTION_EFFORT"; defender_effort="$OBJECTION_EFFORT"; fi
 # The defender's model: the config's models.defender (default sonnet),
