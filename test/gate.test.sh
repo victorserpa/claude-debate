@@ -42,6 +42,8 @@ fi
 # The repository default branch, as `gh repo view` reports it.
 if [ "$1 $2" = "repo view" ]; then
   [ -n "${STUB_NO_REPO:-}" ] && exit 1
+  # With STUB_REPO_WANT set, answer only when that repository is asked for.
+  if [ -n "${STUB_REPO_WANT:-}" ] && [ "$3" != "$STUB_REPO_WANT" ]; then exit 1; fi
   echo "${STUB_DEFAULT:-master}"; exit 0
 fi
 exit 1
@@ -427,6 +429,34 @@ git -C "$O" branch local-only "$OK_SHA"
 check 2 $O Bash 'gh pr create --head local-only --base develop'
 check 2 $O Bash 'gh pr create --head victorserpa:feat --base develop'
 check 2 $O Bash 'gh pr create --head=someone:feat --base develop'
+# Round 1 of that fix: the remote is found, not assumed to be origin.
+git init -q "$T/named" && optin "$T/named" && gitc -C "$T/named" add . && gitc -C "$T/named" commit -q -m n
+NAMED_SHA=$(git -C "$T/named" rev-parse HEAD)
+mkdir -p "$T/named/.git/objection"
+printf '<!-- objection: sha=%s base=origin/develop -->\n# x\nVERDICT: APPROVED\n' "$NAMED_SHA" >"$T/named/.git/objection/$NAMED_SHA.md"
+git init -q --bare "$T/gh-remote.git"
+git -C "$T/named" remote add github "$T/gh-remote.git"
+git -C "$T/named" branch feat "$NAMED_SHA"
+git -C "$T/named" push -q -u github feat
+check 0 "$T/named" Bash 'gh pr create --head feat --base develop'
+git -C "$T/named" branch unpushed "$NAMED_SHA"
+check 2 "$T/named" Bash 'gh pr create --head unpushed --base develop'
+# A fork's branch is read from the remote under that owner.
+mkdir -p "$T/me" && git init -q --bare "$T/me/repo.git"
+git -C "$T/named" remote add fork "$T/me/repo.git"
+git -C "$T/named" push -q fork feat
+check 0 "$T/named" Bash 'gh pr create --head me:feat --base develop -R up/repo'
+check 2 "$T/named" Bash 'gh pr create --head stranger:feat --base develop -R up/repo'
+gitc -C "$T/named" commit -q --allow-empty -m later
+git -C "$T/named" push -q fork HEAD:feat
+git -C "$T/named" reset -q --hard "$NAMED_SHA"
+check 2 "$T/named" Bash 'gh pr create --head me:feat --base develop -R up/repo'
+# -R picks the remote that matches it, and reaches gh repo view.
+git init -q --bare "$T/up/repo.git" 2>/dev/null || { mkdir -p "$T/up" && git init -q --bare "$T/up/repo.git"; }
+git -C "$T/named" remote add upstream "$T/up/repo.git"
+git -C "$T/named" push -q upstream feat
+STUB_DEFAULT=develop STUB_REPO_WANT=up/repo check 0 "$T/named" Bash 'gh pr create -R up/repo --head feat'
+STUB_DEFAULT=develop STUB_REPO_WANT=other/repo check 2 "$T/named" Bash 'gh pr create -R up/repo --head feat'
 
 # --- Other hosts' input shapes ----------------------------------------------
 hostcheck() { # expected host json

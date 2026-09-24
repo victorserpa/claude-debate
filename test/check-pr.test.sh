@@ -83,6 +83,13 @@ for f in agents/defender.md skills/objection/roles/defender.md skills/objection/
 done
 run 0 "docs/guide.md" "$DOCREC"
 run 0 "README.md" "$DOCREC"
+# ...at any depth for config dirs and instruction files; agents/ and
+# skills/ only at the root (docs/agents/ is ordinary documentation).
+for f in packages/web/CLAUDE.md sub/AGENTS.md pkg/.claude/agents/x.md apps/api/.cursor/rules/r.md; do
+  run 1 "$f" "$DOCREC"
+done
+run 0 "docs/agents/overview.md" "$DOCREC"
+run 0 "docs/skills/guide.md" "$DOCREC"
 # Issue #9: a file list that hits the API limit, or is shorter than the
 # PR's own count, proves nothing about the rest.
 many=$(for i in $(seq 3000); do echo "docs/f$i.md"; done)

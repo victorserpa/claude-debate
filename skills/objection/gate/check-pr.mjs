@@ -73,9 +73,11 @@ if (files.length >= 3000 || (Number.isInteger(pr.changed_files) && files.length 
   fail(`cannot prove the full list of changed files (listed ${files.length}, PR has ${pr.changed_files}). Split the PR.`);
 // Agent prompts, skills, instructions and the objection config are how the
 // debate itself behaves: weakening the defender must not ship without a
-// debate, wherever those files live. Same list as stamp.sh (NEVER_DOCS).
+// debate. Agent config dirs and instruction files count at any depth
+// (packages/web/CLAUDE.md); agents/ and skills/ only at the root, where they
+// are a plugin convention. Same list as stamp.sh (NEVER_DOCS).
 const NEVER_DOCS =
-  /^(\.(claude|cursor|codex|gemini|github|agents|objection)\/|agents\/|skills\/|(AGENTS|CLAUDE|GEMINI)\.md$|\.objection\.json$)/;
+  /(^|\/)(\.(claude|cursor|codex|gemini|github|agents|objection)\/|(AGENTS|CLAUDE|GEMINI)\.md$|\.objection\.json$)|^(agents|skills)\//;
 const docsOnly =
   files.length > 0 &&
   files.every((f) => !NEVER_DOCS.test(f) && (/\.md$/.test(f) || /^docs\//.test(f)));

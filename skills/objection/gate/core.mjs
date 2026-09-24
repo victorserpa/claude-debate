@@ -144,6 +144,36 @@ export function gate(input) {
       return name;
     }
 
+    // The git remote that holds the PR's head branch: for `owner:branch`,
+    // the remote whose URL is under that owner; otherwise the one matching
+    // -R, the branch's upstream, `origin`, or the only remote. null when it
+    // cannot tell (the caller blocks with a message).
+    function remoteFor(dir, branch, repo, owner) {
+      const remotes = git(dir, "remote").split("\n").filter(Boolean);
+      const url = (r) => {
+        try {
+          return git(dir, "remote", "get-url", r);
+        } catch {
+          return "";
+        }
+      };
+      const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      if (owner) return remotes.find((r) => new RegExp(`[:/]${esc(owner)}/`, "i").test(url(r))) || null;
+      if (repo) {
+        const slug = repo.replace(/^https?:\/\/github\.com\//, "").replace(/\.git$/, "");
+        const r = remotes.find((x) => new RegExp(`[:/]${esc(slug)}(\\.git)?/?$`, "i").test(url(x)));
+        if (r) return r;
+      }
+      try {
+        const upstream = git(dir, "config", `branch.${branch}.remote`);
+        if (remotes.includes(upstream)) return upstream;
+      } catch {
+        // no upstream
+      }
+      if (remotes.includes("origin")) return "origin";
+      return remotes.length === 1 ? remotes[0] : null;
+    }
+
     const tool = input.tool || "";
 
     // --- MCP PR tools ------------------------------------------------------------
@@ -558,27 +588,38 @@ export function gate(input) {
       try {
         if (action === "create") {
           const head = valueOf(rest, "-H", "--head");
-          if (head && head.includes(":"))
-            block("`--head owner:branch` opens the PR from another repository's branch, which the gate cannot see. Open it from a clone of that repository, where its record lives.", false);
+          let headBranch = head;
           if (head) {
             // The PR is born from the branch on GitHub, not from a local
             // branch with the same name (an external review caught the gate
-            // checking the local one and skipping the push check).
-            const local = git(dir, "rev-parse", `refs/heads/${head}`);
-            const line = git(dir, "ls-remote", "origin", `refs/heads/${head}`);
-            const remote = line.split(/\s+/)[0];
-            if (!remote)
-              block(`branch ${head} is not on origin. Push the debated commit before opening the PR.`, false);
-            if (remote !== local)
-              block(`origin/${head} is at ${remote.slice(0, 7)} but the local branch is at ${local.slice(0, 7)}. Push the debated commit before opening the PR.`, false);
-            sha = remote;
+            // checking the local one and skipping the push check). Which
+            // remote holds it is found, not assumed to be `origin` (the
+            // round-1 accuser caught that regression).
+            const [owner, branch] = head.includes(":") ? head.split(/:(.*)/s) : [null, head];
+            headBranch = branch;
+            const remoteName = remoteFor(dir, branch, repo, owner);
+            if (!remoteName)
+              block(
+                owner
+                  ? `--head ${head}: no git remote points at ${owner}'s repository, so the gate cannot read that branch. Add it (git remote add ${owner} <url>) and push the debated commit there.`
+                  : `--head ${head}: cannot tell which remote holds that branch. Set its upstream (git push -u <remote> ${branch}).`,
+                false,
+              );
+            const local = git(dir, "rev-parse", `refs/heads/${branch}`);
+            const line = git(dir, "ls-remote", remoteName, `refs/heads/${branch}`);
+            const remoteSha = line.split(/\s+/)[0];
+            if (!remoteSha)
+              block(`branch ${branch} is not on ${remoteName}. Push the debated commit before opening the PR.`, false);
+            if (remoteSha !== local)
+              block(`${remoteName}/${branch} is at ${remoteSha.slice(0, 7)} but the local branch is at ${local.slice(0, 7)}. Push the debated commit before opening the PR.`, false);
+            sha = remoteSha;
           } else {
             sha = git(dir, "rev-parse", "HEAD");
           }
           // The base gh will really use, not .objection.json's defaultBase:
           // --base, else the branch's gh-merge-base setting, else the
           // repository's default branch on GitHub.
-          prBase = valueOf(rest, "-B", "--base") || ghBase(dir, repo, head);
+          prBase = valueOf(rest, "-B", "--base") || ghBase(dir, repo, headBranch);
           // The PR is born from what is on the remote, not the local HEAD.
           if (!head) {
             let remote = null;
