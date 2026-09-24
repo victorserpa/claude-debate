@@ -54,14 +54,14 @@ bash "$here/review.sh" accuser "$brief" >"$accusation"
 
 # Finding rows: a table row whose first cell starts with a severity word.
 # Bold, underscores and a note after it ("HIGH (regression)") are
-# tolerated; a longer word ("Low-level") and the header are not rows.
+# tolerated; a longer word ("Low-level", "Lowest") and the header are not.
 rows() {
   awk -F'|' -v want="$1" '
     /^[[:space:]]*\|/ {
       s = $2; sub(/^[[:space:]*_]+/, "", s)
       if (!match(s, /^[A-Za-z]+/)) next
       w = toupper(substr(s, 1, RLENGTH)); rest = substr(s, RLENGTH + 1)
-      if (w ~ "^(" want ")$" && rest ~ /^([[:space:]*_(]|$)/) print
+      if (w ~ "^(" want ")$" && rest ~ /^([^A-Za-z-]|$)/) print
     }' "$accusation"
 }
 count() { rows "$1" | wc -l | tr -d ' '; }

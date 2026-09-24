@@ -116,21 +116,25 @@ printf '{"bases":["main"],"budget":"thorough"}\n' >.objection.json
 git add . && gitc commit -q -m thorough
 git update-ref refs/remotes/origin/main HEAD
 git checkout -q - && gitc rebase -q -X theirs origin/main
-accuse HIGH LOW "Low-level note"
+accuse HIGH LOW "Low-level note" "HIGH: regression"
 reset
 bash "$DEBATE" main >/dev/null 2>&1
 has "$T/stdin-defender" "defect LOW"
 # A first cell that only starts like a severity is not a finding.
 hasnt "$T/stdin-defender" "Low-level note"
+# Any other separator after the word still makes it a finding.
+has "$T/stdin-defender" "defect HIGH: regression"
 
 # A defender that answered but reported an error: its paid answer is kept.
 cp "$T/claude" "$T/claude-ok"
 sed 's/total_cost_usd: 0.05}/total_cost_usd: 0.05, is_error: process.argv[1].endsWith("defender.txt")}/' "$T/claude-ok" >"$T/claude"
+cmp -s "$T/claude" "$T/claude-ok" && fail "the is_error stub was not applied"
 accuse HIGH
 reset
 out=$(bash "$DEBATE" main 2>/dev/null)
 cp "$T/claude-ok" "$T/claude"
 record=$(printf '%s\n' "$out" | sed -n 's/^draft record: //p')
+[ -f "$record" ] || fail "no draft record after a defense flagged as an error ($record)"
 [ -f "$record" ] && has "$record" "| 1 | UPHELD | src/a.ts:3"
 [ -f "$record" ] && has "$record" "defender FAILED"
 
