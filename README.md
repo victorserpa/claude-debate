@@ -1,5 +1,9 @@
 # objection
 
+[![GitHub Marketplace](https://img.shields.io/badge/Marketplace-Objection%20PR%20Trial-red?logo=github)](https://github.com/marketplace/actions/objection-pr-trial)
+[![Release](https://img.shields.io/github/v/release/victorserpa/objection)](https://github.com/victorserpa/objection/releases)
+[![Tests](https://github.com/victorserpa/objection/actions/workflows/test.yml/badge.svg)](https://github.com/victorserpa/objection/actions/workflows/test.yml)
+
 > **OBJECTION!** Your PR goes on trial before it ships.
 
 **A skill and plugin for AI coding agents** (Claude Code, Codex, Cursor,
