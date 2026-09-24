@@ -43,7 +43,6 @@ bash "$PB" --update >/dev/null 2>&1 && fail "--update without a PR succeeded"
 
 # A PR with an old record: the description stays, the old record goes.
 printf 'Adds coupons.\n\nCloses #3.\n\n<!-- objection: sha=0000000 base=origin/main -->\n# Debate: old\nVERDICT: APPROVED\n' >"$T/body"
-git rev-parse HEAD~0 >/dev/null
 echo 1111111111111111111111111111111111111111 >"$T/head"
 bash "$PB" --update >/dev/null 2>&1 && fail "--update before the push succeeded"
 git rev-parse HEAD >"$T/head"
@@ -61,6 +60,8 @@ hasnt "$edited" "sha=0000000"
 OBJECTION_SUMMARY="Adds coupons." bash "$PB" --update >/dev/null || fail "--update on an empty body failed"
 has "$T/edited" "Adds coupons."
 bash "$PB" --updat >/dev/null 2>&1 && fail "an unknown flag was accepted"
-mkdir -p sub && (cd sub && bash "$PB" >/dev/null) || fail "pr-body failed from a subdirectory"
+top_out=$(bash "$PB")
+mkdir -p sub && sub_out=$(cd sub && bash "$PB") || fail "pr-body failed from a subdirectory"
+[ "$sub_out" = "$top_out" ] || fail "a subdirectory wrote another body ($sub_out)"
 
 [ "$failures" -eq 0 ] && echo "pr-body: all cases passed" || { echo "pr-body: $failures failure(s)"; exit 1; }
