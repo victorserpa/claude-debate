@@ -7,10 +7,7 @@ Maintained by precedents.mjs; edit by hand only to delete a line.
 - [3x, 2026-09-24, 7cff2bf] *: a document promises protection the code does not enforce
 - [3x, 2026-09-24, f68452f] skills/objection/gate/: widening an allowlist to close one bypass starts blocking innocent commands nearby
 - [2x, 2026-09-24, db4fe2e] skills/objection/gate/: a normalization shared by several rules fixes one form and breaks a neighboring one
-- [1x, 2026-09-24, 0d888b5] test/: a case that only expects pass also passes when the gate never saw the command; pair it with a blocked twin
-- [1x, 2026-09-24, 0d888b5] test/: a stub that answers the same for any input cannot tell a right parse from a wrong one
 - [2x, 2026-09-24, ab823c2] skills/objection/gate/: a value the gate cannot read was skipped silently instead of failing closed
-- [1x, 2026-09-24, 291590a] .github/workflows/: trusting the commit author alone: whoever writes a commit sets its author; check committer and signature too
 - [1x, 2026-09-24, 4dc01af] skills/objection/gate/: a hardcoded or first-found name (origin, first matching remote) stands in for the one gh really uses
 - [2x, 2026-09-24, 80722b1] skills/objection/: two instructions an agent reads together contradict each other (write a test, never change files)
 - [1x, 2026-09-24, ffa9cd5] skills/objection/: a rule moved or trimmed stops reaching an agent that never reads the file it moved to
@@ -34,3 +31,6 @@ Maintained by precedents.mjs; edit by hand only to delete a line.
 - [1x, 2026-09-24, fcd5724] skills/objection/: a package manager's shorthand runs its own tool instead of the project's script (bun test)
 - [1x, 2026-09-24, fcd5724] skills/objection/: a helper writes to a PR for a commit that is not the PR's head yet
 - [1x, 2026-09-24, da13e89] skills/objection/: a template pre-writes a statement that only the judge can make, so removing a marker turns it into a claim nobody made
+- [1x, 2026-09-24, 8e6ef56] skills/objection/: a command run inside a while-read loop inherits the loop's stdin and eats the lines still to come
+- [1x, 2026-09-24, 8e6ef56] skills/objection/gate/: a new rule in a moving tag is applied to records made before it existed
+- [1x, 2026-09-24, 8e6ef56] eval/: a harness that matched nothing reports 0 of 0 as a pass
