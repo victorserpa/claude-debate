@@ -17,3 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: victorserpa/objection@v1
+        # Optional: an accuser run here, with a key the agent never sees.
+        # with:
+        #   review: true
+        #   anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}

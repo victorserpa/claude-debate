@@ -1,13 +1,45 @@
 name: objection
-description: Fails a pull request unless its body carries an APPROVED /objection debate record for the current head SHA and base.
+description: Fails a PR without an APPROVED /objection record for its head; can also run an independent accuser in CI.
 author: Victor Serpa
 branding:
   icon: alert-octagon
   color: red
+inputs:
+  review:
+    description: "true runs an isolated accuser on the PR head in CI, with a key the agent never sees, and fails on its findings (see fail-on). Needs anthropic-api-key."
+    default: "false"
+  anthropic-api-key:
+    description: Anthropic API key for the review (a repository secret).
+    default: ""
+  model:
+    description: Claude model for the review.
+    default: sonnet
+  effort:
+    description: Effort for the review (low, medium, high, xhigh, max).
+    default: medium
+  fail-on:
+    description: "Which findings fail the review: blocker, high (BLOCKER or HIGH) or none (report only)."
+    default: blocker
+  record:
+    description: "false skips the record check and runs only the review."
+    default: "true"
 runs:
   using: composite
   steps:
-    - shell: bash
+    - if: ${{ inputs.record != 'false' }}
+      shell: bash
       env:
         GITHUB_TOKEN: ${{ github.token }}
       run: node "$GITHUB_ACTION_PATH/skills/objection/gate/check-pr.mjs"
+    # Runs even when the record check failed: both results are worth seeing.
+    - if: ${{ !cancelled() && inputs.review == 'true' }}
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
+        OBJECTION_MODEL: ${{ inputs.model }}
+        OBJECTION_EFFORT: ${{ inputs.effort }}
+        OBJECTION_FAIL_ON: ${{ inputs.fail-on }}
+      run: |
+        command -v claude >/dev/null 2>&1 || npm install -g --silent @anthropic-ai/claude-code
+        bash "$GITHUB_ACTION_PATH/skills/objection/ci-review.sh"
