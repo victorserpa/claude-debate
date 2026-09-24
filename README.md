@@ -115,7 +115,7 @@ work anywhere you did not opt in.
 | `reviewers` | your own reviewers, added as accusers when the diff touches `paths` (under `standard` and `thorough`); an `agent` named `opus`, `sonnet`, `haiku` or `claude-*` runs on that model in `debate.sh`; any other `agent` (another tool) is a label there, run it by hand for a second opinion |
 | `invariants` | rules that must never break, each with the `paths` it guards; a violation is a BLOCKER |
 | `budget` | `lean` (default), `standard` or `thorough`: how many reviewers and rounds a debate runs |
-| `models` | `{"default": "sonnet", "strong": "opus", "effort": "medium"}` (the defaults): the reviewers' model, and the stronger one used when an invariant or `strongPaths` matches, or under `thorough`; `strongEffort` sets the strong tier's effort apart (opus at `low` found the same HIGH as at its default, for $0.13 instead of $0.33) |
+| `models` | `{"default": "sonnet", "strong": "opus", "effort": "medium"}` (the defaults): the reviewers' model, and the stronger one used when an invariant or `strongPaths` matches, or under `thorough`; `strongEffort` sets the strong tier's effort apart (opus at `low` found the same HIGH as at its default, for $0.13 instead of $0.33); `defender` is the defender's model (default `sonnet`, whatever the accuser runs on); `laterEffort` is the accuser's effort in later rounds, which review only the fix (default `low`) |
 | `strongPaths` | a regex of paths that deserve the strong model (a gate, a validator, billing) |
 | `smallDiff` | under `lean`, a diff of at most this many changed lines that no invariant or `strongPaths` touches runs no reviewer; the judge reads it alone (default 20, `0` turns it off) |
 
@@ -360,6 +360,13 @@ it runs them in one session and says so in the record.
   - `debate.sh` runs a whole round up to the judge (brief, accuser,
     defender for what the budget sends, a draft record), so your session
     reads one file instead of driving every step;
+  - reviewer runs do not write the prompt cache: a run is one-shot and
+    never reads it back, and the write costs more than plain input
+    (measured: -32% per run);
+  - the defender runs on sonnet even when the accuser runs on opus: it
+    checks evidence already cited (same verdicts as opus on a real
+    round, $0.09 instead of $0.40); later rounds review only the fix, at
+    effort low; the brief carries three lines of context, not five;
   - under `lean`, a small diff (`smallDiff`, 20 changed lines) that no
     invariant or `strongPaths` touches runs no reviewer at all;
   - each finding is numbered once and the draft record does not repeat

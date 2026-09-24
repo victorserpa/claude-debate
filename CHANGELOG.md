@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.11.0 (2026-09-24)
+
+**Less per PR, the same reviews.** Every cut was measured on real
+briefs before it became a default; none of them drops a reviewer.
+
+- Reviewer runs no longer write the prompt cache (`DISABLE_PROMPT_CACHING`
+  for the isolated `claude -p`): each run is one-shot, never read back,
+  and the CLI wrote the whole input to a 1-hour cache at a premium.
+  Accuser $0.104 -> $0.071, defender $0.100 -> $0.067 on the same brief.
+  `OBJECTION_PROMPT_CACHE=1` keeps it.
+- The defender runs on `models.defender` (default sonnet) whatever the
+  accuser runs on: on a real round it gave opus's verdicts on five
+  findings and the judge's on the sixth, for $0.09 instead of $0.40.
+  `OBJECTION_DEFENDER_MODEL` overrides it.
+- Later rounds (`--since`, the fix only) run the accuser at
+  `models.laterEffort` (default low).
+- The brief carries three lines of diff context instead of five; the
+  known HIGH (ab823c2) was still found in 2 of 2 runs.
+- Tried and dropped: a prompt prefix shared by accuser and defender, so
+  the defender would read the brief from cache; the cache never hit.
+
 ## 0.10.0 (2026-09-24)
 
 **Say what it is, spend less, and a reviewer the agent cannot reach.**
