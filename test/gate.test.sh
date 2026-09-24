@@ -88,6 +88,7 @@ grep -qF "[objection] Advisory (enforce is false), would block:" "$T/adv.err" ||
 grep -qF '"systemMessage"' "$T/adv.out" || { echo "FAIL: advisory mode did not tell the Claude Code user"; failures=$((failures + 1)); }
 printf '{"cwd":"%s","command":"gh pr create --fill"}' "$A" | node "$HOOK" --host cursor >"$T/adv.out" 2>/dev/null
 grep -qF '"permission":"allow"' "$T/adv.out" || { echo "FAIL: advisory mode denied in Cursor"; failures=$((failures + 1)); }
+grep -qF 'Advisory (enforce is false)' "$T/adv.out" || { echo "FAIL: advisory mode did not tell the Cursor user"; failures=$((failures + 1)); }
 printf '{"bases":["main"],"enforce":"false"}\n' >"$A/.objection.json"
 check 2 $A Bash 'gh pr create --fill'
 printf '{"bases":["main"],"enforce":false\n' >"$A/.objection.json"

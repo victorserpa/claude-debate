@@ -16,7 +16,11 @@
 set -eu
 
 update=""
-[ "${1:-}" = --update ] && update=yes
+case "${1:-}" in
+  "") ;;
+  --update) update=yes ;;
+  *) echo "usage: pr-body.sh [--update]" >&2; exit 2 ;;
+esac
 gh_bin="${OBJECTION_GH_BIN:-gh}"
 
 sha=$(git rev-parse HEAD)
@@ -26,12 +30,19 @@ record="$dir/$sha.md"
 
 current=""
 has_pr=""
-if command -v "$gh_bin" >/dev/null 2>&1 && current=$("$gh_bin" pr view --json body -q .body 2>/dev/null); then
+pr_head=""
+if command -v "$gh_bin" >/dev/null 2>&1 && view=$("$gh_bin" pr view --json body,headRefOid -q '.headRefOid + "\n" + .body' 2>/dev/null); then
   has_pr=yes
-else
-  current="${OBJECTION_SUMMARY:-}"
+  pr_head=$(printf '%s\n' "$view" | head -n 1)
+  current=$(printf '%s\n' "$view" | tail -n +2)
 fi
-[ -n "$update" ] && [ -z "$has_pr" ] && { echo "no open PR for this branch: create it with gh pr create --body-file <path>." >&2; exit 1; }
+# An empty body (or no PR yet) takes the summary.
+[ -n "$(printf '%s' "$current" | tr -d '[:space:]')" ] || current="${OBJECTION_SUMMARY:-}"
+if [ -n "$update" ]; then
+  [ -n "$has_pr" ] || { echo "no open PR for this branch: create it with gh pr create --body-file <path>." >&2; exit 1; }
+  # The CI check compares the record with the PR's head: push first.
+  [ "$pr_head" = "$sha" ] || { echo "the PR's head is ${pr_head:0:7}, the record is for ${sha:0:7}: push, then update." >&2; exit 1; }
+fi
 
 body="$dir/body-$sha.md"
 {

@@ -44,7 +44,9 @@ bash <skill dir>/init.sh --advisory
 ```
 
 writes a config with `"enforce": false`: the debate runs, the hook says
-what it would have blocked and lets it through, and no CI check is added.
+what it would have blocked and lets it through, and no CI check is added
+(advisory mode is the local hook's; a CI check you already made required
+still requires a record).
 Run it on a few PRs in the riskiest part of your code, compare with the
 review you already use, then drop the line to enforce.
 

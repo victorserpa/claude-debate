@@ -78,7 +78,8 @@ if (has("package.json")) {
   try { scripts = JSON.parse(fs.readFileSync("package.json", "utf8")).scripts || {}; } catch {}
   const pm = has("pnpm-lock.yaml") ? "pnpm" : has("yarn.lock") ? "yarn"
     : has("bun.lockb") || has("bun.lock") ? "bun" : "npm";
-  const run = (s) => (pm === "npm" && s !== "test" ? `npm run ${s}` : `${pm} ${s}`);
+  // `bun test` is the runner built into bun, not the script: bun gets `run`.
+  const run = (s) => (pm === "bun" || (pm === "npm" && s !== "test") ? `${pm} run ${s}` : `${pm} ${s}`);
   for (const s of ["typecheck", "type-check", "lint", "test"]) {
     // npm init writes a test script that only fails: not a check.
     if (scripts[s] && !/no test specified/.test(scripts[s])) verify.push(run(s));

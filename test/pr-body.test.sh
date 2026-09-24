@@ -16,7 +16,7 @@ hasnt() { grep -qF -- "$2" "$1" && fail "$1 has [$2]"; }
 cat >"$T/gh" <<'STUB'
 #!/bin/bash
 case "$1 $2" in
-  "pr view") [ -f "$FAKE/body" ] || exit 1; cat "$FAKE/body" ;;
+  "pr view") [ -f "$FAKE/body" ] || exit 1; cat "$FAKE/head"; cat "$FAKE/body" ;;
   "pr edit") cp "$4" "$FAKE/edited" ;;
 esac
 STUB
@@ -43,6 +43,10 @@ bash "$PB" --update >/dev/null 2>&1 && fail "--update without a PR succeeded"
 
 # A PR with an old record: the description stays, the old record goes.
 printf 'Adds coupons.\n\nCloses #3.\n\n<!-- objection: sha=0000000 base=origin/main -->\n# Debate: old\nVERDICT: APPROVED\n' >"$T/body"
+git rev-parse HEAD~0 >/dev/null
+echo 1111111111111111111111111111111111111111 >"$T/head"
+bash "$PB" --update >/dev/null 2>&1 && fail "--update before the push succeeded"
+git rev-parse HEAD >"$T/head"
 out=$(bash "$PB" --update) || fail "--update failed"
 edited="$T/edited"
 has "$edited" "Closes #3."
@@ -50,5 +54,13 @@ has "$edited" "# Debate: new"
 hasnt "$edited" "# Debate: old"
 hasnt "$edited" "sha=0000000"
 [ "$(grep -c 'objection: sha=' "$edited")" = 1 ] || fail "more than one record in the body"
+
+# An empty PR body takes the summary; a typo in the flag is refused; a
+# subdirectory finds the same record.
+: >"$T/body"
+OBJECTION_SUMMARY="Adds coupons." bash "$PB" --update >/dev/null || fail "--update on an empty body failed"
+has "$T/edited" "Adds coupons."
+bash "$PB" --updat >/dev/null 2>&1 && fail "an unknown flag was accepted"
+mkdir -p sub && (cd sub && bash "$PB" >/dev/null) || fail "pr-body failed from a subdirectory"
 
 [ "$failures" -eq 0 ] && echo "pr-body: all cases passed" || { echo "pr-body: $failures failure(s)"; exit 1; }

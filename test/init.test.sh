@@ -79,6 +79,12 @@ has .objection.json '"enforce": false'
 [ -e .github ] && fail "advisory init wrote a CI check"
 has "$T/out" "advisory: nothing blocks"
 
+# bun: `bun run test`, never `bun test` (bun's own runner).
+repo bun git@github.com:me/bun.git
+printf '{"scripts":{"test":"vitest run"}}\n' >package.json && touch bun.lockb
+bash "$INIT" >"$T/out" 2>&1 || fail "bun init failed"
+has .objection.json '"bun run test"'
+
 # Nothing to verify: said so. Dry run: writes nothing.
 repo dry git@github.com:me/dry.git
 bash "$INIT" --dry-run >"$T/out" 2>&1 || fail "dry run failed"
