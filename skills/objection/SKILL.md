@@ -133,9 +133,10 @@ the defects this repository already shipped in those files.
 ## 2. Defense
 
 The defender (`roles/defender.md`) receives the findings the budget
-sends it (by default all BLOCKER, HIGH and MEDIUM), numbered, with the
-proof each accuser gave, and not the diff. LOW goes straight to the
-record, without defense. Same preference order for how to run it.
+sends it (`lean`: BLOCKER and HIGH; `standard`: MEDIUM too; `thorough`:
+all), numbered, with the proof each accuser gave and the brief's path.
+The rest goes straight to the record, without defense. Same preference
+order for how to run it.
 
 ## 3. Judge: this session, never a smaller model
 
