@@ -42,10 +42,29 @@ if (gitlab) {
   if (process.env.OBJECTION_MR_JSON) {
     mr = JSON.parse(readFileSync(process.env.OBJECTION_MR_JSON, "utf8"));
   } else {
+    // OBJECTION_GITLAB_TOKEN (a project access token with read_api) for
+    // instances that do not let the job token read merge requests.
     const url = `${process.env.CI_API_V4_URL}/projects/${process.env.CI_PROJECT_ID}/merge_requests/${process.env.CI_MERGE_REQUEST_IID}`;
-    const res = await fetch(url, { headers: { "JOB-TOKEN": process.env.CI_JOB_TOKEN || "" } });
-    if (!res.ok) fail(`could not read the merge request (HTTP ${res.status}).`);
-    mr = await res.json();
+    const headers = process.env.OBJECTION_GITLAB_TOKEN
+      ? { "PRIVATE-TOKEN": process.env.OBJECTION_GITLAB_TOKEN }
+      : { "JOB-TOKEN": process.env.CI_JOB_TOKEN || "" };
+    let status = 0;
+    try {
+      const res = await fetch(url, { headers });
+      status = res.status;
+      if (res.ok) mr = await res.json();
+    } catch {}
+    if (!mr) {
+      // The predefined variables, when the description was not cut.
+      const desc = process.env.CI_MERGE_REQUEST_DESCRIPTION || "";
+      if (!desc || process.env.CI_MERGE_REQUEST_DESCRIPTION_IS_TRUNCATED === "true")
+        fail(`could not read the merge request (HTTP ${status || "error"}), and CI_MERGE_REQUEST_DESCRIPTION is ${desc ? "cut at 2700 characters" : "empty"}. Set OBJECTION_GITLAB_TOKEN to a project access token with read_api.`);
+      mr = {
+        sha: process.env.CI_MERGE_REQUEST_SOURCE_BRANCH_SHA || process.env.CI_COMMIT_SHA,
+        target_branch: process.env.CI_MERGE_REQUEST_TARGET_BRANCH_NAME,
+        description: desc,
+      };
+    }
   }
   // The MR's head as GitLab reports it; in a merged-results pipeline
   // CI_COMMIT_SHA is a merge commit, not the debated one.

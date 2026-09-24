@@ -13,14 +13,17 @@
   the model and why; `OBJECTION_MODEL` and `OBJECTION_EFFORT` override.
 - `review.sh` runs the roles through the **Codex CLI** (`codex exec`,
   read-only sandbox, the role as instructions, no AGENTS.md) when the
-  claude CLI is missing, or with `OBJECTION_RUNNER=codex`. Flags from
-  Codex's docs; not yet run live.
+  claude CLI is missing, or with `OBJECTION_RUNNER=codex`; a Codex
+  picked that way that fails exits 3 (fall back to subagents). Flags
+  from Codex's docs; not yet run live.
 - **GitLab**: the local gate covers `glab mr create` (needs
   `--target-branch` and the debated commit pushed), `glab mr merge`
-  (only with `--auto-merge=false`: auto-merge is glab's default) and
-  `glab api` writes to `merge_requests`. `check-pr.mjs` runs as a GitLab
+  (only with `--auto-merge=false`: auto-merge is glab's default),
+  `glab mr update --ready` and `glab api` writes to `merge_requests`. `check-pr.mjs` runs as a GitLab
   CI job (`templates/gitlab/`), reading the merge request with the job
-  token and the files with git. Not yet run on gitlab.com.
+  token (or `OBJECTION_GITLAB_TOKEN`; the description variable when the
+  API refuses and it was not cut) and the files with git. Not yet run on
+  gitlab.com.
 - README: what works without GitHub or `gh` (the debate everywhere, the
   gate only where there is one), and what a PR costs.
 - No script needs git 2.31 any more (`--path-format=absolute` is gone).

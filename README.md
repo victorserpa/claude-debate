@@ -114,8 +114,8 @@ Requirements: `node`, `git`, `bash` and `perl`, plus the `claude` CLI or
 the `codex` CLI to run the reviewers cheaply, and `gh` or `glab` for the
 local gate. Linux and macOS have the first four; on Windows, Git for
 Windows brings `bash` and `perl` (Git Bash, which Claude Code needs
-there anyway). CI runs every test on Linux, macOS and Windows. Any git
-version from the last years works (nothing needs git 2.31 or later).
+there anyway). CI runs every test on Linux, macOS and Windows. Git 2.13
+or later (2017).
 Minimal container images (Alpine) lack `bash` and `perl`: install them.
 
 **Without GitHub, or without `gh`.** The debate itself (brief, reviewers,
@@ -177,7 +177,10 @@ provides is cut at 2700 characters) and lists the changed files with
 git. A merge request pipeline runs the source branch's CI file, so a
 merge request can drop the job from its own pipeline; keep the CI file
 in another project, or use a pipeline execution policy, where that
-matters. Not yet run on gitlab.com: covered by tests only.
+matters. If your instance does not let the job token read merge
+requests, set `OBJECTION_GITLAB_TOKEN` (a project access token with
+`read_api`) as a masked CI variable. Not yet run on gitlab.com: covered
+by tests only.
 
 ## What the local gate blocks
 

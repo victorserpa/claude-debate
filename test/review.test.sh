@@ -167,5 +167,9 @@ printf '#!/bin/bash\ncat >/dev/null\necho "codex auth error" >&2\nexit 1\n' >"$T
 OBJECTION_RUNNER=codex OBJECTION_CODEX="$T/codex-fail" bash "$REVIEW" accuser "$T/brief.md" >/dev/null 2>"$T/err"
 [ $? = 1 ] || { echo "FAIL: failing codex did not exit 1"; failures=$((failures + 1)); }
 has "$T/err" "codex auth error"
+# Picked only because claude is missing, a failing codex (not logged in,
+# a flag it rejects) is exit 3: the caller falls back to subagents.
+OBJECTION_CLAUDE=/nonexistent/claude OBJECTION_CODEX="$T/codex-fail" bash "$REVIEW" accuser "$T/brief.md" >/dev/null 2>"$T/err"
+[ $? = 3 ] || { echo "FAIL: an auto-picked failing codex did not exit 3"; failures=$((failures + 1)); }
 
 if [ "$failures" = 0 ]; then echo "review: all cases passed"; else echo "review: $failures failure(s)"; exit 1; fi

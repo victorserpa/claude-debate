@@ -542,7 +542,7 @@ export function gate(input) {
     const matches = [...active.matchAll(reGh)];
     // GitLab: `glab mr create|new|merge`, with -R/--repo before or after `mr`.
     const reGlab =
-      /(?:^|[\s;&|(`])(?:\S*\/)?glab((?:\s+(?:-R\s*=?|--repo(?:\s+|=))\S+)*)\s+mr((?:\s+(?:-R\s*=?|--repo(?:\s+|=))\S+)*)\s+(create|new|merge)\b([^;&|\n)]*)/g;
+      /(?:^|[\s;&|(`])(?:\S*\/)?glab((?:\s+(?:-R\s*=?|--repo(?:\s+|=))\S+)*)\s+mr((?:\s+(?:-R\s*=?|--repo(?:\s+|=))\S+)*)\s+(create|new|merge|update)\b([^;&|\n)]*)/g;
     const glabMatches = [...active.matchAll(reGlab)];
     if (matches.length === 0 && glabMatches.length === 0) return ALLOW;
 
@@ -781,10 +781,17 @@ export function gate(input) {
     const GLAB_TAKES_VALUE = new Set([
       "-R", "--repo", "-m", "--message", "--squash-message", "--sha",
     ]);
+    // `glab mr update` flags with a value (docs.gitlab.com/cli/mr/update);
+    // in `merge`, -d is a switch, so the sets are kept apart.
+    const GLAB_UPDATE_VALUE = new Set([
+      "-t", "--title", "-l", "--label", "--reviewer", "-m", "--milestone", "--target-branch",
+    ]);
     for (const m of glabMatches) {
       const [, glabGlobals, mrGlobals, rawAction, rest] = m;
       const action = rawAction === "new" ? "create" : rawAction;
       if (/(^|\s)(--help|-h)\b/.test(rest)) continue;
+      // `glab mr update` counts only when it takes a draft to review.
+      if (action === "update" && !/(^|\s)(--ready|-r)(\s|=|$)/.test(rest)) continue;
       if (/\bxargs\b[^;&|\n]*$/.test(active.slice(0, m.index + 1)))
         block("glab mr merge through xargs hides which merge request it is. Put its number in the command itself.", false);
       const dir = dirBefore(m.index);
@@ -818,13 +825,13 @@ export function gate(input) {
         } else {
           // Auto-merge is glab's default and merges whatever the head is
           // when the pipeline passes: only an explicit off is allowed.
-          if (!/(^|\s)--auto-merge=false\b/.test(rest))
+          if (action === "merge" && !/(^|\s)--auto-merge=false\b/.test(rest))
             block("glab mr merge auto-merges by default, which lets in commits pushed after the debate. Run it with --auto-merge=false, with the record for the current SHA.", false);
           const toks = tokens(rest);
           let target = null;
           for (let k = 0; k < toks.length; k++) {
             const t = toks[k];
-            if (GLAB_TAKES_VALUE.has(t)) {
+            if (GLAB_TAKES_VALUE.has(t) || (action === "update" && GLAB_UPDATE_VALUE.has(t))) {
               k++;
               continue;
             }

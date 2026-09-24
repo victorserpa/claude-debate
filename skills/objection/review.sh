@@ -63,9 +63,10 @@ role_file="${OBJECTION_ROLES_DIR:-$here/roles}/$role.md"
 claude_bin="${OBJECTION_CLAUDE:-claude}"
 codex_bin="${OBJECTION_CODEX:-codex}"
 runner="${OBJECTION_RUNNER:-}"
+auto_codex=""
 if [ -z "$runner" ]; then
   if command -v "$claude_bin" >/dev/null 2>&1; then runner=claude
-  elif command -v "$codex_bin" >/dev/null 2>&1; then runner=codex
+  elif command -v "$codex_bin" >/dev/null 2>&1; then runner=codex; auto_codex=yes
   else
     echo "neither the claude nor the codex CLI was found: run the $role as a subagent instead (see SKILL.md)." >&2
     exit 3
@@ -168,6 +169,12 @@ failed() {
   # Logged too (it may have been billed), with its tokens unknown.
   [ -z "$usage_log" ] || printf '%s\t%s\t%s\t%s\t%s\t0\t0\t\tfailed\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     "$branch" "$head" "$role" "$label" >>"$usage_log" || true
+  # Codex picked only because claude is missing (not logged in, a flag its
+  # version rejects): exit 3, so the caller falls back to subagents.
+  if [ -n "$auto_codex" ]; then
+    echo "objection: codex was used because claude is missing, and it failed: run the $role as a subagent (see SKILL.md)." >&2
+    exit 3
+  fi
   exit 1
 }
 

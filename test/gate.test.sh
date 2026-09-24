@@ -206,7 +206,8 @@ check 0 $N Bash 'gh pr merge --disable-auto 5'
 # The stub answers `glab mr view -F json` with $GLAB_SHA and develop.
 cat >"$T/bin/glab" <<'EOF2'
 #!/bin/bash
-if [ "$1 $2" = "mr view" ]; then
+# Answers only the documented form: mr view <n> -F json.
+if [ "$1 $2" = "mr view" ] && [ "$*" = "mr view 5 -F json" ]; then
   printf '{"iid":5,"sha":"%s","target_branch":"%s","description":"x"}\n' "$GLAB_SHA" "${GLAB_BASE:-develop}"; exit 0
 fi
 exit 1
@@ -246,6 +247,12 @@ check 2 "$N" Bash 'glab mr create --target-branch develop --fill'
 check 2 "$GL" Bash 'glab api -X POST projects/1/merge_requests -f source_branch=feat'
 check 2 "$GL" Bash 'glab api --method PUT projects/1/merge_requests/5/merge'
 check 0 "$GL" Bash 'glab api projects/1/merge_requests/5'
+# glab mr update --ready takes a draft to review: the same record check.
+GLAB_SHA=$GL_SHA check 0 "$GL" Bash 'glab mr update 5 --ready'
+GLAB_SHA=deadbeefdeadbeefdeadbeefdeadbeefdeadbeef check 2 "$GL" Bash 'glab mr update 5 --ready'
+GLAB_SHA=deadbeefdeadbeefdeadbeefdeadbeefdeadbeef check 2 "$GL" Bash 'glab mr update 5 -r'
+GLAB_SHA=deadbeefdeadbeefdeadbeefdeadbeefdeadbeef check 0 "$GL" Bash 'glab mr update 5 --title x'
+GLAB_SHA=$GL_SHA check 0 "$GL" Bash 'glab mr update --label bug 5 --ready'
 # Innocent look-alikes.
 check 0 "$N" Bash 'glab mr list'
 check 0 "$N" Bash 'glab mr view 5'
@@ -331,6 +338,12 @@ done
 printf 'y\n' >>"$R/b.md" && git -C "$R" add b.md && gitc -C "$R" commit -q -m doc2
 git -C "$R" update-ref refs/remotes/origin/develop HEAD~1
 stampcheck 0 origin/develop "$T/min.md"
+# From a subdirectory the record still lands in the repository's git dir.
+mkdir -p "$R/deep/er"
+full '- MEDIUM: x'
+(cd "$R/deep/er" && bash "$STAMP" "$T/rec.md" origin/develop >/dev/null 2>&1) || { echo "FAIL: stamp.sh from a subdirectory"; failures=$((failures + 1)); }
+[ -f "$R/.git/objection/$(git -C "$R" rev-parse HEAD).md" ] || { echo "FAIL: stamp.sh from a subdirectory wrote elsewhere"; failures=$((failures + 1)); }
+[ -e "$R/deep/er/.git" ] && { echo "FAIL: stamp.sh created a .git in the subdirectory"; failures=$((failures + 1)); }
 # Repository not opted in: stamp.sh refuses.
 (cd "$F" && bash "$STAMP" "$T/rec.md" origin/main >/dev/null 2>&1) && { echo "FAIL: stamp.sh ran without objection.json"; failures=$((failures + 1)); }
 
