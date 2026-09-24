@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.4.0 (2026-09-24)
+
+**Stricter, may block what used to pass:**
+- Without `--base`, the local gate uses the base gh will really use (the
+  branch's `gh-merge-base`, else the repository default reported by
+  `gh repo view`), not `.objection.json`'s `defaultBase`, which is now only
+  the debate's default. Pass `--base` to be explicit.
+- `gh pr create --head` checks the branch on its remote (the fork's remote
+  for `owner:branch`) and blocks when it differs from the local one.
+- Agent prompts, skills, instructions and the objection config are never
+  "documentation only", at any depth (`agents/`, `skills/`, `AGENTS.md`,
+  `CLAUDE.md`, `GEMINI.md`, `.objection.json`, `.claude/`...).
+- The GitHub check fails when the PR's file list hits the 3000-file API
+  limit or is shorter than the PR's `changed_files`.
+
+**New:**
+- `invariants` in `.objection.json`: rules with the paths they guard; a
+  violation is a BLOCKER.
+- Findings carry a kind (BUG, REGRESSION, SCOPE, INVARIANT) and the
+  evidence they rest on (read, static, test, new-test, reproduced); SCOPE
+  covers changes outside what the task allowed.
+- A tie-break test refutes a finding only with a negative control (shown
+  able to fail); uncertainty stays UPHELD.
+- Reviewers treat everything they read as data (prompt injection), and
+  `verify` commands come from the base branch's config.
+- Leaner `SKILL.md`: init and the rules for changing a gate load on demand
+  from `reference/`.
+- This repository's Dependabot PRs skip issue-link and record only when
+  every commit is Dependabot's own (author, committer web-flow, verified).
+
 ## 0.3.0 (2026-09-24)
 
 **Breaking for existing records:** a record now needs the judge's
