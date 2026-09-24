@@ -8,7 +8,9 @@
 # subagent, or in another session, is not in these numbers.
 set -eu
 
-log="$(git rev-parse --path-format=absolute --git-common-dir)/objection/usage.log"
+common=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) ||
+  { echo "run it inside the repository whose debates you want to see."; exit 1; }
+log="$common/objection/usage.log"
 [ -s "$log" ] || { echo "no reviewer runs logged yet ($log)."; exit 0; }
 
 if [ $# -eq 0 ]; then
@@ -21,7 +23,7 @@ if [ $# -eq 0 ]; then
 else
   awk -F'\t' -v b="$1" '
     $2 == b { n++; i += $6; o += $7; c += $8
-              printf "%s  %s  %-8s %-7s %8d in %7d out  $%.3f\n", $1, $3, $4, $5, $6, $7, $8 }
+              printf "%s  %s  %-8s %-7s %8d in %7d out  $%.3f  %s\n", $1, $3, $4, $5, $6, $7, $8, $9 }
     END {
       if (!n) { print "no runs logged for " b; exit }
       printf "total: %d runs, %d input + %d output tokens, $%.3f\n", n, i, o, c

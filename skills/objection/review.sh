@@ -121,6 +121,9 @@ if ! perl -e 'alarm shift; exec @ARGV' "${OBJECTION_TIMEOUT:-900}" "$claude_bin"
   # The call may already be paid for: show what came back instead of losing it.
   echo "objection: the $role run failed (error, or timeout after ${OBJECTION_TIMEOUT:-900}s)." >&2
   cat "$work/err" "$out" >&2 2>/dev/null || true
+  # Logged too (it may have been billed), with its tokens unknown.
+  [ -z "$usage_log" ] || printf '%s\t%s\t%s\t%s\t%s\t0\t0\t\tfailed\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    "$branch" "$head" "$role" "$model" >>"$usage_log" || true
   exit 1
 fi
 
@@ -140,12 +143,12 @@ process.stdout.write((j.result || "") + "\n");
 process.stderr.write(`objection: ${process.argv[2]} used ${inTok} input + ${u.output_tokens || 0} output tokens` +
   (j.total_cost_usd !== undefined ? ` ($${Number(j.total_cost_usd).toFixed(3)})` : "") + "\n");
 // One tab-separated line per run: date, branch, commit, role, model,
-// input, output, cost. A failed write never loses the answer.
+// input, output, cost, status. A failed write never loses the answer.
 const [, , , log, branch, head, model] = process.argv;
 if (log) {
   try {
     require("fs").appendFileSync(log, [new Date().toISOString(), branch, head, process.argv[2], model, inTok,
-      u.output_tokens || 0, j.total_cost_usd ?? ""].join("\t") + "\n");
+      u.output_tokens || 0, j.total_cost_usd ?? "", j.is_error ? "failed" : "ok"].join("\t") + "\n");
   } catch (e) { process.stderr.write(`objection: usage not logged (${e.message})\n`); }
 }
 if (j.is_error) process.exit(1);

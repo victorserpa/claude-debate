@@ -50,13 +50,15 @@ rm -f "$findings" "$defense"
 # An exit 3 (no claude CLI) must reach the caller as 3, so no `|| exit 1`.
 bash "$here/review.sh" accuser "$brief" >"$accusation"
 
-# Finding rows: a table row whose first cell is a severity. Bold or
-# underscores around it are tolerated; the header and separator are not rows.
+# Finding rows: a table row whose first cell starts with a severity word.
+# Bold, underscores and a note after it ("HIGH (regression)") are
+# tolerated; the header and separator are not rows.
 rows() {
   awk -F'|' -v want="$1" '
     /^[[:space:]]*\|/ {
-      s = $2; gsub(/[[:space:]*_]/, "", s); s = toupper(s)
-      if (s ~ "^(" want ")$") print
+      s = $2; sub(/^[[:space:]*_]+/, "", s)
+      if (!match(s, /^[A-Za-z]+/)) next
+      if (toupper(substr(s, 1, RLENGTH)) ~ "^(" want ")$") print
     }' "$accusation"
 }
 count() { rows "$1" | wc -l | tr -d ' '; }
@@ -67,15 +69,22 @@ case "$budget" in
 esac
 
 defended="not run: no finding the $budget budget sends to the defense"
+rc=0
 if [ -n "$(rows "$sent")" ]; then
   {
     printf '| # | severity | kind | file:line | defect | evidence | proof path |\n'
     printf '|---|---|---|---|---|---|---|\n'
     rows "$sent" | awk '{ sub(/^[[:space:]]*\|/, ""); printf "| %d |%s\n", NR, $0 }'
   } >"$findings"
-  bash "$here/review.sh" defender "$brief" "$findings" >"$defense"
-  n=$(rows "$sent" | wc -l | tr -d ' ')
-  defended="answered $n finding(s) ($sent)"
+  # A failed defense must not lose the accusation already paid for: the
+  # draft is written anyway and the exit code reports the failure.
+  if bash "$here/review.sh" defender "$brief" "$findings" >"$defense"; then
+    n=$(rows "$sent" | wc -l | tr -d ' ')
+    defended="answered $n finding(s) ($sent)"
+  else
+    rc=$?
+    defended="defender FAILED (exit $rc): rerun review.sh defender, or treat its findings as undefended"
+  fi
 fi
 
 {
@@ -85,11 +94,11 @@ fi
   printf '## Accusation\n\n'
   cat "$accusation"
   printf '\n## Defense\n\n'
-  if [ -s "$defense" ]; then
+  if [ -s "$findings" ]; then
     printf 'Findings as numbered for the defender:\n\n'
     cat "$findings"
     printf '\n'
-    cat "$defense"
+    if [ "$rc" = 0 ]; then cat "$defense"; else printf '%s.\n' "$defended"; fi
   else
     printf '%s.\n' "$defended"
   fi
@@ -107,3 +116,4 @@ if [ "$budget" != lean ]; then
   echo "note: $budget also runs each matching reviewers entry as an accuser (SKILL.md step 1); this script ran the generic one."
 fi
 echo "next: judge each finding (SKILL.md step 3), replace the TODO(judge) lines, then stamp.sh."
+exit "$rc"

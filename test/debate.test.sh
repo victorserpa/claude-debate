@@ -103,6 +103,41 @@ out=$(bash "$DEBATE" --since "$prev" main 2>/dev/null)
 printf '%s\n' "$out" | grep -qF "diff $prev...HEAD" || fail "--since did not set the diff base"
 has "$T/stdin-accuser" "hunt regressions from the fix first"
 
+# An annotated severity ("HIGH (regression)") still counts and is defended.
+accuse "HIGH (regression)" MEDIUM
+reset
+out=$(bash "$DEBATE" main 2>/dev/null)
+printf '%s\n' "$out" | grep -qF "1 HIGH" || fail "an annotated HIGH was not counted"
+has "$T/stdin-defender" "defect HIGH (regression)"
+
+# Thorough (from the base): LOW goes to the defender too.
+git checkout -q -b cfg2 origin/main
+printf '{"bases":["main"],"budget":"thorough"}\n' >.objection.json
+git add . && gitc commit -q -m thorough
+git update-ref refs/remotes/origin/main HEAD
+git checkout -q - && gitc rebase -q -X theirs origin/main
+accuse HIGH LOW
+reset
+bash "$DEBATE" main >/dev/null 2>&1
+has "$T/stdin-defender" "defect LOW"
+
+# A failing defender: the paid accusation still lands in a draft record,
+# the failure is logged, and the exit code says it failed.
+cp "$T/claude" "$T/claude-ok"
+sed 's/^cat >"\$FAKE_DIR\/stdin-\$role"$/&; [ "$role" = defender ] \&\& exit 1/' "$T/claude-ok" >"$T/claude"
+reset
+lines_before=$(wc -l <"$(git rev-parse --git-common-dir)/objection/usage.log")
+out=$(bash "$DEBATE" main 2>/dev/null)
+rc=$?
+cp "$T/claude-ok" "$T/claude"
+[ "$rc" = 1 ] || fail "a failed defender did not exit 1 (rc=$rc)"
+record=$(printf '%s\n' "$out" | sed -n 's/^draft record: //p')
+[ -f "$record" ] || fail "a failed defender left no draft record"
+[ -f "$record" ] && has "$record" "defect HIGH"
+[ -f "$record" ] && has "$record" "defender FAILED"
+tail -n 1 "$(git rev-parse --git-common-dir)/objection/usage.log" | grep -q "defender.*failed" || fail "the failed defender run was not logged"
+[ "$(wc -l <"$(git rev-parse --git-common-dir)/objection/usage.log")" -gt "$lines_before" ] || fail "usage log did not grow"
+
 # No claude CLI: exit 3 reaches the caller, so it can fall back to subagents.
 OBJECTION_CLAUDE=/nonexistent/claude bash "$DEBATE" main >/dev/null 2>&1
 [ $? = 3 ] || fail "a missing claude CLI did not exit 3"
@@ -114,5 +149,8 @@ runs=$(awk -v b="$(git rev-parse --abbrev-ref HEAD)" '$1 == b {print $2}' "$T/us
 [ "$runs" -ge 7 ] 2>/dev/null || fail "usage counted $runs runs, expected at least 7"
 bash "$USAGE" "$(git rev-parse --abbrev-ref HEAD)" | grep -qE '^total: [0-9]+ runs, [0-9]+ input' || fail "usage.sh <branch> has no total"
 bash "$USAGE" no-such-branch | grep -qF "no runs logged" || fail "an unknown branch is not reported"
+# Outside a repository: a message, not a raw git error.
+(cd "$T" && bash "$USAGE" 2>&1) | grep -qF "not a git repository" && fail "usage.sh leaked a raw git error"
+[ -x "$ROOT/skills/objection/debate.sh" ] && [ -x "$ROOT/skills/objection/usage.sh" ] || fail "debate.sh or usage.sh is not executable"
 
 if [ "$failures" = 0 ]; then echo "debate: all cases passed"; else echo "debate: $failures failure(s)"; exit 1; fi
