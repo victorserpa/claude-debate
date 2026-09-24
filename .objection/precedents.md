@@ -10,3 +10,7 @@ Maintained by precedents.mjs; edit by hand only to delete a line.
 - [1x, 2026-09-24, 4bf9f11] .github/workflows/: skipping a check based on the event sender makes the result flip on the same commit
 - [1x, 2026-09-24, 4bf9f11] scripts/: an exemption keyed on subject text (Merge ...) lets ordinary commits skip every rule
 - [1x, 2026-09-24, 4bf9f11] *: a document promises protection the code does not enforce
+- [1x, 2026-09-24, 0d888b5] skills/objection/gate/: widening an allowlist to close one bypass starts blocking innocent commands nearby
+- [1x, 2026-09-24, 0d888b5] skills/objection/gate/: a normalization shared by several rules fixes one form and breaks a neighboring one
+- [1x, 2026-09-24, 0d888b5] test/: a case that only expects pass also passes when the gate never saw the command; pair it with a blocked twin
+- [1x, 2026-09-24, 0d888b5] test/: a stub that answers the same for any input cannot tell a right parse from a wrong one
