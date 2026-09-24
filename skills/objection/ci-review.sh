@@ -64,9 +64,28 @@ got=$(git rev-parse refs/objection/pr)
 git update-ref --no-deref HEAD "$head"
 
 export OBJECTION_MODEL="${OBJECTION_MODEL:-sonnet}" OBJECTION_EFFORT="${OBJECTION_EFFORT:-medium}"
-brief=$(bash "$here/brief.sh" "origin/$base" "$title" "not stated" "origin/$base")
+summarise() {
+  printf '%s\n' "$1"
+  [ -z "${GITHUB_STEP_SUMMARY:-}" ] || printf '%s\n' "$1" >>"$GITHUB_STEP_SUMMARY"
+}
 accusation="$work/accusation.md"
 rc=0
+if ! brief=$(bash "$here/brief.sh" "origin/$base" "$title" "not stated" "origin/$base" 2>"$work/brief.err"); then
+  cat "$work/brief.err" >&2
+  # Every changed file is noise the config excludes: nothing to accuse.
+  if grep -q '^nothing to review' "$work/brief.err"; then
+    summarise "## objection review: passed
+
+PR #$number @ ${head:0:7}: nothing to review ($(head -n 1 "$work/brief.err"))."
+    finished=yes
+    exit 0
+  fi
+  summarise "## objection review: failed: the brief could not be built
+
+$(head -n 5 "$work/brief.err")"
+  finished=yes
+  exit 1
+fi
 bash "$here/review.sh" accuser "$brief" >"$accusation" || rc=$?
 
 # Same row rule as debate.sh: a table row whose first cell starts with the word.
@@ -106,7 +125,6 @@ summary=$(
     "$blocker" "$high" "$medium" "$low"
   cat "$accusation"
 )
-printf '%s\n' "$summary"
-[ -z "${GITHUB_STEP_SUMMARY:-}" ] || printf '%s\n' "$summary" >>"$GITHUB_STEP_SUMMARY"
+summarise "$summary"
 finished=yes
 exit "$status"

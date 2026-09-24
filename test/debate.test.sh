@@ -263,7 +263,14 @@ out=$(OBJECTION_SMALL_DIFF= bash "$DEBATE" main 2>/dev/null)
 printf '%s\n' "$out" | grep -qF "reviewers: skipped (small diff: 2 changed lines, at most 5)" || fail "a small diff was not skipped ($out)"
 [ -e "$T/ran-accuser" ] && fail "a small diff still ran the accuser"
 record=$(printf '%s\n' "$out" | sed -n 's/^draft record: //p')
-[ -f "$record" ] && has "$record" "No reviewers ran: small diff"
+[ -f "$record" ] || fail "the skip wrote no draft record ($out)"
+has "$record" "No reviewers ran: small diff"
+# A binary file has no line count: never small.
+git reset -q --hard origin/main && printf '\0\1\2' >src/icon.bin && git add . && gitc commit -q -m bin
+reset
+OBJECTION_SMALL_DIFF= bash "$DEBATE" main >/dev/null 2>&1
+[ -e "$T/ran-accuser" ] || fail "a binary-only diff skipped the reviewers"
+git reset -q --hard origin/main && printf 'a\nb\n' >>src/ui.ts && git add . && gitc commit -q -m small
 seq 1 10 >>src/ui.ts && git add . && gitc commit -q -m bigger
 reset
 OBJECTION_SMALL_DIFF= bash "$DEBATE" main >/dev/null 2>&1

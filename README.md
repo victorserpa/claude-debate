@@ -186,7 +186,12 @@ the head SHA GitHub reports, and fails when it finds a BLOCKER
 (`fail-on: high` for HIGH too, `none` to only report). The findings go
 to the job summary. The PR's code is never checked out or run: the base
 and the PR head are fetched as commits, and the scripts come from the
-action. About $0.05 per push on sonnet.
+action. About $0.05 per push on sonnet. Keep the template's
+`pull_request_target`: it runs from the base branch, and it is the
+trigger that gives a fork's PR the key (`pull_request` gives forks no
+secrets, so the step fails asking for one). The `claude` CLI is
+installed at a pinned version (`claude-version`), since a new one can
+change the flags the reviewer is run with.
 
 ```yaml
       - uses: victorserpa/objection@v1

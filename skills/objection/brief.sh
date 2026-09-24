@@ -141,8 +141,11 @@ fi
 
 diff=$(git diff -U5 "$diff_base"...HEAD "${X[@]}")
 total=$(printf '%s\n' "$diff" | wc -l | tr -d ' ')
-# Lines added plus removed (a binary file counts none), for debate.sh.
-changed=$(git diff --numstat "$diff_base"...HEAD "${X[@]}" | awk '$1 != "-" { n += $1 + $2 } END { print n + 0 }')
+# Lines added plus removed, for debate.sh's small-diff skip. A binary
+# file, or an entry with no lines (a rename, a mode change), has no
+# honest count: "unknown", which is never small.
+changed=$(git diff --numstat "$diff_base"...HEAD "${X[@]}" |
+  awk '$1 == "-" || $1 + $2 == 0 { u = 1 } { n += $1 + $2 } END { print (u ? "unknown" : n + 0) }')
 
 {
   printf '# objection brief: %s @ %s against %s\n\n' "$(git rev-parse --abbrev-ref HEAD)" "${sha:0:7}" "$diff_base"

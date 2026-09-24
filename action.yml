@@ -20,6 +20,9 @@ inputs:
   fail-on:
     description: "Which findings fail the review: blocker, high (BLOCKER or HIGH) or none (report only)."
     default: blocker
+  claude-version:
+    description: "The @anthropic-ai/claude-code version installed for the review: pinned, since a new CLI can change the flags review.sh passes."
+    default: "2.1.278"
   record:
     description: "false skips the record check and runs only the review."
     default: "true"
@@ -40,6 +43,7 @@ runs:
         OBJECTION_MODEL: ${{ inputs.model }}
         OBJECTION_EFFORT: ${{ inputs.effort }}
         OBJECTION_FAIL_ON: ${{ inputs.fail-on }}
+        CLAUDE_VERSION: ${{ inputs.claude-version }}
       run: |
-        command -v claude >/dev/null 2>&1 || npm install -g --silent @anthropic-ai/claude-code
+        npm install -g --silent "@anthropic-ai/claude-code@$CLAUDE_VERSION"
         bash "$GITHUB_ACTION_PATH/skills/objection/ci-review.sh"

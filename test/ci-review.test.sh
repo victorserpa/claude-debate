@@ -51,7 +51,7 @@ run() { rm -f "$T/summary" "$T/stdin" "$T/args"; bash "$CI" >"$T/out" 2>"$T/err"
 event "Add x" "$head"; answer
 run || fail "a clean review failed ($(cat "$T/err"))"
 has "$T/summary" "objection review: passed"
-has "$T/stdin" "RULE FROM BASE"
+has "$T/stdin" "RULE FROM BASE (guards"
 hasnt "$T/stdin" "RULE FROM PR (guards"
 has "$T/stdin" "Goal: Add x"
 has "$T/stdin" "+x"
@@ -93,6 +93,17 @@ mkdir -p "$T/copy" && cp "$ROOT"/skills/objection/*.sh "$ROOT"/skills/objection/
 sed 's/^finished=yes$/: "$objection_unset"; finished=yes/' "$CI" >"$T/copy/ci-review.sh"
 grep -qF objection_unset "$T/copy/ci-review.sh" || fail "the injection did not apply"
 bash "$T/copy/ci-review.sh" >/dev/null 2>&1 && fail "an unbound variable passed"
+# A brief that cannot be built fails with the reason in the summary; a PR
+# whose every file is excluded noise passes as nothing to review.
+event "Add x" "$head"
+cd "$W" && git checkout -q -b lock HEAD~1 && printf 'lock\n' >pnpm-lock.yaml && git add . && gitc commit -q -m lock &&
+  git push -q -f "$B" HEAD:refs/pull/7/head && cd "$T" || exit 1
+event "Lock" "$(git -C "$W" rev-parse HEAD)"
+run || fail "a PR of excluded files failed ($(cat "$T/err"))"
+has "$T/summary" "nothing to review"
+[ -e "$T/stdin" ] && fail "the accuser ran on a PR of excluded files"
+git -C "$B" update-ref -d refs/heads/main
+run && fail "a missing base passed"
 printf '{"push":{}}\n' >"$T/event.json"
 run && fail "a non-PR event passed"
 
