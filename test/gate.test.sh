@@ -309,6 +309,29 @@ check 2 $N Bash '$SHELL -c "gh pr merge 5"'
 check 2 $N Bash '${SHELL:-bash} -c "gh pr create --fill"'
 check 2 $N Bash "pwsh -c 'gh pr merge 5'"
 check 2 $N Bash "python3 -c 'gh pr merge 5'"
+
+# --- Round 4: a command substitution that does not run gh ------------------
+# `$(...)` or backticks before the PR number used to cut the command at `)`,
+# so gh looked up the wrong target and an innocent merge was blocked. Code
+# that does not mention gh cannot create or merge a PR (short of disguise,
+# LOW), so it becomes a placeholder like inert text.
+export STUB_LOG="$T/gh.log" STUB_SHA=$OK_SHA
+: >"$T/gh.log"
+STUB_WANT="42" check 0 $O Bash 'gh pr merge -t "$(git log -1 --format=%s)" 42 --squash'; called "42"
+STUB_WANT="42" check 0 $O Bash 'gh pr merge --body="$(cat notes.md)" 42'; called "42"
+STUB_WANT="42" check 0 $O Bash 'gh pr merge -t $(git log -1 --format=%s) 42'; called "42"
+STUB_WANT="42" check 0 $O Bash 'gh pr merge -t `git log -1 --format=%s` 42'; called "42"
+STUB_WANT="42" check 0 $O Bash 'gh pr merge --subject "$(printf "%s" "$(git log -1 --format=%s)")" 42'; called "42"
+export STUB_SHA=deadbeef
+unset STUB_LOG
+# Their twins without a record stay blocked...
+check 2 $N Bash 'gh pr merge -t "$(git log -1 --format=%s)" 42 --squash'
+check 2 $N Bash 'gh pr merge -t $(git log -1 --format=%s) 42'
+# ...and a substitution that does run gh is still code.
+check 2 $N Bash 'x="$(gh pr create --fill)"'
+check 2 $N Bash 'echo $(gh pr merge 5)'
+check 2 $N Bash 'echo `gh pr merge 5`'
+check 2 $N Bash "bash -c 'gh pr merge 5'"
 # (A quoted interpreter, "$SHELL" -c, is LOW by the threat model: treating
 # any quoted word as an interpreter blocked the searches below.)
 # ...and their innocent look-alikes, from the round-3 accuser.

@@ -154,6 +154,30 @@ export function gate(input) {
       );
     }
 
+    // Index just past the `)` that closes the `(` at index k (the one right
+    // after `$`), skipping quoted text and nested substitutions inside it.
+    function substEnd(s, k) {
+      let depth = 1;
+      for (let p = k + 1; p < s.length; p++) {
+        const ch = s[p];
+        if (ch === "\\") { p++; continue; }
+        if (ch === "'") { const q = s.indexOf("'", p + 1); p = q === -1 ? s.length : q; continue; }
+        if (ch === '"') {
+          let q = p + 1;
+          while (q < s.length && s[q] !== '"') {
+            if (s[q] === "\\") q++;
+            else if (s[q] === "$" && s[q + 1] === "(") q = substEnd(s, q + 1) - 1;
+            q++;
+          }
+          p = q;
+          continue;
+        }
+        if (ch === "(") depth++;
+        if (ch === ")" && --depth === 0) return p + 1;
+      }
+      return s.length;
+    }
+
     function stripInertText(s) {
       let out = "";
       let i = 0;
@@ -164,10 +188,22 @@ export function gate(input) {
           i += 2;
           continue;
         }
+        // Unquoted command substitution. Code that never mentions gh cannot
+        // create or merge a PR (short of disguise, LOW), so it becomes a
+        // placeholder; otherwise its `)` cut the command short and hid the
+        // PR number after it (round 4: `gh pr merge -t $(git log ...) 42`).
+        if ((c === "$" && s[i + 1] === "(") || c === "`") {
+          const end = c === "`" ? s.indexOf("`", i + 1) + 1 || s.length : substEnd(s, i + 1);
+          const code = s.slice(c === "`" ? i + 1 : i + 2, c === "`" ? end - 1 : end - 1);
+          out += /\bgh\b/.test(code) ? ` ${code} ` : " '' ";
+          i = end;
+          continue;
+        }
         if (c === "'" || c === '"') {
           let j = i + 1;
           while (j < s.length && s[j] !== c) {
             if (c === '"' && s[j] === "\\") j++;
+            else if (c === '"' && s[j] === "$" && s[j + 1] === "(") j = substEnd(s, j + 1) - 1;
             j++;
           }
           const inside = s.slice(i + 1, j);
@@ -211,7 +247,9 @@ export function gate(input) {
             new RegExp(String.raw`(^|[\s;&|(\`])${runsE}${opts}\s+-e\s*$`).test(before) ||
             /(^|[\s;&|(`])eval\s*$/.test(before) ||
             (c === '"' && /\$\(|`/.test(inside));
-          out += executes ? ` ${inside} ` : " '' ";
+          // Code is kept only when it mentions gh (see the unquoted case
+          // above); an innocent `"$(git log -1 --format=%s)"` becomes ''.
+          out += executes && /\bgh\b/.test(inside) ? ` ${stripInertText(inside)} ` : " '' ";
           i = j + 1;
           continue;
         }
