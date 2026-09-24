@@ -38,6 +38,9 @@ node -e 'process.stdout.write(JSON.stringify({result: require("fs").readFileSync
 EOF
 chmod +x "$T/claude"
 export OBJECTION_CLAUDE="$T/claude" FAKE_DIR="$T"
+# The small-diff skip is tested on its own below; every other case here
+# changes a line or two and must still reach the reviewers.
+export OBJECTION_SMALL_DIFF=0
 printf '| # | verdict | evidence | kind | why |\n|---|---|---|---|---|\n| 1 | UPHELD | src/a.ts:3 | read | yes |\n' >"$T/defender.txt"
 accuse() {
   {
@@ -83,6 +86,19 @@ has "$record" "TODO(judge)"
 # The draft cannot be stamped as is: it has no OPEN line.
 grep -qE '^OPEN:' "$record" && fail "the draft already carries an OPEN line"
 has "$T/err" "accuser used 1000 input + 200 output tokens"
+
+# Each finding is numbered once, in the Accusation; the defender gets the
+# same numbers, and the table is not repeated in the Defense.
+accuse MEDIUM HIGH
+reset
+out=$(bash "$DEBATE" main 2>/dev/null)
+record=$(printf '%s\n' "$out" | sed -n 's/^draft record: //p')
+has "$record" "| 1 | MEDIUM | BUG"
+has "$record" "| 2 | HIGH | BUG"
+has "$T/stdin-defender" "| 2 | HIGH | BUG"
+hasnt "$T/stdin-defender" "defect MEDIUM"
+[ "$(grep -c 'defect HIGH' "$record")" = 1 ] || fail "the HIGH finding is repeated in the draft"
+has "$record" "Could not evaluate: nothing."
 
 # No BLOCKER or HIGH under lean: the defender never runs.
 accuse MEDIUM LOW
@@ -232,6 +248,30 @@ printf 'z\n' >>src/pay.ts && git add . && gitc commit -q -m "after the base"
 reset
 bash "$QDEBATE" develop >/dev/null 2>&1
 grep -qx sonnet "$T/models-accuser" || fail "the sonnet reviewer did not run on sonnet"
+# A small lean diff that no invariant or strongPaths touches: no reviewers,
+# a draft that says why, nothing spent. Above the threshold, or touching
+# an invariant, the reviewers run.
+S="$T/small"
+git init -q "$S" && cd "$S" || exit 1
+printf '{"bases":["main"],"smallDiff":5,"invariants":[{"paths":"^src/pay","rule":"exact money"}]}\n' >.objection.json
+mkdir -p src && seq 1 30 >src/ui.ts && seq 1 30 >src/pay.ts
+git add . && gitc commit -q -m base && git update-ref refs/remotes/origin/main HEAD
+printf 'a\nb\n' >>src/ui.ts && git add . && gitc commit -q -m small
+accuse HIGH
+reset
+out=$(OBJECTION_SMALL_DIFF= bash "$DEBATE" main 2>/dev/null)
+printf '%s\n' "$out" | grep -qF "reviewers: skipped (small diff: 2 changed lines, at most 5)" || fail "a small diff was not skipped ($out)"
+[ -e "$T/ran-accuser" ] && fail "a small diff still ran the accuser"
+record=$(printf '%s\n' "$out" | sed -n 's/^draft record: //p')
+[ -f "$record" ] && has "$record" "No reviewers ran: small diff"
+seq 1 10 >>src/ui.ts && git add . && gitc commit -q -m bigger
+reset
+OBJECTION_SMALL_DIFF= bash "$DEBATE" main >/dev/null 2>&1
+[ -e "$T/ran-accuser" ] || fail "a diff over the threshold skipped the reviewers"
+git reset -q --hard origin/main && printf 'x\n' >>src/pay.ts && git add . && gitc commit -q -m pay
+reset
+OBJECTION_SMALL_DIFF= bash "$DEBATE" main >/dev/null 2>&1
+[ -e "$T/ran-accuser" ] || fail "a small diff under an invariant skipped the reviewers"
 cd "$R" || exit 1
 
 # usage.sh sums the log review.sh wrote, per branch.

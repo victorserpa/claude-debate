@@ -100,7 +100,11 @@ process.stdin.on("data", (c) => (raw += c)).on("end", () => {
     : cfg.strongPaths && matches(cfg.strongPaths) ? "strongPaths"
     : budget === "thorough" ? "thorough" : "default";
   const model = reason === "default" ? word(m.default, "sonnet") : word(m.strong, "opus");
-  process.stdout.write(`${model} ${word(m.effort, "medium")} ${reason}\n`);
+  const effort = reason === "default" ? word(m.effort, "medium") : word(m.strongEffort, word(m.effort, "medium"));
+  process.stdout.write(`${model} ${effort} ${reason}\n@@SPLIT@@\n`);
+  // Small-diff threshold for debate.sh (lines changed); 0 turns it off.
+  const n = Number(cfg.smallDiff);
+  process.stdout.write(`${cfg.smallDiff === undefined ? 20 : Number.isInteger(n) && n >= 0 ? n : 20}\n`);
 });')
 section() { printf '%s\n' "$rules" | awk -v n="$1" '$0=="@@SPLIT@@"{k++; next} k==n-1' | sed '/^$/d'; }
 invariants=$(section 1)
@@ -108,6 +112,7 @@ focus=$(section 2)
 use_precedents=$(section 3)
 reviewers=$(section 5)
 model_tier=$(section 6)
+small_diff=$(section 7)
 budget=$(section 4)
 
 precedents="none recorded for these files"
@@ -136,12 +141,16 @@ fi
 
 diff=$(git diff -U5 "$diff_base"...HEAD "${X[@]}")
 total=$(printf '%s\n' "$diff" | wc -l | tr -d ' ')
+# Lines added plus removed (a binary file counts none), for debate.sh.
+changed=$(git diff --numstat "$diff_base"...HEAD "${X[@]}" | awk '$1 != "-" { n += $1 + $2 } END { print n + 0 }')
 
 {
   printf '# objection brief: %s @ %s against %s\n\n' "$(git rev-parse --abbrev-ref HEAD)" "${sha:0:7}" "$diff_base"
   # Read by debate.sh; it is the base branch's budget, like the rules.
   printf '<!-- objection-budget: %s -->\n' "$budget"
   printf '<!-- objection-model: %s -->\n' "$model_tier"
+  printf '<!-- objection-lines: %s -->\n' "$changed"
+  printf '<!-- objection-small-diff: %s -->\n' "${small_diff:-20}"
   if [ -n "$reviewers" ]; then
     printf '%s\n' "$reviewers" | sed 's/^/<!-- objection-reviewer: /; s/$/ -->/'
   fi

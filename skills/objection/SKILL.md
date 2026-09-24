@@ -70,7 +70,8 @@ multiplies the cost, and the brief keeps the reading small.
 
 **Models.** The reviewers run on sonnet at effort medium; opus where an
 invariant or `strongPaths` matches, or under `thorough` (`models` and
-`strongPaths` in the config). `debate.sh` applies this; `OBJECTION_MODEL`
+`strongPaths` in the config; `models.strongEffort` sets the strong tier's
+effort apart). `debate.sh` applies this; `OBJECTION_MODEL`
 and `OBJECTION_EFFORT` override it. Without the `claude` CLI, `review.sh`
 runs the roles through the `codex` CLI when that is installed.
 
@@ -116,7 +117,11 @@ findings the budget sends, the defender, all isolated (option 1 below),
 and writes a draft record whose Judge and Open sections say
 `TODO(judge)`. It prints a short summary and the draft's path: read the
 draft, judge (step 3), replace every TODO line (`stamp.sh` refuses a
-record that still has one), stamp. Exit 3 means no `claude` CLI: run the
+record that still has one), stamp. Findings are numbered once, in the
+Accusation; the defender and your rulings use the same numbers. Under
+`lean`, a diff of at most `smallDiff` changed lines (default 20) that no
+invariant or `strongPaths` touches runs no reviewer: the draft says so,
+and you read the diff and rule on it yourself; verify still runs. Exit 3 means no `claude` CLI: run the
 roles one by one as below. `usage.sh` shows what each branch's
 reviewers cost.
 

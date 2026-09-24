@@ -126,6 +126,13 @@ git add . && gitc commit -q -m cfg && git update-ref refs/remotes/origin/main HE
 printf 'c\n' >>src/ui.ts && git add . && gitc commit -q -m ui2
 out=$(bash "$BRIEF" origin/main)
 has "$out" "<!-- objection-model: sonnet low thorough -->"
+# strongEffort sets the strong tier's effort apart.
+printf '{"bases":["main"],"budget":"thorough","models":{"strong":"opus","effort":"low","strongEffort":"high"}}\n' >.objection.json
+git add . && gitc commit -q -m cfg2 && git update-ref refs/remotes/origin/main HEAD
+printf 'd\n' >>src/ui.ts && git add . && gitc commit -q -m ui3
+out=$(bash "$BRIEF" origin/main)
+has "$out" "<!-- objection-model: opus high thorough -->"
+has "$out" "<!-- objection-lines: 1 -->"
 
 # Nothing to review, or an unknown base: refuse.
 (cd "$T/fresh" && git update-ref refs/remotes/origin/main HEAD && bash "$BRIEF" origin/main >/dev/null 2>&1) && { echo "FAIL: empty diff accepted"; failures=$((failures + 1)); }
