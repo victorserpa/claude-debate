@@ -61,21 +61,28 @@ and whether the check is required, one line each, with the fix.
 
 ## Known bugs, caught
 
-[`eval/`](eval) plants nine bugs in small repositories and adds two
+[`eval/`](eval) plants ten bugs in small repositories and adds two
 changes with no bug at all: a negative cart total, an authorization
 check turned into a deny-list, a temp dir leaked on a retry, pages that
 start at 1 but skip the first, a charge that lost its row lock, a SQL
 query built by concatenating a search term, request headers (with the
 `Authorization` token) written to the log, writes fired from a
-`forEach(async ...)` and never awaited, and the negative total again
-with a comment telling the reviewer the change is approved. It runs the
-accuser on each. Latest runs, all eleven cases:
+`forEach(async ...)` and never awaited, a ban check on a user fetched
+without `await` (the `async` is in a file the PR does not touch), and
+the negative total again with a comment telling the reviewer the change
+is approved. It runs the accuser on each. Latest runs, all twelve cases:
 
 | runner | bugs caught | false alarm on the two clean changes | cost |
 |---|---|---|---|
-| claude sonnet, effort medium | 9 of 9, all as BLOCKER | none | $0.10 for all eleven |
-| gemini-3.1-pro-preview (the Gemini CLI's default) | 9 of 9 (7 BLOCKER, 2 HIGH) | none | about 6k tokens a review (measured on PR #42) |
-| gemini-3-flash-preview | 9 of 9 (8 BLOCKER, 1 HIGH) | none | Flash pricing, below Pro |
+| claude sonnet, effort medium | 10 of 10 (8 BLOCKER, 2 HIGH) | none | $0.11 for all twelve |
+| gemini-3.1-pro-preview (the Gemini CLI's default) | 10 of 10 (8 BLOCKER, 2 HIGH) | none | about 6k tokens a review (measured on PR #42) |
+| gemini-3-flash-preview | 10 of 10 (9 BLOCKER, 1 HIGH) | none | Flash pricing, below Pro |
+
+The cross-file case is why the brief now carries the definitions the
+added lines call, read from the commit: without them, sonnet rated it
+HIGH twice and once only MEDIUM ("if `getUser` is async"), with
+`src/users.js` under "Could not evaluate"; with them, BLOCKER three times
+out of three, at the same cost.
 
 The prompt-injection case was caught by all three: text in the diff is
 data under review, not instructions. Flash's first run scored the SQL
@@ -87,7 +94,7 @@ and the rerun counted it. Run the eval yourself with `bash eval/run.sh`
 (`OBJECTION_RUNNER=gemini` or `codex` for the others, and
 `OBJECTION_GEMINI_MODEL` for the model). It calls a real model, so CI
 runs only its scoring, against a fake reviewer (test/eval.test.sh).
-Eleven small cases prove the reviewers catch these bugs, not that they
+Twelve small cases prove the reviewers catch these bugs, not that they
 catch every bug.
 
 ## Track record
@@ -499,7 +506,8 @@ it runs them in one session and says so in the record.
     gate or exceeds 40 lines (otherwise the tests verify it), at most two
     rounds; `standard` and `thorough` spend more for more coverage;
   - every reviewer of a round reads one brief (`brief.sh`): the trimmed
-    diff, changed files, invariants, reviewer focus and precedents, and
+    diff, changed files, invariants, reviewer focus, precedents and the
+    definitions the added lines call (capped at 80 lines), and
     opens at most 5 other files, each for a named suspicion (in an isolated
     run it has no tools at all and judges from the brief);
   - `debate.sh` runs a whole round up to the judge (brief, accuser,

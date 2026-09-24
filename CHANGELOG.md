@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- The brief carries the definitions the added lines call, read from the
+  commit (at most 8, 12 lines each, 80 in all; a name defined in more
+  than 3 places is left out). A reviewer that saw only the diff could not
+  tell that a helper in an untouched file is async. On the new
+  cross-file-async eval case (a ban check on a user fetched without
+  `await`), sonnet went from HIGH, HIGH and a hedged MEDIUM to BLOCKER
+  three times, at the same cost. The eval now has twelve cases: sonnet
+  caught 10 of 10 bugs for $0.11, and gemini-3.1-pro-preview and
+  gemini-3-flash-preview caught the new one as BLOCKER.
+
 - `/objection doctor` (doctor.sh): one line per item, ok, warn or FAIL,
   with the fix. It checks the tools and the reviewer CLIs, and the
   config: valid JSON, unknown keys (a typo like "invariant" used to be

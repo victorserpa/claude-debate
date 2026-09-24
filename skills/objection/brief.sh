@@ -158,6 +158,44 @@ total=$(printf '%s\n' "$diff" | wc -l | tr -d ' ')
 changed=$(git diff --numstat "$diff_base"...HEAD "${X[@]}" |
   awk '$1 == "-" || $1 + $2 == 0 { u = 1 } { n += $1 + $2 } END { print (u ? "unknown" : n + 0) }')
 
+# Definitions the added lines call, read from HEAD: a reviewer that sees
+# only the diff cannot tell that a helper in an untouched file is async,
+# returns null or already escapes its input, and says so in "Could not
+# evaluate" (measured on eval/fixtures/cross-file-async). Capped so a big
+# diff does not pay for it: at most 8 definitions, 12 lines each, 80 in
+# all. A name defined in more than 3 places is ambiguous and left out.
+definitions=$(printf '%s\n' "$diff" | node -e '
+const { execFileSync } = require("child_process");
+let diff = "";
+process.stdin.on("data", (d) => (diff += d)).on("end", () => {
+  const added = diff.split("\n").filter((l) => l.startsWith("+") && !l.startsWith("+++")).map((l) => l.slice(1));
+  const addedText = new Set(added.map((l) => l.trim()).filter(Boolean));
+  const skip = new Set("if for while switch catch return function typeof await new super this require import export async def fn func print console log len int str map filter forEach push then catch assert expect describe it test".split(" "));
+  const names = [];
+  for (const l of added) for (const m of l.matchAll(/([A-Za-z_][A-Za-z0-9_]*)\s*\(/g))
+    if (!skip.has(m[1]) && m[1].length > 2 && !names.includes(m[1]) && names.length < 15) names.push(m[1]);
+  const pathspec = process.argv.slice(1); // "--" and the excludes of the diff
+  const out = [];
+  let lines = 0, defs = 0;
+  for (const n of names) {
+    if (defs >= 8 || lines >= 80) break;
+    const re = `(function[*]?[[:space:]]+${n}|def[[:space:]]+${n}|func[[:space:]]+(\\([^)]*\\)[[:space:]]*)?${n}|fn[[:space:]]+${n}|(const|let|var)[[:space:]]+${n}[[:space:]]*=|class[[:space:]]+${n})([^A-Za-z0-9_]|$)`;
+    let hits = [];
+    try { hits = execFileSync("git", ["grep", "-n", "-E", re, "HEAD", ...pathspec], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).split("\n").filter(Boolean); } catch { continue; }
+    hits = hits.map((h) => h.match(/^HEAD:(.+?):(\d+):(.*)$/)).filter((m) => m && !addedText.has(m[3].trim()));
+    if (!hits.length || hits.length > 3) continue;
+    for (const [, file, at] of hits) {
+      if (defs >= 8 || lines >= 80) break;
+      let body = [];
+      try { body = execFileSync("git", ["show", `HEAD:${file}`], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).split("\n"); } catch { continue; }
+      const take = body.slice(Number(at) - 1, Number(at) - 1 + Math.min(12, 80 - lines));
+      out.push(`${file}:${at} (${n})\n\`\`\`\n${take.join("\n")}\n\`\`\``);
+      lines += take.length; defs++;
+    }
+  }
+  process.stdout.write(out.join("\n\n"));
+});' "${X[@]}" 2>/dev/null) || definitions=""
+
 {
   printf '# objection brief: %s @ %s against %s\n\n' "$(git rev-parse --abbrev-ref HEAD)" "${sha:0:7}" "$diff_base"
   # Read by debate.sh; it is the base branch's budget, like the rules.
@@ -190,6 +228,10 @@ changed=$(git diff --numstat "$diff_base"...HEAD "${X[@]}" |
     printf '```\n\nTRUNCATED: the diff has %s lines; only the first %s are above. The files cut off are not covered by this brief: say so in your report (the 5-file limit is for chasing suspicions, not for reading a diff this size). Suggest splitting the PR.\n' "$total" "$MAX_DIFF_LINES"
   else
     printf '%s\n```\n' "$diff"
+  fi
+  if [ -n "$definitions" ]; then
+    printf '\n## Definitions the diff calls (from HEAD, as context)\n\n'
+    printf 'Read to check how the changed code uses them; they are not part of the change.\n\n%s\n' "$definitions"
   fi
 } >"$out"
 

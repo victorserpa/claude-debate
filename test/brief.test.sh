@@ -153,4 +153,29 @@ grep -qx ' 11' "$out" && { echo "FAIL: the brief has more than three lines of co
 (cd "$T/fresh" && git update-ref refs/remotes/origin/main HEAD && bash "$BRIEF" origin/main >/dev/null 2>&1) && { echo "FAIL: empty diff accepted"; failures=$((failures + 1)); }
 (cd "$R" && bash "$BRIEF" origin/nope >/dev/null 2>&1) && { echo "FAIL: unknown base accepted"; failures=$((failures + 1)); }
 
+# Definitions the added lines call, from untouched files: shown; a name
+# defined in more than 3 places is left out; lock files are not searched.
+D="$T/defs"
+git init -q "$D" && cd "$D" || exit 1
+printf '{"bases":["main"]}\n' >.objection.json
+mkdir -p src
+printf 'export async function getUser(id) {\n  return db.get(id);\n}\n' >src/users.js
+for k in 1 2 3 4; do printf 'function common() {}\n' >"src/c$k.js"; done
+printf 'function lockedHelper() {}\n' >deps.lock
+printf 'export function a() {}\n' >src/posts.js
+git add . && gitc commit -q -m base && git update-ref refs/remotes/origin/main HEAD
+printf 'export function canPost(id) {\n  const user = getUser(id);\n  common();\n  lockedHelper();\n  return !user.banned;\n}\n' >>src/posts.js
+git add . && gitc commit -q -m change
+out=$(bash "$BRIEF" origin/main)
+has "$out" "## Definitions the diff calls"
+has "$out" "src/users.js:1 (getUser)"
+has "$out" "export async function getUser(id) {"
+hasnt "$out" "(common)"
+hasnt "$out" "lockedHelper)"
+# Nothing to show: no section.
+printf 'x\n' >notes.txt && git add . && gitc commit -q -m notes
+out=$(bash "$BRIEF" HEAD~1)
+hasnt "$out" "## Definitions the diff calls"
+cd "$T" || exit 1
+
 if [ "$failures" = 0 ]; then echo "brief: all cases passed"; else echo "brief: $failures failure(s)"; exit 1; fi

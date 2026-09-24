@@ -1,0 +1,1 @@
+{"goal": "Banned users cannot post", "severity": "HIGH", "match": "await|async|promise", "file": "src/posts.js", "lines": [4, 5]}
