@@ -108,7 +108,11 @@ process.stdin.on("data", (c) => (raw += c)).on("end", () => {
   // The defender checks evidence already cited: sonnet gave the same
   // verdicts as opus on a real round, for a quarter of the price. A later
   // round reviews only the fix: effort low (opus low found a known HIGH).
-  process.stdout.write(`${word(m.defender, "sonnet")}\n@@SPLIT@@\n${word(m.laterEffort, "low")}\n`);
+  process.stdout.write(`${word(m.defender, "sonnet")}\n@@SPLIT@@\n${word(m.laterEffort, "low")}\n@@SPLIT@@\n`);
+  // Invariants with a verify command, when the diff touches their paths:
+  // "command<TAB>rule" per line, for debate.sh to run before the reviewers.
+  process.stdout.write((cfg.invariants || []).filter((i) => typeof i.verify === "string" && i.verify.trim() && matches(i.paths))
+    .map((i) => `${one(i.verify)}\t${one(i.rule || "(no rule)")}`).join("\n") + "\n");
 });')
 section() { printf '%s\n' "$rules" | awk -v n="$1" '$0=="@@SPLIT@@"{k++; next} k==n-1' | sed '/^$/d'; }
 invariants=$(section 1)
@@ -119,6 +123,7 @@ model_tier=$(section 6)
 small_diff=$(section 7)
 defender_model=$(section 8)
 later_effort=$(section 9)
+invariant_checks=$(section 10)
 budget=$(section 4)
 
 precedents="none recorded for these files"
@@ -162,6 +167,9 @@ changed=$(git diff --numstat "$diff_base"...HEAD "${X[@]}" |
   printf '<!-- objection-small-diff: %s -->\n' "${small_diff:-20}"
   printf '<!-- objection-defender: %s -->\n' "${defender_model:-sonnet}"
   printf '<!-- objection-later-effort: %s -->\n' "${later_effort:-low}"
+  if [ -n "$invariant_checks" ]; then
+    printf '%s\n' "$invariant_checks" | sed 's/^/<!-- objection-invariant-check: /; s/$/ -->/'
+  fi
   if [ -n "$reviewers" ]; then
     printf '%s\n' "$reviewers" | sed 's/^/<!-- objection-reviewer: /; s/$/ -->/'
   fi

@@ -12,4 +12,8 @@ for r in accuser defender; do
     failures=$((failures + 1))
   fi
 done
+# The version the records carry is the plugin's.
+v=$(cat "$ROOT/skills/objection/VERSION")
+p=$(node -e 'console.log(require(process.argv[1]).version)' "$ROOT/.claude-plugin/plugin.json")
+[ "$v" = "$p" ] || { echo "FAIL: skills/objection/VERSION ($v) and plugin.json ($p) differ"; failures=$((failures + 1)); }
 if [ "$failures" = 0 ]; then echo "roles: in sync"; else exit 1; fi
