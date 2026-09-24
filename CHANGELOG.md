@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- The Gemini CI review runs on a GitHub runner: this repository's
+  `review (gemini)` job reviews every same-repository PR with it.
+
 ## 0.14.0 (2026-09-24)
 
 - The Action's review step runs through the Gemini CLI with
