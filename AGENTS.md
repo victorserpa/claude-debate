@@ -52,8 +52,14 @@ bash test/precedents.test.sh
 claude plugin validate .
 ```
 
-- Every bypass of the gate that gets found becomes a case in
-  `test/gate.test.sh` before the fix.
+- Changing the gate, a check or a validator? Follow "When the diff is a
+  gate, check or validator" in `skills/objection/SKILL.md`: threat model
+  first (the gate stops forgetting, not deliberate disguise), severity by
+  that model, and every new test case with a **negative control** (it
+  fails on the previous version) and its **innocent look-alike** (which
+  must keep passing).
+- Every gap found in the gate becomes a case in `test/gate.test.sh`
+  before the fix.
 - Changing a role? Change `skills/objection/roles/<role>.md` and the body
   of `agents/<role>.md` together.
 - Host formats (hook input and output for Codex, Gemini CLI, Cursor,

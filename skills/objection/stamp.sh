@@ -81,6 +81,18 @@ case "$verdict" in
   *) echo "missing a 'VERDICT: APPROVED' or 'VERDICT: REJECTED' line." >&2; exit 1 ;;
 esac
 
+if [ "$docs_only" = no ]; then
+  # The judge's structured count is the authority: free text is not parsed
+  # for it. The word scan below is only a cross-check against a count that
+  # contradicts its own list.
+  counts=$(grep -E '^OPEN: BLOCKER=[0-9]+ HIGH=[0-9]+$' "$record" | tail -1)
+  [ -n "$counts" ] || { echo "missing the line 'OPEN: BLOCKER=<n> HIGH=<n>' (the judge's count of what is left open)." >&2; exit 1; }
+  if [ "$verdict" = 'VERDICT: APPROVED' ] && [ "$counts" != 'OPEN: BLOCKER=0 HIGH=0' ]; then
+    echo "APPROVED with $counts: fix them or reject." >&2
+    exit 1
+  fi
+fi
+
 if [ "$verdict" = 'VERDICT: APPROVED' ] && [ "$docs_only" = no ]; then
   # A line that STARTS with the severity (list marker and bold optional):
   # "- HIGH: x", "HIGH: x", "1. **High** x". Whole word, so "no HIGH finding

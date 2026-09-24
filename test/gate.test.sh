@@ -25,7 +25,19 @@ printf '%s\n# x\nVERDICT: APPROVED\n' "$stamp" >"$T/ok/.git/objection/$OK_SHA.md
 mkdir "$T/bin"
 cat >"$T/bin/gh" <<'EOF'
 #!/bin/bash
-[ "$1 $2" = "pr view" ] && { [ -n "${STUB_SLEEP:-}" ] && sleep "$STUB_SLEEP"; echo "$STUB_SHA ${STUB_BASE:-develop}"; exit 0; }
+if [ "$1 $2" = "pr view" ]; then
+  [ -n "${STUB_SLEEP:-}" ] && sleep "$STUB_SLEEP"
+  # With STUB_WANT set ("<target> [-R <repo>]"), answer the approved SHA only
+  # when exactly those arguments arrive: a stub that answers the same SHA
+  # for any target cannot tell a right parse from a wrong one.
+  shift 2
+  args="$*"
+  args="${args%% --json*}"
+  if [ -n "${STUB_WANT:-}" ] && [ "$args" != "$STUB_WANT" ]; then
+    echo "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef ${STUB_BASE:-develop}"; exit 0
+  fi
+  echo "$STUB_SHA ${STUB_BASE:-develop}"; exit 0
+fi
 exit 1
 EOF
 chmod +x "$T/bin/gh"
@@ -180,7 +192,9 @@ git -C "$R" update-ref refs/remotes/origin/develop HEAD
 printf 'x\n' >"$R/a.ts" && git -C "$R" add a.ts && gitc -C "$R" commit -q -m code
 printf '# doc\n' >"$R/b.md" && git -C "$R" add b.md && gitc -C "$R" commit -q -m doc
 printf 'VERDICT: APPROVED\n' >"$T/min.md"
-full() { printf '# D\n\n## Accusation\nx\n\n## Defense\nx\n\n## Judge\nx\n\n## Open\n%s\n\nVERDICT: APPROVED\n' "$1" >"$T/rec.md"; }
+full() { # open-list [open-count] [verdict]
+  printf '# D\n\n## Accusation\nx\n\n## Defense\nx\n\n## Judge\nx\n\n## Open\n%s\n\n%s\nVERDICT: %s\n' "$1" "${2:-OPEN: BLOCKER=0 HIGH=0}" "${3:-APPROVED}" >"$T/rec.md"
+}
 stampcheck() { # expected base record
   (cd "$R" && bash "$STAMP" "$3" "$2" >/dev/null 2>&1); local rc=$?
   if { [ "$1" = 0 ] && [ $rc != 0 ]; } || { [ "$1" != 0 ] && [ $rc = 0 ]; }; then
@@ -200,6 +214,15 @@ full '1. **High** bold severity'
 stampcheck 1 origin/develop "$T/rec.md"
 full 'no HIGH finding is left'
 stampcheck 0 origin/develop "$T/rec.md"
+# The structured count is required and must be zero to approve.
+full 'nothing' 'no count line here'
+stampcheck 1 origin/develop "$T/rec.md"
+full '- MEDIUM: x' 'OPEN: BLOCKER=0 HIGH=1'
+stampcheck 1 origin/develop "$T/rec.md"
+full '- HIGH: race on retry' 'OPEN: BLOCKER=0 HIGH=0'
+stampcheck 1 origin/develop "$T/rec.md"
+full '- HIGH: race on retry' 'OPEN: BLOCKER=0 HIGH=1' REJECTED
+stampcheck 0 origin/develop "$T/rec.md"
 # The debate's own prompts (.claude/*.md) are not "documentation only".
 mkdir -p "$R/.claude/agents" && printf 'x\n' >"$R/.claude/agents/c.md"
 git -C "$R" add .claude && gitc -C "$R" commit -q -m prompt
@@ -207,6 +230,34 @@ git -C "$R" update-ref refs/remotes/origin/develop HEAD~1
 stampcheck 1 origin/develop "$T/min.md"
 # Repository not opted in: stamp.sh refuses.
 (cd "$F" && bash "$STAMP" "$T/rec.md" origin/main >/dev/null 2>&1) && { echo "FAIL: stamp.sh ran without objection.json"; failures=$((failures + 1)); }
+
+# --- Lessons from the first adopter's six-round debate ----------------------
+# Each natural form failed on the version before this fix (negative
+# control), and each sits next to the innocent look-alike that must pass.
+# A quoted value glued to the flag is still the repo flag: blocked without a record.
+check 2 $N Bash 'gh --repo="o/r" pr create --fill'
+check 2 $N Bash "gh --repo='o/r' pr create"
+check 2 $N Bash 'gh pr --repo="o/r" merge 5'
+# ...and with a record, the right target and repo reach gh pr view.
+export STUB_SHA=$OK_SHA
+STUB_WANT="5 -R o/r" check 0 $O Bash 'gh -R"o/r" pr merge 5'
+STUB_WANT="5 -R o/r" check 0 $O Bash 'gh --repo="o/r" pr merge 5 --squash'
+# -m and -r are --merge and --rebase, not flags that take a value.
+STUB_WANT="338" check 0 $O Bash 'gh pr merge -m 338'
+STUB_WANT="338" check 0 $O Bash 'gh pr merge -r 338'
+STUB_WANT="338" check 0 $O Bash 'gh pr merge --squash --delete-branch 338'
+# The stub can say no: another target is not approved.
+STUB_WANT="999" check 2 $O Bash 'gh pr merge -m 338'
+export STUB_SHA=deadbeef
+# Innocent look-alikes keep passing.
+check 0 $N Bash 'gh pr view --repo="o/r" 5'
+check 0 $N Bash 'git commit -m "fix: run gh pr merge -m 5 later"'
+check 0 $N Bash 'grep -c "gh pr create" notes.md'
+check 0 $N Bash "psql -c \"select 'gh pr create'\""
+check 0 $N Bash 'tar -czf out.tgz "gh pr merge 5"'
+# -c executes only after something that runs code.
+check 2 $N Bash "sh -c 'gh pr create'"
+check 2 $N Bash "/usr/bin/env bash -c 'gh pr merge 5'"
 
 # --- Other hosts' input shapes ----------------------------------------------
 hostcheck() { # expected host json

@@ -196,9 +196,43 @@ bias the debate exists to cut.
 
 Fixed something: commit (a `fix:` in the same branch, before the PR, is
 the cheap fix) and redo steps 0 to 3 **only on the fix diff** (`git diff
-<previous-round-sha>..HEAD`), with the accusers for that area. At most
-three rounds; on the fourth, stop and bring what does not converge to the
-human.
+<previous-round-sha>..HEAD`), with the accusers for that area. Tell the
+accuser to hunt **regressions from the fix** first: in practice they are
+the most common round-2 finding.
+
+At most three rounds. What is still open after the third goes into
+"Open" with its severity: MEDIUM and LOW can ship with the record
+(tracked in an issue), BLOCKER and HIGH cannot, and the human decides
+what happens to them.
+
+## When the diff is a gate, check or validator
+
+Changes to anything that blocks or allows (this skill's gate, a CI check,
+a permission rule, an input validator) need a written threat model, or
+the debate cannot converge: every new way of disguising the input looks
+HIGH, and every fix opens the next hole. The first adopter debated this
+skill's own gate for six rounds before writing this down.
+
+1. **Write the threat model before the code**, in one sentence at the top
+   of the file: what it stops, and what it does not. This skill's gate
+   stops *forgetting* (the natural ways of writing a command), not
+   *deliberate disguise* (a command assembled from pieces, hidden in an
+   alias, a file, a variable or another language); disguise already breaks
+   the rule, and the effect-based gate (a required check) covers it.
+2. **Severity follows the threat model.** HIGH: a natural form passes, or
+   an innocent command gets blocked. LOW: a form that only exists to evade.
+3. **Negative control.** Every new test case must fail on the previous
+   version (`git show <sha>:<file>` into a scratch directory, or `git stash`
+   the fix). A case that passes on both versions guards against regression
+   but proves nothing about the fix.
+4. **Both sides, every round:** "the natural form is blocked" and "the
+   similar innocent command still passes". Half of the regressions in that
+   six-round debate were false blocks.
+5. **Stubs must be able to say no.** A fake API that returns the same
+   answer for every input cannot tell a right parse from a wrong one.
+6. **Prefer allowlists** (what executes, what is permitted) over lists of
+   what is harmless, and decide once which representation of the input
+   each rule reads.
 
 ## 5. Record and stamp
 
@@ -219,10 +253,14 @@ Write the record to a scratch file, with these exact sections:
 ## Open
 <what was left out, with severity and reason; "nothing" if nothing>
 
+OPEN: BLOCKER=0 HIGH=0
 VERDICT: APPROVED
 ```
 
-APPROVED only with no BLOCKER or HIGH under "Open".
+`OPEN:` is the judge's count of BLOCKER and HIGH findings left in "Open".
+It is the authority: nothing parses the free text for severities except
+as a cross-check against a count that contradicts its own list. APPROVED
+only with `OPEN: BLOCKER=0 HIGH=0`.
 
 **Update the precedents** (unless `precedents` is `false`), before
 stamping. Only findings the judge kept (UPHELD, fixed or left open) of

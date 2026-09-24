@@ -82,6 +82,11 @@ const verdicts = lines.filter((l) => /^VERDICT: /.test(l));
 if (verdicts.at(-1) !== "VERDICT: APPROVED") fail("the record's last verdict is not APPROVED.");
 
 if (!docsOnly) {
+  // The judge's structured count is the authority (same rule as stamp.sh);
+  // the word scan below only cross-checks it against its own list.
+  const counts = lines.filter((l) => /^OPEN: BLOCKER=\d+ HIGH=\d+$/.test(l)).at(-1);
+  if (!counts) fail("the record is missing the line 'OPEN: BLOCKER=<n> HIGH=<n>'.");
+  if (counts !== "OPEN: BLOCKER=0 HIGH=0") fail(`the record is APPROVED with ${counts}.`);
   const start = lines.indexOf("## Open");
   const open = [];
   for (let i = start + 1; i < lines.length && !/^## /.test(lines[i]); i++) open.push(lines[i]);

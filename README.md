@@ -164,10 +164,19 @@ It does not block reading PRs, commenting, reviewing, or any command that
 merely *mentions* those commands (commit messages, `grep`, `echo`,
 heredoc bodies).
 
+**Threat model:** the local gate stops an agent that *forgets* the debate,
+not one that *disguises* the command on purpose (built from pieces, hidden
+in an alias, a file or another language). Disguise already breaks the
+rule; the GitHub check with a required status check is the gate that does
+not depend on reading commands. See [SECURITY.md](SECURITY.md).
+
 **The gate went through its own debate before release.** Round one found
 12 ways around the first (bash) version, including a record ending in
 `REJECTED` that quoted `APPROVED` and still passed. Round two, with the
-defender, found 10 more. Every one is a regression case in
+defender, found 10 more. The first adopter then debated its copy for six
+rounds, and most findings from round two on were regressions of the
+previous fix; what that taught is now part of the skill (threat model
+first, negative controls, both sides every round). Every case is in
 [`test/gate.test.sh`](test/gate.test.sh).
 
 ## Precedents

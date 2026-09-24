@@ -25,6 +25,27 @@
 // xargs, tool names, arbitrary stamp base, hand-written records). Every one
 // of them is a case in test/gate.test.sh.
 //
+// Threat model, in one sentence: this gate stops an agent that FORGETS the
+// debate (the natural ways of writing the command), not one that DISGUISES
+// the command on purpose (assembled from pieces, hidden in an alias, a
+// file, a variable or another language). Disguise already breaks the
+// skill's rule, and the GitHub check with a required status check is the
+// gate that does not read commands. So a natural form that passes, or an
+// innocent command that gets blocked, is HIGH; a form that only exists to
+// evade is LOW. The first adopter debated this gate for six rounds before
+// that sentence existed, mostly chasing regressions of its own fixes.
+//
+// Which text each rule reads (decided here, once):
+//   command   raw input, with disguised `gh` names normalized. GraphQL
+//             mutations are looked for here, heredocs included, because a
+//             multi-line query is the normal way to write one.
+//   noDocs    command without heredoc bodies (unless a shell reads stdin).
+//             `gh api` REST writes and `cd` paths are read here.
+//   active    noDocs with inert quoted text replaced by ''. Values glued to
+//             a flag (`--repo="o/r"`) are kept; `-c`/`eval` arguments are
+//             kept only after something that executes code (allowlist).
+//             `gh pr <action>` detection and positions are measured here.
+//
 // Fails closed when the command is about a PR: if it cannot verify (gh
 // offline, PR not found), it blocks and says why. A human bypasses it by
 // running the command in their own terminal; the gate only binds the agent.
@@ -148,9 +169,23 @@ export function gate(input) {
             j++;
           }
           const inside = s.slice(i + 1, j);
-          const before = out.slice(-12);
+          const before = out.slice(-80);
+          // A quoted value glued to a word (`--repo="o/r"`, `-R'o/r'`) is
+          // part of that word for the shell. Without whitespace inside it is
+          // an argument value, never a command: keep it, unquoted.
+          const glued = i > 0 && !/[\s;&|()`]/.test(s[i - 1]);
+          if (glued && !/\s/.test(inside)) {
+            out += inside;
+            i = j + 1;
+            continue;
+          }
+          // Allowlist of what executes its argument as code: `-c` after a
+          // shell or interpreter, and `eval`. Any other `-c` (grep -c,
+          // psql -c, tar -czf) is just a flag.
           const executes =
-            /(^|\s)(-c|eval)\s*$/.test(before) || (c === '"' && /\$\(|`/.test(inside));
+            /(^|[\s;&|(`])(?:\S*\/)?(bash|sh|zsh|dash|ksh|fish|python[0-9.]*|node|perl|ruby|su|runuser|script|flock)\b[^;&|\n]*\s-c\s*$/.test(before) ||
+            /(^|[\s;&|(`])eval\s*$/.test(before) ||
+            (c === '"' && /\$\(|`/.test(inside));
           out += executes ? ` ${inside} ` : " '' ";
           i = j + 1;
           continue;
