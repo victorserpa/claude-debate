@@ -162,6 +162,8 @@ apirun 1 bad "" false
 long="$(printf 'x%.0s' $(seq 2700))
 $(full "$GCODE" main)"
 apirun 1 bad "$long" ""
+# An explicit "not truncated" is believed over the length guess.
+apirun 0 bad "$long" false
 # ...while the same record, short, passes on that fallback.
 apirun 0 bad "$(full "$GCODE" main)" ""
 kill $srv 2>/dev/null; wait $srv 2>/dev/null

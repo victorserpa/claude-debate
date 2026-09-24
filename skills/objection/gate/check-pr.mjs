@@ -59,7 +59,8 @@ if (gitlab) {
       const desc = process.env.CI_MERGE_REQUEST_DESCRIPTION || "";
       // GitLab before 15.9 sets no truncation flag: 2700 characters or more
       // is taken as cut.
-      const cut = process.env.CI_MERGE_REQUEST_DESCRIPTION_IS_TRUNCATED === "true" || desc.length >= 2700;
+      const flag = process.env.CI_MERGE_REQUEST_DESCRIPTION_IS_TRUNCATED;
+      const cut = flag === "true" || (flag !== "false" && desc.length >= 2700);
       if (!desc || cut)
         fail(`could not read the merge request (HTTP ${status || "error"}), and CI_MERGE_REQUEST_DESCRIPTION is ${desc ? "cut at 2700 characters" : "empty"}. Set OBJECTION_GITLAB_TOKEN to a project access token with read_api.`);
       mr = {

@@ -794,8 +794,10 @@ export function gate(input) {
       const action = rawAction === "new" ? "create" : rawAction;
       if (/(^|\s)(--help|-h)\b/.test(rest)) continue;
       // `glab mr update` counts only when it takes a draft to review.
-      // (--ready/-r, or leaving draft with --draft=false / --wip=false).
-      if (action === "update" && !/(^|\s)((--ready|-r)(\s|=|$)|--(draft|wip)=false\b)/.test(rest)) continue;
+      // (--ready/-r, or leaving draft with --draft=<false> / --wip=<false>,
+      // in every form a Go boolean flag accepts: false, f, 0, any case).
+      // Case matters for the flags (-R is --repo), not for the value.
+      if (action === "update" && !/(^|\s)((--ready|-r)(\s|=|$)|--(draft|wip)=([Ff][Aa][Ll][Ss][Ee]|[Ff]|0)(\s|$))/.test(rest)) continue;
       if (/\bxargs\b[^;&|\n]*$/.test(active.slice(0, m.index + 1)))
         block("glab mr merge through xargs hides which merge request it is. Put its number in the command itself.", false);
       const dir = dirBefore(m.index);

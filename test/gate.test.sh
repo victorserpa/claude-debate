@@ -257,6 +257,14 @@ GLAB_SHA=$GL_SHA check 0 "$GL" Bash 'glab mr update --label bug 5 --ready'
 GLAB_SHA=deadbeefdeadbeefdeadbeefdeadbeefdeadbeef check 2 "$GL" Bash 'glab mr update 5 --draft=false'
 GLAB_SHA=deadbeefdeadbeefdeadbeefdeadbeefdeadbeef check 2 "$GL" Bash 'glab mr update 5 --wip=false'
 GLAB_SHA=deadbeefdeadbeefdeadbeefdeadbeefdeadbeef check 0 "$GL" Bash 'glab mr update 5 --draft'
+# Every false a Go boolean flag accepts.
+for v in 0 f F FALSE False; do
+  GLAB_SHA=deadbeefdeadbeefdeadbeefdeadbeefdeadbeef check 2 "$GL" Bash "glab mr update 5 --draft=$v"
+done
+GLAB_SHA=deadbeefdeadbeefdeadbeefdeadbeefdeadbeef check 0 "$GL" Bash 'glab mr update 5 --draft=true'
+GLAB_SHA=deadbeefdeadbeefdeadbeefdeadbeefdeadbeef check 0 "$GL" Bash 'glab mr update -R g/p 5 --title x'
+# Quoted text is not a flag.
+GLAB_SHA=deadbeefdeadbeefdeadbeefdeadbeefdeadbeef check 0 "$GL" Bash 'glab mr update 5 --title "never --draft=false or --ready"'
 # A value before the number is not the number (the stub answers only 5).
 GLAB_SHA=$GL_SHA check 0 "$GL" Bash 'glab mr update --description 9 5 --ready'
 # Innocent look-alikes.
