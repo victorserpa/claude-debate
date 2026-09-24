@@ -66,11 +66,19 @@ async function changedFiles() {
 }
 
 const files = await changedFiles();
-// .md under .claude/ (or any agent config dir) are the debate's own prompts:
-// weakening the defender must not ship without a debate.
+// The files API stops at 3000 files. A list that hits the limit, or that
+// is shorter than the PR says it is, proves nothing about the rest: a PR of
+// 3000 docs and one source file must not pass as documentation only.
+if (files.length >= 3000 || (Number.isInteger(pr.changed_files) && files.length !== pr.changed_files))
+  fail(`cannot prove the full list of changed files (listed ${files.length}, PR has ${pr.changed_files}). Split the PR.`);
+// Agent prompts, skills, instructions and the objection config are how the
+// debate itself behaves: weakening the defender must not ship without a
+// debate, wherever those files live. Same list as stamp.sh (NEVER_DOCS).
+const NEVER_DOCS =
+  /^(\.(claude|cursor|codex|gemini|github|agents|objection)\/|agents\/|skills\/|(AGENTS|CLAUDE|GEMINI)\.md$|\.objection\.json$)/;
 const docsOnly =
   files.length > 0 &&
-  files.every((f) => !/^\.(claude|cursor|codex|gemini|github)\//.test(f) && (/\.md$/.test(f) || /^docs\//.test(f)));
+  files.every((f) => !NEVER_DOCS.test(f) && (/\.md$/.test(f) || /^docs\//.test(f)));
 
 const lines = record.split("\n");
 if (!docsOnly) {

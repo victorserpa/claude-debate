@@ -39,6 +39,11 @@ if [ "$1 $2" = "pr view" ]; then
   fi
   echo "$STUB_SHA ${STUB_BASE:-develop}"; exit 0
 fi
+# The repository default branch, as `gh repo view` reports it.
+if [ "$1 $2" = "repo view" ]; then
+  [ -n "${STUB_NO_REPO:-}" ] && exit 1
+  echo "${STUB_DEFAULT:-master}"; exit 0
+fi
 exit 1
 EOF
 chmod +x "$T/bin/gh"
@@ -236,6 +241,19 @@ mkdir -p "$R/.claude/agents" && printf 'x\n' >"$R/.claude/agents/c.md"
 git -C "$R" add .claude && gitc -C "$R" commit -q -m prompt
 git -C "$R" update-ref refs/remotes/origin/develop HEAD~1
 stampcheck 1 origin/develop "$T/min.md"
+# Issue #9: nor are agents/, skills/, AGENTS.md or the objection config.
+for f in agents/defender.md skills/objection/roles/defender.md AGENTS.md .objection.json; do
+  mkdir -p "$R/$(dirname "$f")"
+  # The config must stay valid JSON (stamp.sh reads it); any change will do.
+  if [ "$f" = .objection.json ]; then printf '{"bases":["develop","master"],"budget":"lean"}\n' >"$R/$f"; else printf 'x\n' >"$R/$f"; fi
+  git -C "$R" add "$f" && gitc -C "$R" commit -q -m "prompt $f"
+  git -C "$R" update-ref refs/remotes/origin/develop HEAD~1
+  stampcheck 1 origin/develop "$T/min.md"
+done
+# ...while a README change alone still is.
+printf 'y\n' >>"$R/b.md" && git -C "$R" add b.md && gitc -C "$R" commit -q -m doc2
+git -C "$R" update-ref refs/remotes/origin/develop HEAD~1
+stampcheck 0 origin/develop "$T/min.md"
 # Repository not opted in: stamp.sh refuses.
 (cd "$F" && bash "$STAMP" "$T/rec.md" origin/main >/dev/null 2>&1) && { echo "FAIL: stamp.sh ran without objection.json"; failures=$((failures + 1)); }
 
@@ -379,6 +397,36 @@ check 0 $N Bash "ruby -ne 'puts \$_ if /gh pr merge 5/' f"
 check 0 $N Bash "python3 tool.py -vc 'gh pr merge 5'"
 check 0 $N Bash "psql -c 'select 1' -c \"gh pr merge 5\""
 unset STUB_LOG
+
+# --- External review (issue #9) --------------------------------------------
+# The base without --base is the one gh uses: the branch's gh-merge-base,
+# else the repository default on GitHub, never .objection.json's
+# defaultBase (master in this fixture; the record is for develop).
+cur=$(git -C "$O" symbolic-ref --short HEAD)
+STUB_DEFAULT=develop check 0 $O Bash 'gh pr create --fill'
+STUB_DEFAULT=master check 2 $O Bash 'gh pr create --fill'
+git -C "$O" config "branch.$cur.gh-merge-base" develop
+STUB_DEFAULT=master check 0 $O Bash 'gh pr create --fill'
+git -C "$O" config --unset "branch.$cur.gh-merge-base"
+STUB_DEFAULT=develop STUB_NO_REPO=1 check 2 $O Bash 'gh pr create --fill'
+# --head is checked against the branch on origin, not a local branch with
+# the same name. Local feat is at the approved commit; origin/feat is not.
+git init -q --bare "$T/remote.git"
+git -C "$O" remote add origin "$T/remote.git"
+git -C "$O" branch feat "$OK_SHA"
+git -C "$O" push -q origin feat
+check 0 $O Bash 'gh pr create --head feat --base develop'
+git clone -q "$T/remote.git" "$T/other" 2>/dev/null
+git -C "$T/other" checkout -q feat
+gitc -C "$T/other" commit -q --allow-empty -m "someone else's commit"
+git -C "$T/other" push -q origin feat
+check 2 $O Bash 'gh pr create --head feat --base develop'
+check 2 $O Bash 'gh pr create -H feat -B develop'
+# A branch that is not on origin, and a fork's branch, cannot be checked.
+git -C "$O" branch local-only "$OK_SHA"
+check 2 $O Bash 'gh pr create --head local-only --base develop'
+check 2 $O Bash 'gh pr create --head victorserpa:feat --base develop'
+check 2 $O Bash 'gh pr create --head=someone:feat --base develop'
 
 # --- Other hosts' input shapes ----------------------------------------------
 hostcheck() { # expected host json

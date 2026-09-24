@@ -110,13 +110,38 @@ export function gate(input) {
     const config = loadConfig(sessionDir);
     if (!config) return ALLOW;
 
-    function defaultBase(dir) {
-      if (config.defaultBase) return config.defaultBase;
-      try {
-        return git(dir, "symbolic-ref", "--short", "refs/remotes/origin/HEAD").replace(/^origin\//, "");
-      } catch {
-        return "main";
+    // The base `gh pr create` uses without --base: the branch's
+    // gh-merge-base setting, else the repository's default branch as GitHub
+    // reports it. .objection.json's defaultBase is only a recommendation for
+    // the debate; gh never reads it. Throws when it cannot tell (fail closed).
+    function ghBase(dir, repo, head) {
+      let branch = head;
+      if (!branch) {
+        try {
+          branch = git(dir, "symbolic-ref", "--short", "HEAD");
+        } catch {
+          branch = null;
+        }
       }
+      if (branch) {
+        try {
+          const configured = git(dir, "config", `branch.${branch}.gh-merge-base`);
+          if (configured) return configured;
+        } catch {
+          // not set
+        }
+      }
+      const args = ["repo", "view"];
+      if (repo) args.push(repo);
+      args.push("--json", "defaultBranchRef", "-q", ".defaultBranchRef.name");
+      const name = execFileSync("gh", args, {
+        cwd: dir,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+        timeout: 15000,
+      }).trim();
+      if (!name) throw new Error("gh returned no default branch");
+      return name;
     }
 
     const tool = input.tool || "";
@@ -533,10 +558,27 @@ export function gate(input) {
       try {
         if (action === "create") {
           const head = valueOf(rest, "-H", "--head");
-          // `--head owner:branch` points at a fork: no local copy, no record.
-          sha = git(dir, "rev-parse", head ? head.replace(/^[^:]+:/, "") : "HEAD");
-          // Without --base, gh uses the repository default branch.
-          prBase = valueOf(rest, "-B", "--base") || defaultBase(dir);
+          if (head && head.includes(":"))
+            block("`--head owner:branch` opens the PR from another repository's branch, which the gate cannot see. Open it from a clone of that repository, where its record lives.", false);
+          if (head) {
+            // The PR is born from the branch on GitHub, not from a local
+            // branch with the same name (an external review caught the gate
+            // checking the local one and skipping the push check).
+            const local = git(dir, "rev-parse", `refs/heads/${head}`);
+            const line = git(dir, "ls-remote", "origin", `refs/heads/${head}`);
+            const remote = line.split(/\s+/)[0];
+            if (!remote)
+              block(`branch ${head} is not on origin. Push the debated commit before opening the PR.`, false);
+            if (remote !== local)
+              block(`origin/${head} is at ${remote.slice(0, 7)} but the local branch is at ${local.slice(0, 7)}. Push the debated commit before opening the PR.`, false);
+            sha = remote;
+          } else {
+            sha = git(dir, "rev-parse", "HEAD");
+          }
+          // The base gh will really use, not .objection.json's defaultBase:
+          // --base, else the branch's gh-merge-base setting, else the
+          // repository's default branch on GitHub.
+          prBase = valueOf(rest, "-B", "--base") || ghBase(dir, repo, head);
           // The PR is born from what is on the remote, not the local HEAD.
           if (!head) {
             let remote = null;
@@ -558,7 +600,7 @@ export function gate(input) {
         if (e instanceof Blocked) throw e;
         block(
           action === "create"
-            ? `could not read the commit going into the PR at ${dir}.`
+            ? `could not read the commit going into the PR, or the base gh will use, at ${dir}.`
             : `could not read the head SHA of PR ${targetOf(rest) || "for the current branch"}${repo ? ` in ${repo}` : ""}.`,
         );
       }

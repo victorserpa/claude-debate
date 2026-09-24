@@ -102,7 +102,7 @@ work anywhere you did not opt in.
 | key | meaning |
 |---|---|
 | `bases` | every branch a PR may target; a record is only valid against the base it was debated on |
-| `defaultBase` | what `gh pr create` targets without `--base` |
+| `defaultBase` | the base to debate against by default; gh does not read it, so pass `--base` (the gate checks the base gh will really use) |
 | `verify` | cheap proof (types, tests) that must pass before any reviewer runs |
 | `reviewers` | your own reviewers, added as accusers when the diff touches `paths` |
 

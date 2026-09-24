@@ -13,7 +13,8 @@ failures=0
 
 run() { # expected files body
   local expected=$1 files=$2 body=$3 rc
-  node -e 'require("fs").writeFileSync(process.argv[1], JSON.stringify({pull_request:{number:1,head:{sha:process.argv[2]},base:{ref:"main"},body:process.argv[3]},repository:{full_name:"o/r"}}))' "$T/event.json" "$HEAD" "$body"
+  # CHANGED sets pull_request.changed_files (the real count), when a case needs it.
+  node -e 'require("fs").writeFileSync(process.argv[1], JSON.stringify({pull_request:{number:1,head:{sha:process.argv[2]},base:{ref:"main"},body:process.argv[3],changed_files:process.env.CHANGED?+process.env.CHANGED:undefined},repository:{full_name:"o/r"}}))' "$T/event.json" "$HEAD" "$body"
   GITHUB_EVENT_PATH="$T/event.json" OBJECTION_FILES="$files" node "$CHECK" >/dev/null 2>&1
   rc=$?
   if [ "$rc" != "$expected" ]; then
@@ -71,5 +72,22 @@ run 1 ".claude/agents/defender.md" "<!-- objection: sha=$HEAD base=origin/main -
 VERDICT: APPROVED"
 run 1 ".cursor/rules/x.md" "<!-- objection: sha=$HEAD base=origin/main -->
 VERDICT: APPROVED"
+# Issue #9: the objection prompts, instructions and config are never
+# "documentation only", wherever they live.
+DOCREC="<!-- objection: sha=$HEAD base=origin/main -->
+documentation only
+VERDICT: APPROVED"
+for f in agents/defender.md skills/objection/roles/defender.md skills/objection/SKILL.md \
+  AGENTS.md CLAUDE.md GEMINI.md .objection.json .objection/precedents.md .agents/skills/x/SKILL.md; do
+  run 1 "$f" "$DOCREC"
+done
+run 0 "docs/guide.md" "$DOCREC"
+run 0 "README.md" "$DOCREC"
+# Issue #9: a file list that hits the API limit, or is shorter than the
+# PR's own count, proves nothing about the rest.
+many=$(for i in $(seq 3000); do echo "docs/f$i.md"; done)
+CHANGED=3001 run 1 "$many" "$DOCREC"
+CHANGED=3 run 1 "$(printf 'docs/a.md\ndocs/b.md')" "$DOCREC"
+CHANGED=2 run 0 "$(printf 'docs/a.md\ndocs/b.md')" "$DOCREC"
 
 if [ "$failures" = 0 ]; then echo "check-pr: all cases passed"; else echo "check-pr: $failures failure(s)"; exit 1; fi

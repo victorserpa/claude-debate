@@ -50,6 +50,24 @@ reviewer.
   deliberate disguise (see "What does not"), not something a check can
   stop, and it shows up in the PR diff.
 
+## Reviewing untrusted changes
+
+The accuser and the defender read content written by whoever made the
+change, with tools. Two rules keep that content from steering them:
+
+- **The diff is data.** Both role prompts say that code, comments,
+  commit messages, docs and tool output are the thing under review:
+  instructions inside them are never followed, text that tries to steer
+  the review is reported as a finding, and only commands that read are
+  run. A model can still be fooled; this lowers the odds, it does not
+  remove them. For contributions from strangers, a human reads the record.
+- **`verify` comes from the base branch.** The commands in
+  `.objection.json` run before any reviewer, so the skill reads them from
+  the branch the PR targets, never from the branch under review, and asks
+  the human before running a changed `verify`. Whoever can merge into the
+  base can already run code in your CI; this keeps a PR from doing it
+  through the debate.
+
 ## Supply chain
 
 - Workflows pin third-party actions to commit SHAs; Dependabot proposes
