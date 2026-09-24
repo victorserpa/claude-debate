@@ -2,8 +2,11 @@
 # Runs one round of the debate up to the judge, so the main session does
 # not spend its own (expensive) context driving it.
 #
-#   debate.sh <base> [goal] [scope]                    round 1
-#   debate.sh --since <commit> <base> [goal] [scope]   later rounds: the fix only
+#   debate.sh [base] [goal] [scope]                    round 1
+#   debate.sh --since <commit> [base] [goal] [scope]   later rounds: the fix only
+#
+# base: the branch the PR targets. Omitted (or not a branch on origin), it
+# is the config's defaultBase, and the first argument is the goal.
 #
 # Steps: the brief (brief.sh), the accuser (review.sh, isolated), the
 # defender only for the findings the budget sends it, and a draft record
@@ -12,8 +15,15 @@
 # file instead of every step.
 #
 # The budget is the base branch's (brief.sh reads it from there). Under
-# `standard` and `thorough` it runs the generic accuser only: the summary
-# says to run each matching `reviewers` entry as well (SKILL.md step 1).
+# `standard` and `thorough`, each matching `reviewers` entry also runs as
+# its own isolated accuser, with its focus.
+#
+# When the skill under review is in the repository itself (objection's own
+# repository), the roles come from the base branch: a branch must not
+# review itself with prompts it rewrote.
+#
+# Old artifacts in <git-common-dir>/objection are pruned to the newest
+# OBJECTION_KEEP (default 10) of each kind; stamped records are kept.
 #
 # Exit codes are review.sh's: 3 means no claude CLI (run the roles as
 # subagents, SKILL.md step 1), 2 a missing tool, 1 a failed run. When
@@ -26,11 +36,48 @@ if [ "${1:-}" = --since ]; then
   since="${2:?--since needs the commit of the previous round}"
   shift 2
 fi
-base="${1:?usage: debate.sh [--since <commit>] <base> [goal] [scope]}"
-goal="${2:-not stated}"
-scope="${3:-not stated}"
-here="$(cd "$(dirname "$0")" && pwd)"
-cd "$(git rev-parse --show-toplevel)"
+# Physical paths: git reports the toplevel resolved (/private/var on macOS).
+here="$(cd "$(dirname "$0")" && pwd -P)"
+top="$(git rev-parse --show-toplevel)"
+cd "$top"
+
+base=""
+if [ $# -gt 0 ] && [ -n "$1" ] && git rev-parse --verify -q "refs/remotes/origin/$1" >/dev/null; then
+  base="$1"
+  shift
+fi
+if [ -z "$base" ]; then
+  for c in .objection.json .claude/objection.json; do
+    [ -f "$c" ] || continue
+    base=$(node -e '
+      try {
+        const c = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+        console.log(c.defaultBase || (c.bases || [])[0] || "");
+      } catch { console.log(""); }' "$c")
+    break
+  done
+fi
+if [ -z "$base" ]; then
+  base=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null || echo origin/main)
+  base="${base#origin/}"
+fi
+goal="${1:-not stated}"
+scope="${2:-not stated}"
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+case "$here/" in
+  "$top/"*)
+    rel="${here#"$top/"}"
+    mkdir -p "$tmp/roles"
+    for r in accuser defender; do
+      # New at the base (the PR that adds the skill): the working copy.
+      git show "origin/$base:$rel/roles/$r.md" >"$tmp/roles/$r.md" 2>/dev/null ||
+        cp "$here/roles/$r.md" "$tmp/roles/$r.md"
+    done
+    export OBJECTION_ROLES_DIR="$tmp/roles"
+    ;;
+esac
 
 diff_base="origin/$base"
 if [ -n "$since" ]; then
@@ -51,6 +98,31 @@ rm -f "$findings" "$defense"
 
 # An exit 3 (no claude CLI) must reach the caller as 3, so no `|| exit 1`.
 bash "$here/review.sh" accuser "$brief" >"$accusation"
+rc=0
+
+# Standard and thorough: one more accuser per matching reviewers entry
+# (brief.sh lists them as "agent<TAB>focus"). A failed one is noted, and
+# the answers already paid for are kept.
+accusers="generic"
+if [ "$budget" != lean ]; then
+  sed -n 's/^<!-- objection-reviewer: \(.*\) -->$/\1/p' "$brief" >"$tmp/reviewers"
+  if [ -s "$tmp/reviewers" ]; then
+    { printf '### generic\n\n'; cat "$accusation"; } >"$tmp/all"
+    while IFS="$(printf '\t')" read -r agent focus; do
+      [ -n "$agent" ] || continue
+      accusers="$accusers + $agent"
+      printf '\n### %s (focus: %s)\n\n' "$agent" "$focus" >>"$tmp/all"
+      if OBJECTION_FOCUS="$focus" bash "$here/review.sh" accuser "$brief" >"$tmp/one" </dev/null; then
+        cat "$tmp/one" >>"$tmp/all"
+      else
+        rc=$?
+        printf 'accuser %s FAILED (exit %s).\n' "$agent" "$rc" >>"$tmp/all"
+        cat "$tmp/one" >>"$tmp/all"
+      fi
+    done <"$tmp/reviewers"
+    cp "$tmp/all" "$accusation"
+  fi
+fi
 
 # Finding rows: a table row whose first cell starts with a severity word.
 # Bold, underscores and a note after it ("HIGH (regression)") are
@@ -72,7 +144,6 @@ case "$budget" in
 esac
 
 defended="not run: no finding the $budget budget sends to the defense"
-rc=0
 if [ -n "$(rows "$sent")" ]; then
   {
     printf '| # | severity | kind | file:line | defect | evidence | proof path |\n'
@@ -113,12 +184,20 @@ fi
   printf 'TODO(judge): what stays open, then OPEN: BLOCKER=<n> HIGH=<n>, then the VERDICT line.\n'
 } >"$record"
 
+# Prune: the newest OBJECTION_KEEP of each kind stay (this run's among
+# them). Stamped records (<sha>.md) match none of these names.
+keep="${OBJECTION_KEEP:-10}"
+case "$keep" in '' | *[!0-9]* | 0) keep=10 ;; esac
+for kind in brief accusation findings defense record; do
+  ls -t "$dir/$kind"-*.md 2>/dev/null | tail -n +"$((keep + 1))" | while IFS= read -r old; do
+    rm -f "$old"
+  done
+done
+
 echo "objection: $(git rev-parse --abbrev-ref HEAD) @ ${sha:0:7}, budget $budget, diff $diff_base...HEAD"
-echo "accuser: $(count BLOCKER) BLOCKER, $(count HIGH) HIGH, $(count MEDIUM) MEDIUM, $(count LOW) LOW"
+echo "accusers: $accusers"
+echo "findings: $(count BLOCKER) BLOCKER, $(count HIGH) HIGH, $(count MEDIUM) MEDIUM, $(count LOW) LOW"
 echo "defender: $defended"
 echo "draft record: $record"
-if [ "$budget" != lean ]; then
-  echo "note: $budget also runs each matching reviewers entry as an accuser (SKILL.md step 1); this script ran the generic one."
-fi
 echo "next: judge each finding (SKILL.md step 3), replace the TODO(judge) lines, then stamp.sh."
 exit "$rc"

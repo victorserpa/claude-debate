@@ -194,7 +194,20 @@ export function gate(input) {
           .replace(/\/+$/, "")
           .split(/[/:]/)
           .pop();
-        const under = remotes.filter((r) => new RegExp(`[:/]${esc(owner)}/`, "i").test(url(r)));
+        // Only remotes on the host gh talks to (github.com, or GH_HOST for
+        // Enterprise); a local path has no host and counts. A mirror of
+        // owner/repo elsewhere made the match ambiguous and blocked.
+        const ghHost = (process.env.GH_HOST || "github.com").toLowerCase();
+        const hostOf = (u) => {
+          const m = /^[a-z][a-z0-9+.-]*:\/\/(?:[^@/]*@)?([^/:]+)/i.exec(u) || /^(?:[^@/]+@)?([^/:]+):(?!\/\/)/.exec(u);
+          // "C:/x" is a Windows drive, not a host.
+          return m && !/^[a-zA-Z]$/.test(m[1]) ? m[1].toLowerCase() : null;
+        };
+        const onGh = (u) => {
+          const h = hostOf(u);
+          return h === null || h === ghHost || (ghHost === "github.com" && h === "ssh.github.com");
+        };
+        const under = remotes.filter((r) => onGh(url(r)) && new RegExp(`[:/]${esc(owner)}/`, "i").test(url(r)));
         const exact = name
           ? under.filter((r) => new RegExp(`[:/]${esc(owner)}/${esc(name)}(\\.git)?/?$`, "i").test(url(r)))
           : [];

@@ -59,7 +59,11 @@ esac
 failures=0
 check() { # expected cwd tool command
   local expected=$1 cwd=$2 tool=$3 cmd=$4 json rc
-  json=$(node -e 'console.log(JSON.stringify({cwd:process.argv[1],tool_name:process.argv[2],tool_input:{command:process.argv[3]}}))' "$cwd" "$tool" "$cmd")
+  # The command goes through a file: Windows caps an argument at 32k
+  # characters, and the deep-nesting case is longer (the hook itself reads
+  # stdin, which has no such cap).
+  printf '%s' "$cmd" >"$T/cmd"
+  json=$(node -e 'console.log(JSON.stringify({cwd:process.argv[1],tool_name:process.argv[2],tool_input:{command:require("fs").readFileSync(process.argv[3],"utf8")}}))' "$cwd" "$tool" "$T/cmd")
   printf '%s' "$json" | node "$HOOK" >/dev/null 2>&1
   rc=$?
   if [ "$rc" != "$expected" ]; then
@@ -464,6 +468,14 @@ git -C "$T/named" remote add fork "$T/me/repo.git"
 git -C "$T/named" push -q fork feat
 check 0 "$T/named" Bash 'gh pr create --head me:feat --base develop -R up/repo'
 check 2 "$T/named" Bash 'gh pr create --head stranger:feat --base develop -R up/repo'
+# A mirror of me/repo on another host is not where gh opens the PR from:
+# it must neither be read nor make the match ambiguous. Its look-alike on
+# GitHub itself (an unreachable URL) does make it ambiguous: blocked.
+git -C "$T/named" remote add mirror "git@gitlab.example.com:me/repo.git"
+check 0 "$T/named" Bash 'gh pr create --head me:feat --base develop -R up/repo'
+git -C "$T/named" remote set-url mirror "https://github.com/me/repo.git"
+check 2 "$T/named" Bash 'gh pr create --head me:feat --base develop -R up/repo'
+git -C "$T/named" remote remove mirror
 gitc -C "$T/named" commit -q --allow-empty -m later
 git -C "$T/named" push -q fork HEAD:feat
 git -C "$T/named" reset -q --hard "$NAMED_SHA"

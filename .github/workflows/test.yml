@@ -25,6 +25,16 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
+      - if: runner.os == 'Windows'
+        run: |
+          set -x
+          d=$(mktemp -d) && cd "$d" && git init -q r && cd r
+          printf '{"a":1}\n' >.objection.json && git add . && git -c user.email=t@t -c user.name=t commit -qm a
+          git update-ref refs/remotes/origin/main HEAD
+          git show "origin/main:.objection.json"; echo "rc=$?"
+          c=origin/main; git show "$c:.objection.json"; echo "rc=$?"
+          x=$(git show "$c:.objection.json" 2>&1); echo "rc=$? [$x]"
+          git rev-parse --show-toplevel; pwd; pwd -W
       # Every suite runs even when one fails, so one run shows them all.
       - run: |
           rc=0
