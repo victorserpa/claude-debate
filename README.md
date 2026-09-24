@@ -2,20 +2,15 @@
 
 > **OBJECTION!** Your PR goes on trial before it ships.
 
-**A skill and plugin for AI coding agents**, not an app or a service.
-You install it into your agent (Claude Code, Codex, Cursor, Gemini CLI,
-GitHub Copilot, or anything else that reads
-[Agent Skills](https://agentskills.io)), and the agent follows it before
-it opens a pull request: accusers attack the diff, a defender refutes them
-with evidence, the agent's own session judges, and a gate keeps the PR
-from being created or merged until the verdict is APPROVED.
+**A skill and plugin for AI coding agents** (Claude Code, Codex, Cursor,
+Gemini CLI, GitHub Copilot, anything that reads
+[Agent Skills](https://agentskills.io)). Before your agent opens a pull
+request, a second model attacks the diff, a third tries to refute every
+accusation with `file:line`, your agent's session judges what is left,
+and a gate keeps the PR closed until the verdict is APPROVED.
 
-What it is: instructions and role prompts the agent reads, a few bash and
-node scripts it runs, a local hook, and an optional GitHub Action or
-GitLab CI job. What it is not: a hosted reviewer, a bot account, or a
-security boundary against an agent that sets out to cheat (see
-[Honest limits](#honest-limits)). The reviewers run on your own `claude`
-or `codex` CLI, billed to your plan or key.
+It is not an app, a hosted service or a bot account: it is instructions
+and a few scripts your agent runs, on your own `claude` or `codex` CLI.
 
 ![A real debate on a toy cart: the accuser finds a negative total and a NaN, the gate blocks gh pr create, round 2 finds one more NaN, then the record is APPROVED and the PR opens](docs/demo.svg)
 
@@ -23,10 +18,45 @@ That run is real (sonnet, `debate.sh`, a planted bug in a
 [toy cart](docs/make-demo.mjs)): 3 bugs, 2 rounds, **$0.041** of
 reviewers.
 
+## What you get
+
+- **Bugs caught before the PR exists**, not after a human reviewer or a
+  user finds them. The agent that wrote the code does not grade it: an
+  isolated reviewer with no stake in the diff does.
+- **Few false alarms.** Every finding has to survive a defender that
+  looks for the line of code proving it wrong. What cannot be refuted
+  stands; what can is dropped, with the evidence in the record.
+- **A step that cannot be skipped.** The local hook blocks `gh pr create`
+  and `gh pr merge` without an APPROVED record for that exact commit,
+  and the optional GitHub Action (or GitLab job) checks the same in CI.
+  Or run it in advisory mode first: it warns instead of blocking.
+- **Cents per PR.** Reviewers run as isolated `claude -p` processes on
+  sonnet: $0.02 to $0.15 for a typical PR, opus only where you mark the
+  code as critical. With a Claude subscription it is plan usage, not
+  dollars.
+- **A record reviewers can read.** What was accused, refuted, fixed and
+  left open goes into the PR body, stamped to the commit.
+- **It learns the repository.** Confirmed defects become precedents the
+  next accuser checks first.
+
+## Quick start
+
+```
+/plugin marketplace add victorserpa/objection
+/plugin install objection@objection
+```
+
+Then, in a repository, ask your agent for `/objection init` (other agents:
+[Install](#install)). It reads what it can (bases, your test and type
+checks, your forge) and asks nothing else. To try it without blocking
+anyone, say `/objection init --advisory`. From then on, when the agent is
+about to open a PR, it runs the debate first; you get the record in the
+PR body.
+
 ## Track record
 
 objection reviews its own pull requests, and every record is public in
-the PR body. Over the last five feature PRs
+the PR body. Over five feature PRs
 ([#20](https://github.com/victorserpa/objection/pull/20) to
 [#28](https://github.com/victorserpa/objection/pull/28)): **43 findings
 the judge upheld**, every BLOCKER and HIGH fixed before merge (the rest
@@ -37,41 +67,44 @@ zero lines and skipped the review (#26). The same debates cost $1.22 to
 $2.36 with opus forced on everything; on today's defaults the last one
 (#28, two rounds) cost **$0.135**.
 
-## Try it without blocking anyone
-
-```bash
-bash <skill dir>/init.sh --advisory
-```
-
-writes a config with `"enforce": false`: the debate runs, the hook says
-what it would have blocked and lets it through, and no CI check is added
-(advisory mode is the local hook's; a CI check you already made required
-still requires a record).
-Run it on a few PRs in the riskiest part of your code, compare with the
-review you already use, then drop the line to enforce.
-
-## How it differs from a code review command
+## How it differs from a review command
 
 A review command (`/code-review`, a review bot) finds issues and hands
-you a list. objection is built around three things a list does not do:
+you a list. objection adds three things a list does not do:
 
-- **A defender.** Every finding must survive a second model trying to
-  refute it with `file:line`; what cannot be proven wrong stands, what can
-  is dropped. Fewer false positives reach you, and none are dismissed
+- **A defender.** A second model tries to refute each finding with
+  `file:line`. Fewer false positives reach you, and none is dismissed
   without evidence.
 - **A gate.** The PR cannot be opened or merged until a judged record
-  says APPROVED for that exact commit, locally and, with the Action, in
-  CI. A review you can skip is a review that gets skipped when the agent
-  is in a hurry.
-- **Memory.** Confirmed defects become precedents
-  (`.objection/precedents.md`) that the next accuser checks first.
+  says APPROVED for that commit. A review that can be skipped gets
+  skipped when the agent is in a hurry.
+- **Memory.** Precedents (`.objection/precedents.md`) carry what this
+  repository already got wrong into the next review.
 
-They combine: run your review command, and let objection be the step that
-cannot be skipped.
+They combine: keep your review command, and let objection be the step
+that cannot be skipped.
+
+## When it is worth it, and when it is not
+
+Worth it where a bug is expensive: money, auth, data, anything with a
+rule that must never break (write it as an `invariant` and it becomes a
+BLOCKER when violated), and wherever an agent opens PRs faster than
+people can read them.
+
+Less so for a prototype, a repository where every PR already gets a
+careful human review, or PRs that are mostly docs and config (docs-only
+PRs need no reviewers, and small diffs skip them: the judge reads the
+diff and stamps).
+
+What it costs you in friction: one command per round (`debate.sh`), a
+record the agent puts into the PR body (`pr-body.sh`), and a cheaper
+round after each push that reviews only the new commits.
+
+## How it works
 
 When you ask an AI to build something, it plans, writes, checks, and
-approves its own work. It is the same mind grading its own exam. This
-skill splits that into roles that argue:
+approves its own work: the same mind grading its own exam. objection
+splits that into roles that argue:
 
 ```
                  ┌──────────────┐
@@ -88,33 +121,33 @@ skill splits that into roles that argue:
                         ▼
                  ┌──────────────┐
                  │    RECORD    │  stamped to the exact commit SHA and base,
-                 └──────┬───────┘  pasted into the PR body
+                 └──────┬───────┘  put into the PR body (pr-body.sh)
                         ▼
   PR create / ready / merge  ── blocked until the record says APPROVED
 ```
 
-Only what survives the defense becomes a fix. The record goes into the PR
-body, so reviewers see what was rejected and what was fixed because of it.
-
-## Why
-
-It came from two real projects where, over the last 300 commits, `fix:`
-commits outnumbered `feat:` commits almost two to one. The defect shipped
-and came back as a fix. Review existed as a rule written in the agent's
-instructions, and a written rule stops nothing.
-
-Two design decisions carry most of the value:
-
-- **A defender, not just more reviewers.** Reviewers are rewarded for
-  finding things, so they also find things that are not there, and a false
-  finding sends someone to "fix" correct code. The defender refutes with
-  `file:line` or not at all. The burden of proof is on the defense.
-- **A gate, not a suggestion.** The debate is the condition for the PR to
-  exist. A new commit after the debate invalidates the record.
+Only what survives the defense becomes a fix.
 
 **No finding quotas.** Prompts like "find at least three problems" make
 the model invent the third one. The accusers are asked what they could
 *not* evaluate instead.
+
+It started in two projects where `fix:` commits outnumbered `feat:`
+commits almost two to one over 300 commits, and review was a rule in the
+agent's instructions that nothing enforced. Your ratio may be healthier;
+the question objection answers is different: did anyone other than the
+author look at this diff before it became a PR?
+
+## Versions and stability
+
+The hook runs before your agent's `gh` commands, so changes to it are
+deliberate: every release is in the [CHANGELOG](CHANGELOG.md), and the
+gate itself is reviewed on the strong model with its own rules
+([reference/gate-changes.md](skills/objection/reference/gate-changes.md)).
+To stay on a version: use the Action as `victorserpa/objection@v0.12.1`
+(or a commit SHA) instead of `@v1`, and copy the skill folder from a
+[release](https://github.com/victorserpa/objection/releases) instead of
+following `main`.
 
 ## Install
 

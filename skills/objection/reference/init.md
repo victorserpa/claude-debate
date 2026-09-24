@@ -10,7 +10,8 @@ bash <this skill's directory>/init.sh --host <plugin|claude|cursor|codex|gemini>
 ```
 
 (`plugin` is Claude Code with the plugin installed; `--dry-run` shows
-what it would write.) It writes `.objection.json` from what the
+what it would write; `--advisory` when the user wants to try it without
+blocking anyone, or asked for `init --advisory`.) It writes `.objection.json` from what the
 repository shows (bases from origin, `verify` from the project's own
 scripts, `budget: lean`), the local hook for your tool, and the CI check
 for GitHub or GitLab. It never overwrites a file: when one exists it

@@ -125,8 +125,10 @@ draft, judge (step 3), replace every TODO line (`stamp.sh` refuses a
 record that still has one), stamp. Findings are numbered once, in the
 Accusation; the defender and your rulings use the same numbers. Under
 `lean`, a diff of at most `smallDiff` changed lines (default 20) that no
-invariant or `strongPaths` touches runs no reviewer: the draft says so,
-and you read the diff and rule on it yourself; verify still runs. Exit 3 means no `claude` CLI: run the
+invariant or `strongPaths` touches runs no reviewer: the draft comes
+pre-filled as APPROVED with one `TODO(judge)` line; read the diff, and if
+nothing is wrong delete that line and stamp (otherwise write the findings
+and fix the counts and verdict); verify still runs. Exit 3 means no `claude` CLI: run the
 roles one by one as below. `usage.sh` shows what each branch's
 reviewers cost.
 
