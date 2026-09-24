@@ -100,6 +100,18 @@ generic accuser (`roles/accuser.md`) whose prompt also carries the
 `focus` of every `reviewers` entry whose `paths` match; `standard` and
 `thorough` run those reviewers as accusers of their own.
 
+**The whole round in one command, when the `claude` CLI is available:**
+`bash <this skill's directory>/debate.sh <base> "<goal>" "<scope>"`
+(later rounds: `debate.sh --since <previous-round-sha> <base> ...`). It
+builds the brief, runs the accuser and, for the findings the budget
+sends, the defender, both isolated (option 1 below), and writes a draft
+record whose Judge and Open sections say `TODO(judge)`. It prints a
+short summary and the draft's path: read the draft, judge (step 3),
+replace the TODO lines, stamp. Under `standard` and `thorough` it runs
+the generic accuser only; run each matching `reviewers` entry as well.
+Exit 3 means no `claude` CLI: run the roles one by one as below.
+`usage.sh` shows what each branch's reviewers cost.
+
 **How to run a role**, in order of preference:
 
 1. **Isolated process, when the `claude` CLI is available** (any tool can

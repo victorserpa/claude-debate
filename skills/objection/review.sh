@@ -23,7 +23,12 @@
 # The defender cannot open files, so it also gets the lines around every
 # file:line its findings cite, read from HEAD.
 #
-# Env: OBJECTION_MODEL (default opus), OBJECTION_CLAUDE (default claude),
+# Each run is appended to <git-common-dir>/objection/usage.log (when run
+# inside a repository); usage.sh sums it per branch.
+#
+# Env: OBJECTION_MODEL (default opus: on the same brief it found 3 HIGH
+#      where sonnet and haiku found 1, at about 4x their price),
+#      OBJECTION_CLAUDE (default claude),
 #      OBJECTION_TIMEOUT (seconds for the model call, default 900),
 #      OBJECTION_EXCERPT_LINES (lines each side of a cited line, default 40),
 #      OBJECTION_EXCERPT_MAX (total excerpt lines, default 1500).
@@ -53,6 +58,16 @@ work=$(mktemp -d)
 trap 'rm -rf "$input" "$work"' EXIT
 
 cat "$brief_abs" >"$input"
+
+# Where the run is logged: resolved here, before the cd into the empty
+# directory. Outside a repository nothing is logged.
+model="${OBJECTION_MODEL:-opus}"
+usage_log=""
+if common=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null); then
+  mkdir -p "$common/objection" && usage_log="$common/objection/usage.log"
+  branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "?")
+  head=$(git rev-parse --short HEAD 2>/dev/null || echo "?")
+fi
 
 if [ "$role" = defender ]; then
   [ -f "$findings" ] || { echo "findings not found: $findings" >&2; exit 2; }
@@ -94,7 +109,7 @@ cd "$work"
 out="$work/out.json"
 # perl alarm: a portable timeout (macOS has no coreutils timeout).
 if ! perl -e 'alarm shift; exec @ARGV' "${OBJECTION_TIMEOUT:-900}" "$claude_bin" -p \
-  --model "${OBJECTION_MODEL:-opus}" \
+  --model "$model" \
   --tools "" \
   --strict-mcp-config --mcp-config '{"mcpServers":{}}' \
   --disable-slash-commands \
@@ -124,5 +139,14 @@ const inTok = (u.input_tokens || 0) + (u.cache_creation_input_tokens || 0) + (u.
 process.stdout.write((j.result || "") + "\n");
 process.stderr.write(`objection: ${process.argv[2]} used ${inTok} input + ${u.output_tokens || 0} output tokens` +
   (j.total_cost_usd !== undefined ? ` ($${Number(j.total_cost_usd).toFixed(3)})` : "") + "\n");
+// One tab-separated line per run: date, branch, commit, role, model,
+// input, output, cost. A failed write never loses the answer.
+const [, , , log, branch, head, model] = process.argv;
+if (log) {
+  try {
+    require("fs").appendFileSync(log, [new Date().toISOString(), branch, head, process.argv[2], model, inTok,
+      u.output_tokens || 0, j.total_cost_usd ?? ""].join("\t") + "\n");
+  } catch (e) { process.stderr.write(`objection: usage not logged (${e.message})\n`); }
+}
 if (j.is_error) process.exit(1);
-' "$out" "$role"
+' "$out" "$role" "$usage_log" "${branch:-}" "${head:-}" "$model"

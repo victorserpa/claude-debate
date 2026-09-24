@@ -51,6 +51,7 @@ bash test/roles-in-sync.test.sh
 bash test/precedents.test.sh
 bash test/brief.test.sh
 bash test/review.test.sh
+bash test/debate.test.sh
 claude plugin validate .
 bash test/review.live.sh    # optional: the real claude CLI, a few cents
 ```

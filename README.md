@@ -269,6 +269,11 @@ it runs them in one session and says so in the record.
     diff, changed files, invariants, reviewer focus and precedents, and
     opens at most 5 other files, each for a named suspicion (in an isolated
     run it has no tools at all and judges from the brief);
+  - `debate.sh` runs a whole round up to the judge (brief, accuser,
+    defender for what the budget sends, a draft record), so your session
+    reads one file instead of driving every step;
+  - `usage.sh` shows what each branch's reviewers cost, from a log
+    `review.sh` keeps in `.git/objection/usage.log`;
   - answers come in a fixed table capped at 15 rows, and the gate hook
     runs outside the model and costs no tokens.
 
@@ -299,6 +304,8 @@ skills/objection/            the skill, self-contained
   stamp.sh                   validates and stores the record
   brief.sh                   the one context file every reviewer of a round reads
   review.sh                  runs a reviewer as an isolated claude -p process
+  debate.sh                  runs a round up to the judge, writes the draft record
+  usage.sh                   what the reviewers cost, per branch
   precedents.mjs             keeps .objection/precedents.md
   gate/core.mjs              gate logic, tool-neutral
   gate/hook.mjs              local hook for Claude Code, Codex, Gemini CLI, Cursor

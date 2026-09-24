@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.7.0 (2026-09-24)
+
+**One command per round, and the cost of each PR on record.**
+
+- `debate.sh <base> [goal] [scope]` runs a round up to the judge: the
+  brief, the isolated accuser, the defender only for the findings the
+  budget sends (`lean`: BLOCKER and HIGH), and a draft record with the
+  Judge and Open sections marked `TODO(judge)`. It prints a four-line
+  summary; the main session reads the draft and judges, instead of
+  spending its own context on every step. `--since <commit>` runs a later
+  round on the fix only. The budget comes from the base branch.
+- `review.sh` appends every run (date, branch, commit, role, model,
+  tokens, cost) to `<git-common-dir>/objection/usage.log`; `usage.sh`
+  sums it per branch, `usage.sh <branch>` lists each run.
+- `brief.sh` writes the base branch's budget into the brief.
+- The reviewer model stays `opus`. On the same brief, opus found 3 HIGH
+  and 6 MEDIUM ($0.31); sonnet 1 HIGH and 4 MEDIUM ($0.08); haiku 1 HIGH
+  and 1 MEDIUM ($0.09). `OBJECTION_MODEL=sonnet` is the knob for a
+  cheaper, shallower run.
+
 ## 0.6.0 (2026-09-24)
 
 **Reviewers run isolated: 2-12k input tokens each instead of 87-134k.**
