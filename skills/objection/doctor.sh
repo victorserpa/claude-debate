@@ -46,16 +46,13 @@ esac
 top=$(git rev-parse --show-toplevel 2>/dev/null) || { bad "not inside a git repository"; echo; echo "doctor: $fails problem(s)."; exit 1; }
 cd "$top" || exit 1
 
-# config: from origin/<defaultBase> like brief.sh, else the working copy.
-cfg_text=""
-cfg_from=""
-for c in .objection.json .claude/objection.json; do
-  [ -f "$c" ] && { cfg_text=$(cat "$c"); cfg_from="$c (working copy)"; cfg_file="$c"; break; }
-done
-if [ -z "$cfg_from" ]; then
-  bad "no .objection.json: this repository is not opted in (run /objection init)"
-else
-  report=$(printf '%s' "$cfg_text" | node -e '
+# config: validated as the debates read it. brief.sh takes the rules from
+# origin/<defaultBase> and falls back to the working copy only when the
+# base has none, so that is the copy checked first; a working copy that
+# differs is checked too, as what applies after its merge.
+validate() { # text label -> prints its lines, counts FAILs; sets v_base
+  local report problems
+  report=$(printf '%s' "$1" | node -e '
 let raw = "";
 process.stdin.on("data", (d) => (raw += d)).on("end", () => {
   const out = [];
@@ -93,7 +90,7 @@ process.stdin.on("data", (d) => (raw += d)).on("end", () => {
     if (!c.models || typeof c.models !== "object") fail("models must be an object");
     else for (const [k, v] of Object.entries(c.models)) {
       if (!mk.includes(k)) warn(`models: unknown key "${k}": ignored`);
-      else if (!/^[A-Za-z0-9._-]+$/.test(String(v))) fail(`models.${k} ${JSON.stringify(v)} is not a model or effort name: the default is used`);
+      else if (typeof v !== "string" || !/^[A-Za-z0-9._-]+$/.test(v)) fail(`models.${k} ${JSON.stringify(v)} is not a model or effort name: the default is used`);
     }
   }
   if (c.smallDiff !== undefined && !(Number.isInteger(c.smallDiff) && c.smallDiff >= 0)) fail("smallDiff must be a whole number, 0 or more: 20 is used");
@@ -103,24 +100,48 @@ process.stdin.on("data", (d) => (raw += d)).on("end", () => {
   out.push(`base\t${c.defaultBase || (strs(c.bases) && c.bases[0]) || ""}`);
   console.log(out.join("\n"));
 });')
-  base=$(printf '%s\n' "$report" | sed -n 's/^base	//p')
+  if [ -z "$report" ]; then bad "config ($2): the validator did not run"; return; fi
+  v_base=$(printf '%s\n' "$report" | sed -n 's/^base	//p')
   problems=$(printf '%s\n' "$report" | grep -v '^base	' | grep -c . || true)
-  printf '%s\n' "$report" | grep -v '^base	' | while IFS="$(printf '\t')" read -r level msg; do
+  while IFS="$(printf '\t')" read -r level msg; do
     [ -n "$level" ] || continue
-    [ "$level" = FAIL ] && printf 'FAIL  config: %s\n' "$msg" || printf 'warn  config: %s\n' "$msg"
+    if [ "$level" = FAIL ]; then bad "config ($2): $msg"; else warn "config ($2): $msg"; fi
+  done <<EOF_REPORT
+$(printf '%s\n' "$report" | grep -v '^base	')
+EOF_REPORT
+  [ "$problems" = 0 ] && ok "config ($2): valid"
+}
+cfg_text=""
+cfg_file=""
+for c in .objection.json .claude/objection.json; do
+  [ -f "$c" ] && { cfg_text=$(cat "$c"); cfg_file="$c"; break; }
+done
+# The base is named by the config itself: the working copy's, else main.
+base=$(printf '%s' "$cfg_text" | node -e 'let r="";process.stdin.on("data",(d)=>(r+=d)).on("end",()=>{try{const c=JSON.parse(r);console.log(c.defaultBase||(c.bases||[])[0]||"")}catch{console.log("")}})')
+[ -n "$base" ] || base=main
+on_base=""
+base_file=""
+if git rev-parse --verify -q "refs/remotes/origin/$base" >/dev/null; then
+  for c in .objection.json .claude/objection.json; do
+    on_base=$(git show "origin/$base:$c" 2>/dev/null) && [ -n "$on_base" ] && { base_file="$c"; break; }
+    on_base=""
   done
-  fails=$((fails + $(printf '%s\n' "$report" | grep -c '^FAIL	' || true)))
-  # The rules come from the base branch: say when the working copy differs.
-  if [ -n "$base" ] && git rev-parse --verify -q "refs/remotes/origin/$base" >/dev/null; then
-    if on_base=$(git show "origin/$base:$cfg_file" 2>/dev/null); then
-      if [ "$on_base" = "$cfg_text" ]; then cfg_from="$cfg_file, the same on origin/$base"
-      else warn "config: origin/$base has a different $cfg_file; debates use that one until this one is merged"; fi
-    else
-      warn "config: origin/$base has no $cfg_file yet; debates use the working copy until it is merged"
-    fi
-  fi
-  [ "$problems" = 0 ] && ok "config: $cfg_from"
 fi
+v_base=""
+if [ -n "$base_file" ]; then
+  validate "$on_base" "$base_file on origin/$base, what debates use"
+  base_named="$v_base"
+  if [ -z "$cfg_file" ]; then
+    warn "config: the working copy has no $base_file (deleted on this branch?); debates still use origin/$base's"
+  elif [ "$cfg_text" != "$on_base" ]; then
+    validate "$cfg_text" "$cfg_file in the working copy, used once merged"
+  fi
+elif [ -n "$cfg_file" ]; then
+  validate "$cfg_text" "$cfg_file in the working copy; origin/$base has none yet, so debates use this one until it is merged"
+else
+  bad "no .objection.json: this repository is not opted in (run /objection init)"
+fi
+base="${base_named:-${v_base:-$base}}"
 
 # local gate: the hook files each agent reads.
 hooks=""
@@ -144,6 +165,9 @@ if [ -n "$own" ] || grep -qsl 'victorserpa/objection\|gate/check-pr.mjs' .github
   ok "CI: a GitHub workflow runs the record check"
   if [ -n "${base:-}" ] && command -v "$gh_bin" >/dev/null 2>&1 &&
     required=$("$gh_bin" api "repos/{owner}/{repo}/rules/branches/$base" -q '.[] | select(.type=="required_status_checks") | .parameters.required_status_checks[].context' 2>/dev/null); then
+    # Rulesets, plus classic branch protection (a 404 when there is none).
+    required="$required
+$("$gh_bin" api "repos/{owner}/{repo}/branches/$base/protection/required_status_checks" -q '.contexts[]' 2>/dev/null)"
     printf '%s\n' "$required" | grep -qx record && ok "CI: \"record\" is a required check on $base" ||
       warn "CI: \"record\" is not a required check on $base, so a PR can merge without it (Settings > Rules)"
   else

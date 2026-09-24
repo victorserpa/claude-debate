@@ -78,7 +78,8 @@ is approved. It runs the accuser on each. Latest runs, all twelve cases:
 | gemini-3.1-pro-preview (the Gemini CLI's default) | 10 of 10 (8 BLOCKER, 2 HIGH) | none | about 6k tokens a review (measured on PR #42) |
 | gemini-3-flash-preview | 10 of 10 (9 BLOCKER, 1 HIGH) | none | Flash pricing, below Pro |
 
-The cross-file case is why the brief now carries the definitions the
+Severities move a step between runs (a HIGH one run is a BLOCKER the
+next); the catches did not. The cross-file case is why the brief now carries the definitions the
 added lines call, read from the commit: without them, sonnet rated it
 HIGH twice and once only MEDIUM ("if `getUser` is async"), with
 `src/users.js` under "Could not evaluate"; with them, BLOCKER three times

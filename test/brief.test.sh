@@ -162,15 +162,22 @@ mkdir -p src
 printf 'export async function getUser(id) {\n  return db.get(id);\n}\n' >src/users.js
 for k in 1 2 3 4; do printf 'function common() {}\n' >"src/c$k.js"; done
 printf 'function lockedHelper() {}\n' >deps.lock
+printf 'function helperInTest() {}\n' >src/a.test.js
+printf 'function outer() {\n  const innerOnly = () => 1;\n}\n' >src/outer.js
 printf 'export function a() {}\n' >src/posts.js
+printf 'export class Store {\n  async load(key) {\n    return fetch(key);\n  }\n}\nexport const api = {\n  save: async (x) => x,\n};\n' >src/store.js
 git add . && gitc commit -q -m base && git update-ref refs/remotes/origin/main HEAD
-printf 'export function canPost(id) {\n  const user = getUser(id);\n  common();\n  lockedHelper();\n  return !user.banned;\n}\n' >>src/posts.js
+printf 'export function canPost(id) {\n  const user = getUser(id);\n  store.load(id);\n  helperInTest();\n  innerOnly();\n  api.save(id);\n  if (getUser(id)) {}\n  common();\n  lockedHelper();\n  return !user.banned;\n}\n' >>src/posts.js
 git add . && gitc commit -q -m change
 out=$(bash "$BRIEF" origin/main)
 has "$out" "## Definitions the diff calls"
 has "$out" "src/users.js:1 (getUser)"
 has "$out" "export async function getUser(id) {"
+has "$out" "src/store.js:2 (load)"
+has "$out" "src/store.js:7 (save)"
 hasnt "$out" "(common)"
+hasnt "$out" "(helperInTest)"
+hasnt "$out" "(innerOnly)"
 hasnt "$out" "lockedHelper)"
 # Nothing to show: no section.
 printf 'x\n' >notes.txt && git add . && gitc commit -q -m notes

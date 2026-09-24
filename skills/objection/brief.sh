@@ -170,19 +170,28 @@ let diff = "";
 process.stdin.on("data", (d) => (diff += d)).on("end", () => {
   const added = diff.split("\n").filter((l) => l.startsWith("+") && !l.startsWith("+++")).map((l) => l.slice(1));
   const addedText = new Set(added.map((l) => l.trim()).filter(Boolean));
-  const skip = new Set("if for while switch catch return function typeof await new super this require import export async def fn func print console log len int str map filter forEach push then catch assert expect describe it test".split(" "));
+  const skip = new Set("if for while switch catch return function typeof await new super this require import export async def fn func print console log len int str map filter forEach push then catch assert expect describe it test Error Promise Date Number String Object Array Boolean Math JSON Set Map Symbol RegExp URL".split(" "));
   const names = [];
   for (const l of added) for (const m of l.matchAll(/([A-Za-z_][A-Za-z0-9_]*)\s*\(/g))
     if (!skip.has(m[1]) && m[1].length > 2 && !names.includes(m[1]) && names.length < 15) names.push(m[1]);
   const pathspec = process.argv.slice(1); // "--" and the excludes of the diff
+  const isTest = (f) => /(^|\/)(__tests__|tests?|spec)\/|\.(test|spec)\.[^/]+$/.test(f);
+  const changedFiles = diff.split("\n").filter((l) => l.startsWith("+++ b/")).map((l) => l.slice(6));
+  const onlyTests = changedFiles.length > 0 && changedFiles.every(isTest);
   const out = [];
   let lines = 0, defs = 0;
   for (const n of names) {
     if (defs >= 8 || lines >= 80) break;
-    const re = `(function[*]?[[:space:]]+${n}|def[[:space:]]+${n}|func[[:space:]]+(\\([^)]*\\)[[:space:]]*)?${n}|fn[[:space:]]+${n}|(const|let|var)[[:space:]]+${n}[[:space:]]*=|class[[:space:]]+${n})([^A-Za-z0-9_]|$)`;
+    // Declarations (a const, let or var only at the top of a file: an
+    // indented one is some function local), methods ("async getUser(id) {"
+    // at the start of a line) and functions assigned to a property
+    // ("getUser: async (").
+    const re = `(function[*]?[[:space:]]+${n}|def[[:space:]]+${n}|func[[:space:]]+(\\([^)]*\\)[[:space:]]*)?${n}|fn[[:space:]]+${n}|^(export[[:space:]]+)?(const|let|var)[[:space:]]+${n}[[:space:]]*=|class[[:space:]]+${n}|^[[:space:]]*((public|private|protected|static|async|override)[[:space:]]+)*${n}[[:space:]]*\\([^)]*\\)[^;]*\\{)([^A-Za-z0-9_]|$)|${n}[[:space:]]*:[[:space:]]*(async[[:space:]]*)?(function|\\()`;
     let hits = [];
     try { hits = execFileSync("git", ["grep", "-n", "-E", re, "HEAD", ...pathspec], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).split("\n").filter(Boolean); } catch { continue; }
-    hits = hits.map((h) => h.match(/^HEAD:(.+?):(\d+):(.*)$/)).filter((m) => m && !addedText.has(m[3].trim()));
+    // A test file defines its own helpers: only a change to tests reads them.
+    hits = hits.map((h) => h.match(/^HEAD:(.+?):(\d+):(.*)$/))
+      .filter((m) => m && !addedText.has(m[3].trim()) && (onlyTests || !isTest(m[1])));
     if (!hits.length || hits.length > 3) continue;
     for (const [, file, at] of hits) {
       if (defs >= 8 || lines >= 80) break;

@@ -27,7 +27,7 @@ has "FAIL  no .objection.json"
 
 repo '{"bases":["main"],"defaultBase":"main","verify":["true"]}'
 doc || fail "a valid config failed: $(cat "$T/out")"
-has "ok    config: .objection.json, the same on origin/main"
+has "ok    config (.objection.json on origin/main, what debates use): valid"
 hasnt "FAIL"
 
 repo '{"bases":["main"],"verify":["true"],"invariant":[{"rule":"x","paths":"^a"}]}'
@@ -56,7 +56,23 @@ has "models.default"
 repo '{"bases":["main"],"verify":["true"]}'
 printf '{"bases":["main"],"verify":["true","false"]}\n' >.objection.json
 doc
-has "origin/main has a different .objection.json"
+has "ok    config (.objection.json on origin/main, what debates use): valid"
+has "ok    config (.objection.json in the working copy, used once merged): valid"
+# A broken config on the base fails, even with a valid working copy: the
+# debates read the base's.
+repo '{"bases":['
+printf '{"bases":["main"],"verify":["true"]}\n' >.objection.json
+doc && fail "a broken base config passed"
+has "FAIL  config (.objection.json on origin/main, what debates use): not valid JSON"
+# The opt-in PR: no config on the base yet.
+repo ""
+printf '{"bases":["main"],"verify":["true"]}\n' >.objection.json
+doc || fail "the opt-in working copy failed"
+has "origin/main has none yet"
+# A number where a model name goes is not one.
+repo '{"bases":["main"],"verify":["true"],"models":{"effort":5}}'
+doc && fail "a numeric effort passed"
+has "models.effort"
 
 # Hooks and the trust they need; a workflow with the check.
 repo '{"bases":["main"],"verify":["true"]}'
