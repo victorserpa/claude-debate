@@ -16,7 +16,9 @@
 # says to run each matching `reviewers` entry as well (SKILL.md step 1).
 #
 # Exit codes are review.sh's: 3 means no claude CLI (run the roles as
-# subagents, SKILL.md step 1), 2 a missing tool, 1 a failed run.
+# subagents, SKILL.md step 1), 2 a missing tool, 1 a failed run. When
+# the defender fails, the draft is still written and summarised, and the
+# exit code is the defender's: rerun only the defense, not the round.
 set -eu
 
 since=""
@@ -52,13 +54,14 @@ bash "$here/review.sh" accuser "$brief" >"$accusation"
 
 # Finding rows: a table row whose first cell starts with a severity word.
 # Bold, underscores and a note after it ("HIGH (regression)") are
-# tolerated; the header and separator are not rows.
+# tolerated; a longer word ("Low-level") and the header are not rows.
 rows() {
   awk -F'|' -v want="$1" '
     /^[[:space:]]*\|/ {
       s = $2; sub(/^[[:space:]*_]+/, "", s)
       if (!match(s, /^[A-Za-z]+/)) next
-      if (toupper(substr(s, 1, RLENGTH)) ~ "^(" want ")$") print
+      w = toupper(substr(s, 1, RLENGTH)); rest = substr(s, RLENGTH + 1)
+      if (w ~ "^(" want ")$" && rest ~ /^([[:space:]*_(]|$)/) print
     }' "$accusation"
 }
 count() { rows "$1" | wc -l | tr -d ' '; }
@@ -98,7 +101,9 @@ fi
     printf 'Findings as numbered for the defender:\n\n'
     cat "$findings"
     printf '\n'
-    if [ "$rc" = 0 ]; then cat "$defense"; else printf '%s.\n' "$defended"; fi
+    if [ "$rc" != 0 ]; then printf '%s.\n\n' "$defended"; fi
+    # Kept even on failure: an answer flagged as an error was still paid for.
+    cat "$defense"
   else
     printf '%s.\n' "$defended"
   fi

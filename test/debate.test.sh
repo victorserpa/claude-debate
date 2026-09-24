@@ -116,10 +116,23 @@ printf '{"bases":["main"],"budget":"thorough"}\n' >.objection.json
 git add . && gitc commit -q -m thorough
 git update-ref refs/remotes/origin/main HEAD
 git checkout -q - && gitc rebase -q -X theirs origin/main
-accuse HIGH LOW
+accuse HIGH LOW "Low-level note"
 reset
 bash "$DEBATE" main >/dev/null 2>&1
 has "$T/stdin-defender" "defect LOW"
+# A first cell that only starts like a severity is not a finding.
+hasnt "$T/stdin-defender" "Low-level note"
+
+# A defender that answered but reported an error: its paid answer is kept.
+cp "$T/claude" "$T/claude-ok"
+sed 's/total_cost_usd: 0.05}/total_cost_usd: 0.05, is_error: process.argv[1].endsWith("defender.txt")}/' "$T/claude-ok" >"$T/claude"
+accuse HIGH
+reset
+out=$(bash "$DEBATE" main 2>/dev/null)
+cp "$T/claude-ok" "$T/claude"
+record=$(printf '%s\n' "$out" | sed -n 's/^draft record: //p')
+[ -f "$record" ] && has "$record" "| 1 | UPHELD | src/a.ts:3"
+[ -f "$record" ] && has "$record" "defender FAILED"
 
 # A failing defender: the paid accusation still lands in a draft record,
 # the failure is logged, and the exit code says it failed.
@@ -150,7 +163,11 @@ runs=$(awk -v b="$(git rev-parse --abbrev-ref HEAD)" '$1 == b {print $2}' "$T/us
 bash "$USAGE" "$(git rev-parse --abbrev-ref HEAD)" | grep -qE '^total: [0-9]+ runs, [0-9]+ input' || fail "usage.sh <branch> has no total"
 bash "$USAGE" no-such-branch | grep -qF "no runs logged" || fail "an unknown branch is not reported"
 # Outside a repository: a message, not a raw git error.
-(cd "$T" && bash "$USAGE" 2>&1) | grep -qF "not a git repository" && fail "usage.sh leaked a raw git error"
+(cd "$T" && bash "$USAGE" 2>&1) >"$T/outside"
+rc=$?
+hasnt "$T/outside" "not a git repository"
+has "$T/outside" "run it inside the repository"
+[ "$rc" = 1 ] || fail "usage.sh outside a repository exited $rc"
 [ -x "$ROOT/skills/objection/debate.sh" ] && [ -x "$ROOT/skills/objection/usage.sh" ] || fail "debate.sh or usage.sh is not executable"
 
 if [ "$failures" = 0 ]; then echo "debate: all cases passed"; else echo "debate: $failures failure(s)"; exit 1; fi
