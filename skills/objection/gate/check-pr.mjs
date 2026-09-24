@@ -90,7 +90,7 @@ if (!docsOnly) {
   const start = lines.indexOf("## Open");
   const open = [];
   for (let i = start + 1; i < lines.length && !/^## /.test(lines[i]); i++) open.push(lines[i]);
-  if (open.some((l) => /^\s*([-*]|\d+[.)])?\s*[*_]*(blocker|high)([^a-z]|$)/i.test(l)))
+  if (open.some((l) => /^\s*([-*]|\d+[.),]?)?\s*,?\s*[*_]*(blocker|high)([^a-z]|$)/i.test(l)))
     fail("the record is APPROVED but lists a BLOCKER/HIGH finding under Open.");
 }
 

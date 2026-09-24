@@ -33,6 +33,7 @@ if [ "$1 $2" = "pr view" ]; then
   shift 2
   args="$*"
   args="${args%% --json*}"
+  [ -n "${STUB_LOG:-}" ] && printf '%s\n' "$args" >>"$STUB_LOG"
   if [ -n "${STUB_WANT:-}" ] && [ "$args" != "$STUB_WANT" ]; then
     echo "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef ${STUB_BASE:-develop}"; exit 0
   fi
@@ -214,6 +215,13 @@ full '1. **High** bold severity'
 stampcheck 1 origin/develop "$T/rec.md"
 full 'no HIGH finding is left'
 stampcheck 0 origin/develop "$T/rec.md"
+# The cross-check reads the template's own "#, severity" order.
+full '1 HIGH race on retry' 'OPEN: BLOCKER=0 HIGH=0'
+stampcheck 1 origin/develop "$T/rec.md"
+full '4, HIGH, x.ts:3, race' 'OPEN: BLOCKER=0 HIGH=0'
+stampcheck 1 origin/develop "$T/rec.md"
+full '1 MEDIUM highlight color off' 'OPEN: BLOCKER=0 HIGH=0'
+stampcheck 0 origin/develop "$T/rec.md"
 # The structured count is required and must be zero to approve.
 full 'nothing' 'no count line here'
 stampcheck 1 origin/develop "$T/rec.md"
@@ -258,6 +266,52 @@ check 0 $N Bash 'tar -czf out.tgz "gh pr merge 5"'
 # -c executes only after something that runs code.
 check 2 $N Bash "sh -c 'gh pr create'"
 check 2 $N Bash "/usr/bin/env bash -c 'gh pr merge 5'"
+
+# --- Round 2 of that fix: its own regressions ----------------------------
+# Every "allowed with a record" case has its twin "blocked without one":
+# a case that only expects 0 also passes when the gate never saw the
+# command. And the stub log proves gh got the right target and repo.
+called() { # expected-args
+  if ! grep -qxF "$1" "$T/gh.log" 2>/dev/null; then
+    echo "FAIL: gh pr view was not called with [$1] (log: $(tr '\n' '|' <"$T/gh.log" 2>/dev/null))"
+    failures=$((failures + 1))
+  fi
+  : >"$T/gh.log"
+}
+export STUB_LOG="$T/gh.log"
+: >"$T/gh.log"
+# Short flags with a glued value, quoted or not.
+check 2 $N Bash 'gh -R"o/r" pr merge 5'
+check 2 $N Bash "gh -R'o/r' pr create --fill"
+check 2 $N Bash 'gh pr -R"o/r" merge 5'
+check 2 $N Bash 'gh -Ro/r pr create --fill'
+check 2 $N Bash 'gh pr merge -R"o/r" 5'
+export STUB_SHA=$OK_SHA
+: >"$T/gh.log"
+STUB_WANT="5 -R o/r" check 0 $O Bash 'gh -R"o/r" pr merge 5'; called "5 -R o/r"
+STUB_WANT="5 -R o/r" check 0 $O Bash 'gh pr merge -R"o/r" 5'; called "5 -R o/r"
+STUB_WANT="5 -R o/r" check 0 $O Bash 'gh pr merge -Ro/r 5'; called "5 -R o/r"
+# A glued value with ( or ; must not hide the PR number.
+check 2 $N Bash 'gh pr merge -t"feat(ui)" 42 --squash'
+STUB_WANT="42" check 0 $O Bash 'gh pr merge -t"feat(ui)" 42 --squash'; called "42"
+STUB_WANT="5" check 0 $O Bash 'gh pr merge --subject="fix(gate):x" 5'; called "5"
+STUB_WANT="42" check 0 $O Bash 'gh pr merge --body="a;b" 42'; called "42"
+export STUB_SHA=deadbeef
+# Glued base and head are read, not dropped (the record is for develop).
+check 0 $O Bash 'gh pr create -B"develop" --fill'
+check 2 $O Bash 'gh pr create -B"master" --fill'
+check 2 $O Bash 'gh pr create -Bmaster --fill'
+check 2 $O Bash 'gh pr create -H"nonexistent" --base develop'
+# Natural ways to run a shell command string.
+check 2 $N Bash "bash -lc 'gh pr merge 5'"
+check 2 $N Bash "sh -xc 'gh pr create --fill'"
+check 2 $N Bash '"$SHELL" -c "gh pr merge 5"'
+check 2 $N Bash '${SHELL:-bash} -c "gh pr create --fill"'
+check 2 $N Bash "pwsh -c 'gh pr merge 5'"
+# ...and their innocent look-alikes.
+check 0 $N Bash 'grep -rc "gh pr merge" docs'
+check 0 $N Bash "node --check 'gh pr merge.js'"
+unset STUB_LOG
 
 # --- Other hosts' input shapes ----------------------------------------------
 hostcheck() { # expected host json

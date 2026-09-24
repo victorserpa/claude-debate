@@ -41,9 +41,11 @@
 //             multi-line query is the normal way to write one.
 //   noDocs    command without heredoc bodies (unless a shell reads stdin).
 //             `gh api` REST writes and `cd` paths are read here.
-//   active    noDocs with inert quoted text replaced by ''. Values glued to
-//             a flag (`--repo="o/r"`) are kept; `-c`/`eval` arguments are
-//             kept only after something that executes code (allowlist).
+//   active    noDocs with inert quoted text replaced by ''. Quoted values
+//             glued to -R/-B/-H (or --repo=/--base=/--head=) become plain
+//             values; any other glued value becomes a glued ''. Arguments
+//             of -c/-lc (shells, python, su...), -e (node, perl, ruby) and
+//             eval are kept as code (allowlist).
 //             `gh pr <action>` detection and positions are measured here.
 //
 // Fails closed when the command is about a PR: if it cannot verify (gh
@@ -170,20 +172,33 @@ export function gate(input) {
           }
           const inside = s.slice(i + 1, j);
           const before = out.slice(-80);
-          // A quoted value glued to a word (`--repo="o/r"`, `-R'o/r'`) is
-          // part of that word for the shell. Without whitespace inside it is
-          // an argument value, never a command: keep it, unquoted.
+          // A quoted value glued to a flag is part of that word for the
+          // shell (`--repo="o/r"` is `--repo=o/r`, `-R"o/r"` is `-Ro/r`).
+          // The gate needs three of those values (repo, base, head), so
+          // they come out as plain `-R o/r` / `--repo=o/r`. Any other glued
+          // value (`-t"feat(ui)"`, `--body="a;b"`) becomes a glued '' so
+          // its characters cannot cut the command short, and the flag keeps
+          // its shape. A round-2 accuser found both: keeping every glued
+          // value raw broke `-R"o/r"` and let `(`/`;` inside a subject hide
+          // the PR number.
           const glued = i > 0 && !/[\s;&|()`]/.test(s[i - 1]);
-          if (glued && !/\s/.test(inside)) {
-            out += inside;
+          if (glued && !/\s/.test(inside) && !/\$\(|`/.test(inside)) {
+            const plain = !/[;&|()`<>]/.test(inside);
+            if (plain && /(^|\s)-[RBH]$/.test(out)) out += ` ${inside}`;
+            else if (plain && /(^|\s)--(repo|base|head)=$/.test(out)) out += inside;
+            else out += "''";
             i = j + 1;
             continue;
           }
-          // Allowlist of what executes its argument as code: `-c` after a
-          // shell or interpreter, and `eval`. Any other `-c` (grep -c,
-          // psql -c, tar -czf) is just a flag.
+          // Allowlist of what executes its argument as code: `-c` (alone or
+          // combined, as in `bash -lc`) after a shell, python or a program
+          // that runs a shell; `-e` after node, perl or ruby; and `eval`.
+          // A quoted or variable interpreter (`"$SHELL" -c`, `${SHELL} -c`)
+          // counts too. Any other `-c` (grep -c, psql -c, tar -czf) is a flag.
+          const interp = String.raw`(?:\S*\/)?(?:bash|sh|zsh|dash|ksh|fish|pwsh|powershell|python[0-9.]*|su|runuser|script|flock|''|\$\{?\w*SHELL\w*(?::-[^}\s]*)?\}?)`;
           const executes =
-            /(^|[\s;&|(`])(?:\S*\/)?(bash|sh|zsh|dash|ksh|fish|python[0-9.]*|node|perl|ruby|su|runuser|script|flock)\b[^;&|\n]*\s-c\s*$/.test(before) ||
+            new RegExp(String.raw`(^|[\s;&|(\`])${interp}(\s[^;&|\n]*)?\s-[A-Za-z]*c\s*$`).test(before) ||
+            /(^|[\s;&|(`])(?:\S*\/)?(node|perl|ruby)\b[^;&|\n]*\s-[A-Za-z]*e\s*$/.test(before) ||
             /(^|[\s;&|(`])eval\s*$/.test(before) ||
             (c === '"' && /\$\(|`/.test(inside));
           out += executes ? ` ${inside} ` : " '' ";
@@ -237,7 +252,7 @@ export function gate(input) {
     // `gh` in any command position (start, after ; & | ( $( backtick, `time`,
     // `command`, VAR=x, absolute path), with -R/--repo before or after `pr`.
     const reGh =
-      /(?:^|[\s;&|(`])(?:\S*\/)?gh((?:\s+(?:-R|--repo)(?:\s+|=)\S+)*)\s+pr((?:\s+(?:-R|--repo)(?:\s+|=)\S+)*)\s+(create|new|ready|merge)\b([^;&|\n)]*)/g;
+      /(?:^|[\s;&|(`])(?:\S*\/)?gh((?:\s+(?:-R\s*=?|--repo(?:\s+|=))\S+)*)\s+pr((?:\s+(?:-R\s*=?|--repo(?:\s+|=))\S+)*)\s+(create|new|ready|merge)\b([^;&|\n)]*)/g;
 
     const matches = [...active.matchAll(reGh)];
     if (matches.length === 0) return ALLOW;
@@ -258,6 +273,8 @@ export function gate(input) {
         const t = toks[k];
         if (t === "-R" || t === "--repo") return toks[k + 1];
         if (t.startsWith("--repo=")) return t.slice(7);
+        // Short flag with its value attached, as gh accepts: -Ro/r, -R=o/r.
+        if (/^-R./.test(t)) return t.slice(2).replace(/^=/, "");
       }
       return null;
     }
@@ -283,6 +300,9 @@ export function gate(input) {
         for (const n of names) {
           if (toks[k] === n) return toks[k + 1];
           if (toks[k].startsWith(`${n}=`)) return toks[k].slice(n.length + 1);
+          // Short flag with its value attached: -Bmain, -Hfeat/x.
+          if (/^-[A-Za-z]$/.test(n) && toks[k].length > 2 && toks[k].startsWith(n))
+            return toks[k].slice(2).replace(/^=/, "");
         }
       }
       return null;

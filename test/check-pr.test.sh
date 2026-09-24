@@ -45,6 +45,10 @@ run 1 "$CODE" "$(record $OLD origin/main nothing APPROVED)
 $(record $HEAD origin/main nothing REJECTED)"
 run 0 "$CODE" "$(record $OLD origin/main nothing REJECTED)
 $(record $HEAD origin/main nothing APPROVED)"
+# The cross-check reads the template's own "#, severity" order.
+run 1 "$CODE" "$(record $HEAD origin/main '1 HIGH race on retry' APPROVED)"
+run 1 "$CODE" "$(record $HEAD origin/main '4, HIGH, x.ts:3, race' APPROVED)"
+run 0 "$CODE" "$(record $HEAD origin/main '1 MEDIUM highlight color off' APPROVED)"
 # The structured count: required, and zero to approve.
 OPENLINE="" run 1 "$CODE" "$(OPENLINE="" record $HEAD origin/main nothing APPROVED)"
 run 1 "$CODE" "$(OPENLINE="OPEN: BLOCKER=0 HIGH=1" record $HEAD origin/main '- MEDIUM: x' APPROVED)"
