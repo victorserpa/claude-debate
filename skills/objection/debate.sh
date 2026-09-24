@@ -70,9 +70,14 @@ scope="${2:-not stated}"
 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
-case "$here/" in
-  "$top/"*)
-    rel="${here#"$top/"}"
+# One form for both paths before comparing: on Windows git reports C:/...
+# while Git Bash says /tmp/... or /c/... (pwd -W gives the C:/ form there).
+canon() { (cd "$1" && { pwd -W 2>/dev/null || pwd -P; }); }
+here_c=$(canon "$here")
+top_c=$(canon "$top")
+case "$here_c/" in
+  "$top_c/"*)
+    rel="${here_c#"$top_c/"}"
     mkdir -p "$tmp/roles"
     for r in accuser defender; do
       # New at the base (the PR that adds the skill): the working copy.
