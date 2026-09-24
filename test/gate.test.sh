@@ -451,6 +451,18 @@ gitc -C "$T/named" commit -q --allow-empty -m later
 git -C "$T/named" push -q fork HEAD:feat
 git -C "$T/named" reset -q --hard "$NAMED_SHA"
 check 2 "$T/named" Bash 'gh pr create --head me:feat --base develop -R up/repo'
+# Round 2: two remotes under one owner; only <owner>/<repo name> counts.
+git init -q --bare "$T/acme/docs-site.git" 2>/dev/null || { mkdir -p "$T/acme" && git init -q --bare "$T/acme/docs-site.git"; }
+git init -q --bare "$T/acme/app.git"
+git -C "$T/named" remote add adocs "$T/acme/docs-site.git"
+git -C "$T/named" remote add zapp "$T/acme/app.git"
+git -C "$T/named" push -q adocs feat
+gitc -C "$T/named" commit -q --allow-empty -m undebated
+git -C "$T/named" push -q zapp HEAD:feat
+git -C "$T/named" reset -q --hard "$NAMED_SHA"
+check 2 "$T/named" Bash 'gh pr create --head acme:feat --base develop -R acme/app'
+git -C "$T/named" push -q -f zapp feat
+check 0 "$T/named" Bash 'gh pr create --head acme:feat --base develop -R acme/app'
 # -R picks the remote that matches it, and reaches gh repo view.
 git init -q --bare "$T/up/repo.git" 2>/dev/null || { mkdir -p "$T/up" && git init -q --bare "$T/up/repo.git"; }
 git -C "$T/named" remote add upstream "$T/up/repo.git"

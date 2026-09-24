@@ -158,7 +158,21 @@ export function gate(input) {
         }
       };
       const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      if (owner) return remotes.find((r) => new RegExp(`[:/]${esc(owner)}/`, "i").test(url(r))) || null;
+      if (owner) {
+        // gh opens the PR from <owner>/<the repository's name>, so match that
+        // name too (round 2: two remotes under one owner picked the first in
+        // alphabetical order). The name comes from -R, else from origin.
+        const name = (repo || url("origin").replace(/\.git\/?$/, ""))
+          .replace(/\/+$/, "")
+          .split(/[/:]/)
+          .pop();
+        const under = remotes.filter((r) => new RegExp(`[:/]${esc(owner)}/`, "i").test(url(r)));
+        const exact = name
+          ? under.filter((r) => new RegExp(`[:/]${esc(owner)}/${esc(name)}(\\.git)?/?$`, "i").test(url(r)))
+          : [];
+        if (exact.length === 1) return exact[0];
+        return !name && under.length === 1 ? under[0] : null;
+      }
       if (repo) {
         const slug = repo.replace(/^https?:\/\/github\.com\//, "").replace(/\.git$/, "");
         const r = remotes.find((x) => new RegExp(`[:/]${esc(slug)}(\\.git)?/?$`, "i").test(url(x)));
