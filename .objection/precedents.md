@@ -4,8 +4,6 @@ Defects confirmed by /objection debates in this repository, one per line:
 `- [<times seen>x, <last seen>, <record sha>] <area>: <pattern>`.
 Maintained by precedents.mjs; edit by hand only to delete a line.
 
-- [1x, 2026-09-24, 4bf9f11] .github/workflows/: a pipe into grep -q under pipefail can fail on SIGPIPE and read as not found; use here-strings
-- [1x, 2026-09-24, 4bf9f11] .github/workflows/: a shell step without pipefail lets an API failure produce an empty loop that passes
 - [1x, 2026-09-24, 4bf9f11] .github/workflows/: a required check is matched by name only; a PR can add a job with the same name
 - [1x, 2026-09-24, 4bf9f11] .github/workflows/: skipping a check based on the event sender makes the result flip on the same commit
 - [1x, 2026-09-24, 4bf9f11] scripts/: an exemption keyed on subject text (Merge ...) lets ordinary commits skip every rule
@@ -34,3 +32,5 @@ Maintained by precedents.mjs; edit by hand only to delete a line.
 - [1x, 2026-09-24, 5fe2c5d] skills/objection/: bash 3.2 exits 0 from a set -u error when an EXIT trap is set, so a script meant to fail closed passes
 - [1x, 2026-09-24, 5fe2c5d] skills/objection/: a size or count heuristic reads what it cannot measure (a binary file, a rename) as zero and takes the cheap path
 - [1x, 2026-09-24, 5fe2c5d] skills/objection/: a CI step treats every failure of a helper as one opaque exit, so a benign case (nothing to review) fails the check without saying why
+- [1x, 2026-09-24, 41a39ee] test/: a test reruns a command without capturing its output and asserts on the previous run's output
+- [1x, 2026-09-24, c4467fd] skills/objection/: a summary label set for one case stays when an override later changes the value it describes
