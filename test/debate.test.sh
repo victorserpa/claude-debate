@@ -266,6 +266,17 @@ printf 'z\n' >>src/pay.ts && git add . && gitc commit -q -m "after the base"
 reset
 bash "$QDEBATE" develop >/dev/null 2>&1
 grep -qx sonnet "$T/models-accuser" || fail "the sonnet reviewer did not run on sonnet"
+# An agent named gemini runs through the Gemini CLI, a second model family.
+printf '{"bases":["develop"],"defaultBase":"develop","budget":"standard","reviewers":[{"paths":"^src/","focus":"money math","agent":"gemini"}]}\n' >.objection.json
+git add . && gitc commit -q -m "gemini reviewer" && git update-ref refs/remotes/origin/develop HEAD
+printf 'w\n' >>src/pay.ts && git add . && gitc commit -q -m "after gemini base"
+printf '#!/bin/bash\ncat >/dev/null\ntouch "%s/ran-gemini"\nprintf %s\n' "$T" "'{\"response\":\"| MEDIUM | BUG | src/pay.ts:1 | gemini says | read | p |\"}'" >"$T/gemini" && chmod +x "$T/gemini"
+reset
+out=$(OBJECTION_GEMINI="$T/gemini" bash "$QDEBATE" develop 2>/dev/null)
+[ -e "$T/ran-gemini" ] || fail "the gemini reviewer did not run through the Gemini CLI"
+record=$(printf '%s\n' "$out" | sed -n 's/^draft record: //p')
+has "$record" "run by review.sh on gemini"
+has "$record" "gemini says"
 # A small lean diff that no invariant or strongPaths touches: no reviewers,
 # a draft that says why, nothing spent. Above the threshold, or touching
 # an invariant, the reviewers run.

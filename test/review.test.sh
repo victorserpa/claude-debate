@@ -169,6 +169,29 @@ tail -n 1 "$(git -C "$R" rev-parse --git-common-dir | sed "s|^\.git|$R/.git|")/o
 # Forced by OBJECTION_RUNNER even with claude present; unknown runner refused.
 OBJECTION_RUNNER=codex OBJECTION_CODEX="$T/codex" bash "$REVIEW" accuser "$T/brief.md" >/dev/null 2>&1 || { echo "FAIL: OBJECTION_RUNNER=codex refused"; failures=$((failures + 1)); }
 OBJECTION_RUNNER=gpt bash "$REVIEW" accuser "$T/brief.md" >/dev/null 2>&1 && { echo "FAIL: unknown runner accepted"; failures=$((failures + 1)); }
+# Gemini: only when asked for; the role as GEMINI_SYSTEM_MD, read-only,
+# no extensions, no project trust; answer and usage from its JSON.
+cat >"$T/gemini" <<'EOF2'
+#!/bin/bash
+printf '%s\n' "$@" >"$FAKE_DIR/gemini-args"
+printf '%s\n' "$GEMINI_SYSTEM_MD" >"$FAKE_DIR/gemini-system"
+cat >"$FAKE_DIR/gemini-stdin"
+[ -n "${GEMINI_FAIL:-}" ] && { echo '{"error":{"message":"quota"}}'; exit 1; }
+printf '{"response":"| HIGH | BUG | a.ts:1 | gemini finding | read | p |","stats":{"models":{"gemini-x":{"tokens":{"prompt":4000,"candidates":100,"thoughts":50}}}}}\n'
+EOF2
+chmod +x "$T/gemini"
+out=$(OBJECTION_RUNNER=gemini OBJECTION_GEMINI="$T/gemini" bash "$REVIEW" accuser "$T/brief.md" 2>"$T/err")
+[ "$out" = "| HIGH | BUG | a.ts:1 | gemini finding | read | p |" ] || { echo "FAIL: gemini answer not printed ($out)"; failures=$((failures + 1)); }
+for a in "--approval-mode" "plan" "-o" "json" "-e" "none" "--skip-trust"; do grep -qxF -- "$a" "$T/gemini-args" || { echo "FAIL: gemini lacks $a"; failures=$((failures + 1)); }; done
+has "$T/gemini-system" "$ROOT/skills/objection/roles/accuser.md"
+has "$T/gemini-stdin" "the diff"
+has "$T/err" "accuser used 4000 input + 150 output tokens (gemini)"
+tail -n 1 "$(git -C "$R" rev-parse --git-common-dir | sed "s|^\.git|$R/.git|")/objection/usage.log" | grep -q "gemini:default" || { echo "FAIL: gemini run not logged"; failures=$((failures + 1)); }
+GEMINI_FAIL=1 OBJECTION_RUNNER=gemini OBJECTION_GEMINI="$T/gemini" bash "$REVIEW" accuser "$T/brief.md" >/dev/null 2>&1
+[ $? = 1 ] || { echo "FAIL: a failing gemini did not exit 1"; failures=$((failures + 1)); }
+# Never picked on its own: without claude and codex, exit 3 even with gemini.
+OBJECTION_CLAUDE=/nonexistent/claude OBJECTION_CODEX=/nonexistent/codex OBJECTION_GEMINI="$T/gemini" bash "$REVIEW" accuser "$T/brief.md" >/dev/null 2>&1
+[ $? = 3 ] || { echo "FAIL: gemini was picked without being asked for"; failures=$((failures + 1)); }
 # A codex that fails: exit 1, output shown.
 printf '#!/bin/bash\ncat >/dev/null\necho "codex auth error" >&2\nexit 1\n' >"$T/codex-fail" && chmod +x "$T/codex-fail"
 OBJECTION_RUNNER=codex OBJECTION_CODEX="$T/codex-fail" bash "$REVIEW" accuser "$T/brief.md" >/dev/null 2>"$T/err"

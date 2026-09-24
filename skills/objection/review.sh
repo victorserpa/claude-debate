@@ -28,7 +28,9 @@
 #
 # Runner: the claude CLI when it is installed, else the Codex CLI
 # (`codex exec`, flags from its docs: read-only sandbox, the role as
-# model_instructions_file, no AGENTS.md; not yet run live), else exit 3.
+# model_instructions_file, no AGENTS.md), else exit 3. The Gemini CLI
+# only when asked for (OBJECTION_RUNNER=gemini, or a reviewers entry
+# whose agent is gemini): a second model family, for a second opinion.
 #
 # Env: OBJECTION_MODEL (claude model, default sonnet) and OBJECTION_EFFORT
 #      (default medium): on one brief with a known HIGH, sonnet at medium
@@ -36,7 +38,8 @@
 #      debate.sh picks opus where an invariant or strongPaths applies.
 #      OBJECTION_RUNNER (claude or codex), OBJECTION_CLAUDE (default
 #      claude), OBJECTION_CODEX (default codex), OBJECTION_CODEX_MODEL
-#      (default: Codex's own),
+#      (default: Codex's own), OBJECTION_GEMINI (default gemini),
+#      OBJECTION_GEMINI_MODEL (default: Gemini's own),
 #      OBJECTION_TIMEOUT (seconds for the model call, default 900),
 #      OBJECTION_EXCERPT_LINES (lines each side of a cited line, default 40),
 #      OBJECTION_EXCERPT_MAX (total excerpt lines, default 1500).
@@ -62,6 +65,7 @@ role_file="${OBJECTION_ROLES_DIR:-$here/roles}/$role.md"
 [ -f "$role_file" ] || { echo "role file not found: $role_file" >&2; exit 2; }
 claude_bin="${OBJECTION_CLAUDE:-claude}"
 codex_bin="${OBJECTION_CODEX:-codex}"
+gemini_bin="${OBJECTION_GEMINI:-gemini}"
 runner="${OBJECTION_RUNNER:-}"
 auto_codex=""
 if [ -z "$runner" ]; then
@@ -75,7 +79,8 @@ fi
 case "$runner" in
   claude) bin="$claude_bin" ;;
   codex) bin="$codex_bin" ;;
-  *) echo "OBJECTION_RUNNER must be claude or codex (got $runner)." >&2; exit 2 ;;
+  gemini) bin="$gemini_bin" ;;
+  *) echo "OBJECTION_RUNNER must be claude, codex or gemini (got $runner)." >&2; exit 2 ;;
 esac
 command -v "$bin" >/dev/null 2>&1 || { echo "$runner CLI not found: run the $role as a subagent instead (see SKILL.md)." >&2; exit 3; }
 command -v node >/dev/null 2>&1 || { echo "node not found: it reads the answer." >&2; exit 2; }
@@ -166,7 +171,8 @@ run_limited() {
   ' "$@"
 }
 label="$model"
-[ "$runner" = claude ] || label="codex:${OBJECTION_CODEX_MODEL:-default}"
+[ "$runner" = codex ] && label="codex:${OBJECTION_CODEX_MODEL:-default}"
+[ "$runner" = gemini ] && label="gemini:${OBJECTION_GEMINI_MODEL:-default}"
 failed() {
   # The call may already be paid for: show what came back instead of losing it.
   echo "objection: the $role run failed (error, or timeout after ${OBJECTION_TIMEOUT:-900}s)." >&2
@@ -182,6 +188,40 @@ failed() {
   fi
   exit 1
 }
+
+if [ "$runner" = gemini ]; then
+  # Chosen explicitly (a reviewers entry with agent "gemini", or
+  # OBJECTION_RUNNER=gemini), never picked automatically. The role replaces
+  # Gemini's system prompt (GEMINI_SYSTEM_MD); plan mode is read-only, the
+  # empty directory is the whole workspace, no extensions load, and
+  # --skip-trust keeps any project config (and its hooks) out. Verified
+  # live with Gemini CLI 0.61: zero tool calls, the answer in .response.
+  GEMINI_SYSTEM_MD="$role_file" run_limited "${OBJECTION_TIMEOUT:-900}" "$gemini_bin" \
+    -p "$prompt" -o json --approval-mode plan -e none --skip-trust \
+    ${OBJECTION_GEMINI_MODEL:+-m "$OBJECTION_GEMINI_MODEL"} \
+    <"$input" >"$out" 2>"$work/err" || failed
+  node -e '
+const fs = require("fs");
+const [, out, role, log, branch, head, label] = process.argv;
+let j;
+try { j = JSON.parse(fs.readFileSync(out, "utf8")); } catch { process.exit(1); }
+if (j.error || typeof j.response !== "string" || !j.response.trim()) process.exit(1);
+let inTok = 0, outTok = 0;
+for (const m of Object.values((j.stats && j.stats.models) || {})) {
+  const t = m.tokens || {};
+  inTok += t.prompt || t.input || 0;
+  outTok += (t.candidates || 0) + (t.thoughts || 0);
+}
+process.stdout.write(j.response.trimEnd() + "\n");
+process.stderr.write(`objection: ${role} used ${inTok} input + ${outTok} output tokens (gemini)\n`);
+if (log) {
+  try {
+    fs.appendFileSync(log, [new Date().toISOString(), branch, head, role, label, inTok, outTok, "", "ok"].join("\t") + "\n");
+  } catch (e) { process.stderr.write(`objection: usage not logged (${e.message})\n`); }
+}
+' "$out" "$role" "$usage_log" "${branch:-}" "${head:-}" "$label" || failed
+  exit 0
+fi
 
 if [ "$runner" = codex ]; then
   # Codex keeps read-only tools, so the prompt forbids using them; the

@@ -211,12 +211,24 @@ if [ "$budget" != lean ]; then
     while IFS="$(printf '\t')" read -r agent focus; do
       [ -n "$agent" ] || continue
       accusers="$accusers + $agent"
-      # An agent that names a Claude model runs on it; any other agent (a
-      # different tool) is only a label here: this is review.sh's model.
+      # An agent that names a Claude model runs on it; "gemini" (or
+      # "gemini-<model>") and "codex" run through that CLI, a second model
+      # family; any other agent is only a label: review.sh's model runs it.
       model="$OBJECTION_MODEL"
-      case "$agent" in opus | sonnet | haiku | claude-*) model="$agent" ;; esac
-      printf '\n### %s (focus: %s; run by review.sh%s)\n\n' "$agent" "$focus" "${model:+ on $model}" >>"$tmp/all"
-      if OBJECTION_MODEL="$model" OBJECTION_FOCUS="$focus" bash "$here/review.sh" accuser "$brief" >"$tmp/one" </dev/null; then
+      agent_runner="${OBJECTION_RUNNER:-}"
+      gemini_model="${OBJECTION_GEMINI_MODEL:-}"
+      case "$agent" in
+        opus | sonnet | haiku | claude-*) model="$agent" ;;
+        gemini) agent_runner=gemini ;;
+        gemini-*) agent_runner=gemini; gemini_model="$agent" ;;
+        codex) agent_runner=codex ;;
+      esac
+      on="$model"
+      [ "$agent_runner" = gemini ] && on="gemini${gemini_model:+ $gemini_model}"
+      [ "$agent_runner" = codex ] && on="codex"
+      printf '\n### %s (focus: %s; run by review.sh on %s)\n\n' "$agent" "$focus" "$on" >>"$tmp/all"
+      if OBJECTION_RUNNER="$agent_runner" OBJECTION_GEMINI_MODEL="$gemini_model" OBJECTION_MODEL="$model" OBJECTION_FOCUS="$focus" \
+        bash "$here/review.sh" accuser "$brief" >"$tmp/one" </dev/null; then
         cat "$tmp/one" >>"$tmp/all"
       else
         rc=$?
