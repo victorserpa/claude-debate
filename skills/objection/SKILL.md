@@ -131,8 +131,10 @@ nothing added.
 
 **Rules that go into every accuser's prompt:**
 
-- The finding format (severity, kind, file:line, evidence, proof path) is
-  in the role file; do not repeat it in the prompt.
+- The finding format: severity (BLOCKER, HIGH, MEDIUM, LOW) | kind (BUG,
+  REGRESSION, SCOPE, INVARIANT) | file:line | defect | evidence (read,
+  static, test, new-test, reproduced) | proof path. The plugin's accuser has
+  it in its role file; say it to every other reviewer.
 - **No quota.** Never ask for "at least three problems": a quota makes
   the reviewer invent the third, and an invented finding is rework. Ask
   what it could not evaluate.
@@ -158,9 +160,11 @@ the main session judges, with these rules, not with opinion:
 
 **The judge never refutes a finding alone.** Refuting requires the
 defender's citation, checked, or a tie-break test with a **negative
-control**: the test fails when the accused defect is put back (revert the
-fix, or inject the defect in a scratch copy). A test that cannot fail
-proves nothing, and the judge wrote the code: that is the bias the
+control**: the test is shown able to fail on the accused path: it fails
+when the defect is put back (revert the fix, or inject it in a scratch
+copy) or, for missing behavior, when the path it claims to cover is
+broken on purpose. A test never shown able to fail proves nothing, and
+the finding stays UPHELD. The judge wrote the code: that is the bias the
 debate exists to cut.
 
 **Evidence decides disputes, not eloquence.** When accuser and defender

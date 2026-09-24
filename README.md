@@ -189,7 +189,7 @@ evidence it rests on, from `read` (someone read the code) up to
 settle disputes by raising the evidence and to keep an unsettled BLOCKER
 or HIGH open. Those are rules for the judge: `stamp.sh` and the GitHub
 check verify the stamp, the verdict and the `OPEN:` count, not the
-content of each finding. The record is public in the PR so a person can.
+content of each finding. The record is public in the PR so a person can check it.
 
 ```markdown
 <!-- objection: sha=4dc01af... base=origin/main -->
