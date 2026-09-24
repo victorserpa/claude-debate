@@ -7,7 +7,8 @@
   to pin a version. The fix-to-feat ratio is now the origin story, not
   the argument.
 - A small diff's draft record comes pre-filled as APPROVED with one
-  `TODO(judge)` line: read the diff, delete the line, stamp.
+  `TODO(judge)` line: read the diff, replace the line with one sentence
+  on why it is safe, stamp. The script never writes that sentence.
 - Codex: the hook was run live (`codex exec` 0.156): it blocks
   `gh pr create` without a record and allows it with one. Codex runs a new
   hook only after the user trusts it, and skips it silently until then;

@@ -94,7 +94,7 @@ people can read them.
 Less so for a prototype, a repository where every PR already gets a
 careful human review, or PRs that are mostly docs and config (docs-only
 PRs need no reviewers, and small diffs skip them: the judge reads the
-diff and stamps).
+diff, writes one sentence on why it is safe, and stamps).
 
 What it costs you in friction: one command per round (`debate.sh`), a
 record the agent puts into the PR body (`pr-body.sh`), and a cheaper

@@ -285,8 +285,10 @@ record=$(printf '%s\n' "$out" | sed -n 's/^draft record: //p')
 has "$record" "No reviewers ran: small diff"
 # One line to delete, then it stamps; with it, stamp.sh refuses.
 [ "$(grep -c '^TODO(judge)' "$record")" = 1 ] || fail "the small-diff draft does not have exactly one TODO(judge) line"
-bash "$ROOT/skills/objection/stamp.sh" "$record" origin/main >/dev/null 2>&1 && fail "stamped a small-diff draft with its TODO line"
-grep -v '^TODO(judge)' "$record" >"$T/small-judged.md"
+bash "$ROOT/skills/objection/stamp.sh" "$record" origin/main >/dev/null 2>"$T/stamp.err" && fail "stamped a small-diff draft with its TODO line"
+has "$T/stamp.err" "TODO(judge)"
+hasnt "$record" "found nothing"
+sed 's/^TODO(judge).*/Two lines of docs; nothing executes./' "$record" >"$T/small-judged.md"
 bash "$ROOT/skills/objection/stamp.sh" "$T/small-judged.md" origin/main >/dev/null 2>&1 || fail "a judged small-diff draft did not stamp"
 # A binary file has no line count: never small.
 git reset -q --hard origin/main && printf '\0\1\2' >src/icon.bin && git add . && gitc commit -q -m bin
