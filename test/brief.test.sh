@@ -43,13 +43,49 @@ printf '{"invariants":[{"paths":".","rule":"everything is guarded"}]}\n' >.objec
 git add . && gitc commit -q -m optin
 out=$(bash "$BRIEF" origin/main)
 has "$out" "everything is guarded"
-has "$out" "the base has none yet"
+has "$out" "has none yet"
 
 # A long diff is truncated and says so.
 cd "$R" && for i in $(seq 1 50); do printf 'line %s\n' "$i" >>src/ui/x.ts; done
 git add . && gitc commit -q -m long
 out=$(OBJECTION_BRIEF_MAX_LINES=20 bash "$BRIEF" origin/main)
 has "$out" "TRUNCATED:"
+
+# --- Round 1 of the brief's own debate -------------------------------------
+# Later rounds diff against the previous round's commit, but the rules still
+# come from the PR's base (the branch dropped the invariant above).
+cd "$R"
+prev=$(git rev-parse HEAD)
+printf 'c\n' >>src/game/undo.ts && git add . && gitc commit -q -m fix
+out=$(bash "$BRIEF" "$prev" "the fix" "" origin/main)
+has "$out" "undo never restores a spent life"
+has "$out" "- src/game/undo.ts"
+hasnt "$out" "- src/ui/x.ts"
+# Run from a subdirectory: nothing elsewhere is dropped.
+out=$(cd src/ui && bash "$BRIEF" origin/main)
+has "$out" "- src/game/undo.ts"
+# An invalid regex is reported, not dropped; reviewer focus is in the brief.
+git init -q "$T/rx" && cd "$T/rx" && gitc commit -q --allow-empty -m base
+git update-ref refs/remotes/origin/main HEAD
+cat >.objection.json <<'EOF'
+{"invariants":[{"paths":"^src/(bad","rule":"RULE-BAD"}],
+ "reviewers":[{"paths":"^src/","agent":"security-reviewer","focus":"FOCUS-SEC"},{"paths":"^docs/","agent":"x","focus":"FOCUS-DOCS"}]}
+EOF
+git add . && gitc commit -q -m cfg
+git update-ref refs/remotes/origin/main HEAD
+mkdir -p "src/a dir" && printf 'x\n' >"src/a dir/f.ts" && git add . && gitc commit -q -m spaced
+out=$(bash "$BRIEF" origin/main)
+has "$out" "INVALID paths regex"
+has "$out" "RULE-BAD"
+has "$out" "FOCUS-SEC"
+hasnt "$out" "FOCUS-DOCS"
+has "$out" "- src/a dir/f.ts"
+# precedents: false in the config turns them off, and says so.
+printf '{"precedents":false}\n' >.objection.json && git add . && gitc commit -q -m off
+git update-ref refs/remotes/origin/main HEAD~0
+printf 'y\n' >>"src/a dir/f.ts" && git add . && gitc commit -q -m more
+out=$(bash "$BRIEF" origin/main)
+has "$out" "turned off"
 
 # Nothing to review, or an unknown base: refuse.
 (cd "$T/fresh" && git update-ref refs/remotes/origin/main HEAD && bash "$BRIEF" origin/main >/dev/null 2>&1) && { echo "FAIL: empty diff accepted"; failures=$((failures + 1)); }

@@ -262,8 +262,11 @@ it runs them in one session and says so in the record.
     gate or exceeds 40 lines (otherwise the tests verify it), at most two
     rounds; `standard` and `thorough` spend more for more coverage;
   - every reviewer of a round reads one brief (`brief.sh`): the trimmed
-    diff, changed files, invariants and precedents, and opens at most 5
-    other files, each for a named suspicion;
+    diff, changed files, invariants, reviewer focus and precedents, and
+    opens at most 5 other files, each for a named suspicion. This cuts the
+    exploring, not the start-up cost: in this repository a reviewer with
+    the brief still used about 110k tokens, most of it the session's own
+    tools and instructions. Fewer reviewers is what saves the most;
   - answers come in a fixed table capped at 15 rows, and the gate hook
     runs outside the model and costs no tokens.
 
