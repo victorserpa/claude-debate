@@ -89,6 +89,8 @@ if [ "$docs_only" = no ]; then
   for section in '## Accusation' '## Defense' '## Judge' '## Open'; do
     grep -qx "$section" "$record" || { echo "missing section '$section' in the record." >&2; exit 1; }
   done
+  # Every numbered finding needs a ruling (gate/rulings.mjs, also in CI).
+  node "$(cd "$(dirname "$0")" && pwd)/gate/rulings.mjs" "$record" || exit 1
   # A Judge section with nothing in it is a verdict nobody gave.
   awk '/^## Judge$/{f=1;next} /^## /{f=0} f && NF{found=1} END{exit !found}' "$record" ||
     { echo "the Judge section is empty: rule on the findings, or say in one sentence what you checked." >&2; exit 1; }

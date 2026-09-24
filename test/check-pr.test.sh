@@ -52,6 +52,30 @@ run 1 "$CODE" "$(record $HEAD origin/main '4, HIGH, x.ts:3, race' APPROVED)"
 run 0 "$CODE" "$(record $HEAD origin/main '1 MEDIUM highlight color off' APPROVED)"
 run 0 "$CODE" "$(record $HEAD origin/main '10, high-level note' APPROVED)"
 run 0 "$CODE" "$(record $HEAD origin/main '- High-risk area untouched (MEDIUM)' APPROVED)"
+# Every numbered finding needs a ruling: a list, a table row, a range.
+ruled() { # accusation judge
+  printf '<!-- objection: sha=%s base=origin/main -->\n## Accusation\n%s\n## Defense\nx\n## Judge\n%s\n## Open\nnothing\nOPEN: BLOCKER=0 HIGH=0\nVERDICT: APPROVED\n' "$HEAD" "$1" "$2"
+}
+run 0 "$CODE" "$(ruled '1. HIGH, BUG, a.ts:3: x
+2. LOW: y' '1. UPHELD, fixed.
+2. LOW, open.')"
+run 1 "$CODE" "$(ruled '1. HIGH, BUG, a.ts:3: x
+2. LOW: y' '1. UPHELD, fixed.')"
+run 1 "$CODE" "$(ruled '| 1 | HIGH | BUG | a.ts:3 | x | read | p |
+| 2 | LOW | BUG | a.ts:4 | y | read | p |' '2. REFUTED.')"
+run 0 "$CODE" "$(ruled '| 1 | HIGH | BUG | a.ts:3 | x | read | p |
+| 2 | LOW | BUG | a.ts:4 | y | read | p |
+3. MEDIUM: z' '1-2. UPHELD, fixed in abc1234.
+3) REFUTED by test.')"
+run 0 "$CODE" "$(ruled '1. x
+2. y
+3. z
+4. w' '1, 2 and 4: fixed.
+3: kept LOW.')"
+# A number inside the text is not a finding; the Defense does not rule.
+run 0 "$CODE" "$(ruled 'Round 1 found 3 issues, see #20.' 'Nothing to rule on.')"
+run 1 "$CODE" "$(ruled '1. HIGH: x' 'The defense said 1. UPHELD.')"
+
 # The structured count: required, and zero to approve.
 OPENLINE="" run 1 "$CODE" "$(OPENLINE="" record $HEAD origin/main nothing APPROVED)"
 run 1 "$CODE" "$(OPENLINE="OPEN: BLOCKER=0 HIGH=1" record $HEAD origin/main '- MEDIUM: x' APPROVED)"

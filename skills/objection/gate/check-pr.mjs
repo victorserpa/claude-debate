@@ -22,6 +22,7 @@
 
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { missingRulings } from "./rulings.mjs";
 
 const gitlab = !!process.env.GITLAB_CI;
 
@@ -152,6 +153,11 @@ const lines = record.split("\n");
 if (!docsOnly) {
   for (const section of ["## Accusation", "## Defense", "## Judge", "## Open"])
     if (!lines.includes(section)) fail(`the record is missing the section "${section}".`);
+}
+
+if (!docsOnly) {
+  const missing = missingRulings(record);
+  if (missing.length) fail(`the Judge section has no ruling for finding(s) ${missing.join(", ")}.`);
 }
 
 const verdicts = lines.filter((l) => /^VERDICT: /.test(l));
