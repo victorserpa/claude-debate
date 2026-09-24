@@ -4,9 +4,12 @@
 
 **Breaking for existing records:** a record now needs the judge's
 structured count, `OPEN: BLOCKER=<n> HIGH=<n>`, and is APPROVED only with
-`OPEN: BLOCKER=0 HIGH=0`. `stamp.sh` and the GitHub check (`v1`) refuse a
-record without it. Debate open PRs again, or add the line from the
-record's own "Open" section.
+`OPEN: BLOCKER=0 HIGH=0`. `stamp.sh` refuses to store a record without it,
+and the GitHub check refuses a PR body without it from this release on
+(the `v1` tag moves to 0.3.0). The local gate does not re-read records
+stamped before the upgrade: it still checks only their stamp and verdict,
+so the GitHub check is where an old record fails. Debate open PRs again,
+or add the line from the record's own "Open" section.
 
 - **Precedents** (`precedents.mjs`, `.objection/precedents.md`): defects
   the debates confirmed become one line each, with how often they
