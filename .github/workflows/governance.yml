@@ -2,6 +2,11 @@
 # the scripts as they are on main, never the pull request's code: a PR can
 # not rewrite the rules it is judged by. Nothing here checks out or runs
 # code from the PR; it reads the event and the GitHub API.
+#
+# Check names are not proof of origin: a PR could add its own workflow
+# with a job called "record". That is why outside PRs also need a code
+# owner's approval (see SECURITY.md): the reviewer sees any workflow a PR
+# adds before it can count.
 name: governance
 on:
   pull_request_target:
@@ -9,40 +14,65 @@ on:
 permissions:
   contents: read
   pull-requests: read
+defaults:
+  run:
+    shell: bash
 jobs:
   commits:
     name: commits
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1, main (the base), not the PR
-      - name: PR title and every commit follow the commit rules
+      - name: PR title, PR body and every commit follow the commit rules
         env:
           GH_TOKEN: ${{ github.token }}
           TITLE: ${{ github.event.pull_request.title }}
+          BODY: ${{ github.event.pull_request.body }}
           PR: ${{ github.event.pull_request.number }}
+          COUNT: ${{ github.event.pull_request.commits }}
         run: |
+          set -euo pipefail
           status=0
+          # Squash merge writes the title as the subject and the body as the
+          # message, so both land on main.
           printf '%s\n' "$TITLE" > /tmp/title
-          bash scripts/check-commit-msg.sh /tmp/title || { echo "  in the PR title (squash merge uses it as the commit message)"; status=1; }
-          gh api "repos/$GITHUB_REPOSITORY/pulls/$PR/commits" --paginate -q '.[] | .sha' | while read -r c; do
-            gh api "repos/$GITHUB_REPOSITORY/commits/$c" -q .commit.message > /tmp/msg
-            case "$(head -1 /tmp/msg)" in "Merge "*) continue ;; esac
-            bash scripts/check-commit-msg.sh /tmp/msg || { echo "  in commit $c"; exit 1; }
-          done || status=1
+          bash scripts/check-commit-msg.sh /tmp/title || { echo "  in the PR title"; status=1; }
+          if printf '%s\n' "$BODY" | grep -qi '^[[:space:]]*co-authored-by:'; then
+            echo "commit message rejected: Co-Authored-By in the PR body (it becomes the squash message)"; status=1
+          fi
+          # The API lists at most 250 commits; past that, nothing is checked.
+          if [ "$COUNT" -ge 250 ]; then
+            echo "::error title=commits::250 or more commits; split the PR so every commit can be checked."; exit 1
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$PR/commits" --paginate \
+            -q '.[] | [.sha, (.parents | length | tostring)] | join(" ")' > /tmp/commits
+          while read -r sha parents; do
+            [ "$parents" -gt 1 ] && continue   # real merge commits, by parent count
+            gh api "repos/$GITHUB_REPOSITORY/commits/$sha" -q .commit.message > /tmp/msg
+            bash scripts/check-commit-msg.sh /tmp/msg || { echo "  in commit $sha"; status=1; }
+          done < /tmp/commits
           exit $status
   issue-link:
     name: issue-link
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - name: The PR closes an issue
         env:
           BODY: ${{ github.event.pull_request.body }}
         run: |
-          printf '%s' "$BODY" | grep -qiE '(close[sd]?|fix(e[sd])?|resolve[sd]?) #[0-9]+' && exit 0
+          set -euo pipefail
+          re='(^|[^[:alnum:]_])(close[sd]?|fix(e[sd])?|resolve[sd]?):?[[:space:]]+(#[0-9]+|https://github\.com/[^/[:space:]]+/[^/[:space:]]+/issues/[0-9]+)'
+          # Drop HTML comments first: GitHub does not link issues inside them.
+          printf '%s' "$BODY" | perl -0pe 's/<!--.*?-->//gs' | grep -qiE "$re" && exit 0
           echo "::error title=issue-link::Link the issue this PR closes in the body (Closes #n). Open one first if it does not exist."
           exit 1
   record:
     name: record
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
-      - uses: victorserpa/objection@v1
+      # main's own action, not the v1 tag: a fix to the check guards this
+      # repository as soon as it merges.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1, main (the base), not the PR
+      - uses: ./

@@ -1,3 +1,7 @@
 #!/bin/bash
 # Enable once per clone: git config core.hooksPath .githooks
-exec bash "$(git rev-parse --show-toplevel)/scripts/check-commit-msg.sh" "$1"
+top=$(git rev-parse --show-toplevel)
+if [ -f "$(git rev-parse --git-dir)/MERGE_HEAD" ]; then
+  exec bash "$top/scripts/check-commit-msg.sh" --merge "$1"
+fi
+exec bash "$top/scripts/check-commit-msg.sh" "$1"
