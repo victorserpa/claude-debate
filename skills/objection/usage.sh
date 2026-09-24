@@ -8,7 +8,8 @@
 # subagent, or in another session, is not in these numbers.
 set -eu
 
-common=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) ||
+# Outside a repository git prints nothing, and `cd ""` would succeed.
+g=$(git rev-parse --git-common-dir 2>/dev/null) && [ -n "$g" ] && common=$(cd "$g" && pwd) ||
   { echo "run it inside the repository whose debates you want to see."; exit 1; }
 log="$common/objection/usage.log"
 [ -s "$log" ] || { echo "no reviewer runs logged yet ($log)."; exit 0; }

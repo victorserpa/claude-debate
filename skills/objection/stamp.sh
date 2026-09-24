@@ -130,7 +130,8 @@ if [ "$verdict" = 'VERDICT: APPROVED' ] && [ "$docs_only" = no ]; then
 fi
 
 sha=$(git rev-parse HEAD)
-dest="$(git rev-parse --path-format=absolute --git-common-dir)/objection"
+# Not --path-format=absolute: that needs git 2.31, older distributions ship 2.30.
+dest="$(cd "$(git rev-parse --git-common-dir)" && pwd)/objection"
 mkdir -p "$dest"
 { printf '<!-- objection: sha=%s base=%s -->\n' "$sha" "$base"; cat "$record"; } >"$dest/$sha.md"
 echo "record stored for ${sha:0:7}: $dest/$sha.md"

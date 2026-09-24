@@ -26,9 +26,17 @@
 # Each run is appended to <git-common-dir>/objection/usage.log (when run
 # inside a repository); usage.sh sums it per branch.
 #
-# Env: OBJECTION_MODEL (default opus: on the same brief it found 3 HIGH
-#      where sonnet and haiku found 1, at about 4x their price),
-#      OBJECTION_CLAUDE (default claude),
+# Runner: the claude CLI when it is installed, else the Codex CLI
+# (`codex exec`, flags from its docs: read-only sandbox, the role as
+# model_instructions_file, no AGENTS.md; not yet run live), else exit 3.
+#
+# Env: OBJECTION_MODEL (claude model, default sonnet) and OBJECTION_EFFORT
+#      (default medium): on one brief with a known HIGH, sonnet at medium
+#      found it for $0.05, opus at its default effort for $0.33;
+#      debate.sh picks opus where an invariant or strongPaths applies.
+#      OBJECTION_RUNNER (claude or codex), OBJECTION_CLAUDE (default
+#      claude), OBJECTION_CODEX (default codex), OBJECTION_CODEX_MODEL
+#      (default: Codex's own),
 #      OBJECTION_TIMEOUT (seconds for the model call, default 900),
 #      OBJECTION_EXCERPT_LINES (lines each side of a cited line, default 40),
 #      OBJECTION_EXCERPT_MAX (total excerpt lines, default 1500).
@@ -53,8 +61,22 @@ here="$(cd "$(dirname "$0")" && pwd)"
 role_file="${OBJECTION_ROLES_DIR:-$here/roles}/$role.md"
 [ -f "$role_file" ] || { echo "role file not found: $role_file" >&2; exit 2; }
 claude_bin="${OBJECTION_CLAUDE:-claude}"
-command -v "$claude_bin" >/dev/null 2>&1 ||
-  { echo "claude CLI not found: run the $role as a subagent instead (see SKILL.md)." >&2; exit 3; }
+codex_bin="${OBJECTION_CODEX:-codex}"
+runner="${OBJECTION_RUNNER:-}"
+if [ -z "$runner" ]; then
+  if command -v "$claude_bin" >/dev/null 2>&1; then runner=claude
+  elif command -v "$codex_bin" >/dev/null 2>&1; then runner=codex
+  else
+    echo "neither the claude nor the codex CLI was found: run the $role as a subagent instead (see SKILL.md)." >&2
+    exit 3
+  fi
+fi
+case "$runner" in
+  claude) bin="$claude_bin" ;;
+  codex) bin="$codex_bin" ;;
+  *) echo "OBJECTION_RUNNER must be claude or codex (got $runner)." >&2; exit 2 ;;
+esac
+command -v "$bin" >/dev/null 2>&1 || { echo "$runner CLI not found: run the $role as a subagent instead (see SKILL.md)." >&2; exit 3; }
 command -v node >/dev/null 2>&1 || { echo "node not found: it reads the answer." >&2; exit 2; }
 command -v perl >/dev/null 2>&1 || { echo "perl not found: it enforces the timeout." >&2; exit 2; }
 
@@ -67,9 +89,11 @@ cat "$brief_abs" >"$input"
 
 # Where the run is logged: resolved here, before the cd into the empty
 # directory. Outside a repository nothing is logged.
-model="${OBJECTION_MODEL:-opus}"
+model="${OBJECTION_MODEL:-sonnet}"
+effort="${OBJECTION_EFFORT:-medium}"
 usage_log=""
-if common=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null); then
+# Outside a repository git prints nothing, and `cd ""` would succeed.
+if g=$(git rev-parse --git-common-dir 2>/dev/null) && [ -n "$g" ] && common=$(cd "$g" && pwd); then
   mkdir -p "$common/objection" && usage_log="$common/objection/usage.log"
   branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "?")
   head=$(git rev-parse --short HEAD 2>/dev/null || echo "?")
@@ -135,8 +159,52 @@ run_limited() {
     exit($st & 127 ? 128 + ($st & 127) : $st >> 8);
   ' "$@"
 }
+label="$model"
+[ "$runner" = claude ] || label="codex:${OBJECTION_CODEX_MODEL:-default}"
+failed() {
+  # The call may already be paid for: show what came back instead of losing it.
+  echo "objection: the $role run failed (error, or timeout after ${OBJECTION_TIMEOUT:-900}s)." >&2
+  cat "$work/err" "$out" >&2 2>/dev/null || true
+  # Logged too (it may have been billed), with its tokens unknown.
+  [ -z "$usage_log" ] || printf '%s\t%s\t%s\t%s\t%s\t0\t0\t\tfailed\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    "$branch" "$head" "$role" "$label" >>"$usage_log" || true
+  exit 1
+}
+
+if [ "$runner" = codex ]; then
+  # Codex keeps read-only tools, so the prompt forbids using them; the
+  # prompt goes first on stdin (`codex exec -`), the material after it.
+  { printf '%s\n\n' "${prompt/You have NO tools: you cannot open files or run commands, so never pretend to./Do not run commands or open files.}"; cat "$input"; } >"$work/stdin"
+  run_limited "${OBJECTION_TIMEOUT:-900}" "$codex_bin" exec --json -o "$work/last" \
+    --sandbox read-only --skip-git-repo-check \
+    -c "model_instructions_file='$role_file'" -c project_doc_max_bytes=0 \
+    -c "model_reasoning_effort=\"$effort\"" \
+    ${OBJECTION_CODEX_MODEL:+-m "$OBJECTION_CODEX_MODEL"} \
+    - <"$work/stdin" >"$out" 2>"$work/err" || failed
+  [ -s "$work/last" ] || failed
+  # Usage from the last turn.completed event of the --json stream.
+  node -e '
+const fs = require("fs");
+const [, out, last, role, log, branch, head, label] = process.argv;
+let u = {};
+for (const line of fs.readFileSync(out, "utf8").split("\n")) {
+  try { const e = JSON.parse(line); if (e.type === "turn.completed" && e.usage) u = e.usage; } catch {}
+}
+const inTok = (u.input_tokens || 0);
+process.stdout.write(fs.readFileSync(last, "utf8").trimEnd() + "\n");
+process.stderr.write(`objection: ${role} used ${inTok} input + ${u.output_tokens || 0} output tokens (codex)\n`);
+if (log) {
+  try {
+    fs.appendFileSync(log, [new Date().toISOString(), branch, head, role, label, inTok, u.output_tokens || 0, "", "ok"].join("\t") + "\n");
+  } catch (e) { process.stderr.write(`objection: usage not logged (${e.message})\n`); }
+}
+' "$out" "$work/last" "$role" "$usage_log" "${branch:-}" "${head:-}" "$label"
+  exit 0
+fi
+
 if ! run_limited "${OBJECTION_TIMEOUT:-900}" "$claude_bin" -p \
   --model "$model" \
+  --effort "$effort" \
   --tools "" \
   --strict-mcp-config --mcp-config '{"mcpServers":{}}' \
   --disable-slash-commands \
@@ -145,13 +213,7 @@ if ! run_limited "${OBJECTION_TIMEOUT:-900}" "$claude_bin" -p \
   --no-session-persistence \
   --output-format json \
   "$prompt" <"$input" >"$out" 2>"$work/err"; then
-  # The call may already be paid for: show what came back instead of losing it.
-  echo "objection: the $role run failed (error, or timeout after ${OBJECTION_TIMEOUT:-900}s)." >&2
-  cat "$work/err" "$out" >&2 2>/dev/null || true
-  # Logged too (it may have been billed), with its tokens unknown.
-  [ -z "$usage_log" ] || printf '%s\t%s\t%s\t%s\t%s\t0\t0\t\tfailed\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-    "$branch" "$head" "$role" "$model" >>"$usage_log" || true
-  exit 1
+  failed
 fi
 
 node -e '

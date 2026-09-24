@@ -130,7 +130,42 @@ hasnt "$T/args" "money math only"
 # Refusals: unknown role, missing files, no claude CLI (exit 3).
 bash "$REVIEW" judge "$T/brief.md" >/dev/null 2>&1 && { echo "FAIL: unknown role accepted"; failures=$((failures + 1)); }
 bash "$REVIEW" defender "$T/brief.md" >/dev/null 2>&1 && { echo "FAIL: defender without findings accepted"; failures=$((failures + 1)); }
-OBJECTION_CLAUDE=/nonexistent/claude bash "$REVIEW" accuser "$T/brief.md" >/dev/null 2>&1
-[ $? = 3 ] || { echo "FAIL: missing claude did not exit 3"; failures=$((failures + 1)); }
+OBJECTION_CLAUDE=/nonexistent/claude OBJECTION_CODEX=/nonexistent/codex bash "$REVIEW" accuser "$T/brief.md" >/dev/null 2>&1
+[ $? = 3 ] || { echo "FAIL: missing claude and codex did not exit 3"; failures=$((failures + 1)); }
+
+# Codex runner (flags from its docs; this stub checks what reaches it):
+# chosen when claude is missing, read-only, the role as instructions, no
+# AGENTS.md, prompt and brief on stdin, answer from -o, usage from --json.
+cat >"$T/codex" <<'EOF2'
+#!/bin/bash
+printf '%s\n' "$@" >"$FAKE_DIR/codex-args"
+cat >"$FAKE_DIR/codex-stdin"
+last=""
+prev=""
+for a in "$@"; do [ "$prev" = -o ] && last="$a"; prev="$a"; done
+printf '| HIGH | BUG | a.ts:1 | codex finding | read | p |\n' >"$last"
+printf '{"type":"thread.started"}\n{"type":"turn.completed","usage":{"input_tokens":1234,"cached_input_tokens":0,"output_tokens":56}}\n'
+EOF2
+chmod +x "$T/codex"
+out=$(OBJECTION_CLAUDE=/nonexistent/claude OBJECTION_CODEX="$T/codex" bash "$REVIEW" accuser "$T/brief.md" 2>"$T/err")
+[ "$out" = "| HIGH | BUG | a.ts:1 | codex finding | read | p |" ] || { echo "FAIL: codex answer not printed ($out)"; failures=$((failures + 1)); }
+has "$T/codex-args" "exec"
+has "$T/codex-args" "read-only"
+has "$T/codex-args" "--skip-git-repo-check"
+has "$T/codex-args" "model_instructions_file='$ROOT/skills/objection/roles/accuser.md'"
+has "$T/codex-args" "project_doc_max_bytes=0"
+has "$T/codex-args" 'model_reasoning_effort="medium"'
+has "$T/codex-stdin" "Do not run commands or open files."
+has "$T/codex-stdin" "the diff"
+has "$T/err" "accuser used 1234 input + 56 output tokens (codex)"
+tail -n 1 "$(git -C "$R" rev-parse --git-common-dir | sed "s|^\.git|$R/.git|")/objection/usage.log" | grep -q "codex:default" || { echo "FAIL: codex run not logged"; failures=$((failures + 1)); }
+# Forced by OBJECTION_RUNNER even with claude present; unknown runner refused.
+OBJECTION_RUNNER=codex OBJECTION_CODEX="$T/codex" bash "$REVIEW" accuser "$T/brief.md" >/dev/null 2>&1 || { echo "FAIL: OBJECTION_RUNNER=codex refused"; failures=$((failures + 1)); }
+OBJECTION_RUNNER=gpt bash "$REVIEW" accuser "$T/brief.md" >/dev/null 2>&1 && { echo "FAIL: unknown runner accepted"; failures=$((failures + 1)); }
+# A codex that fails: exit 1, output shown.
+printf '#!/bin/bash\ncat >/dev/null\necho "codex auth error" >&2\nexit 1\n' >"$T/codex-fail" && chmod +x "$T/codex-fail"
+OBJECTION_RUNNER=codex OBJECTION_CODEX="$T/codex-fail" bash "$REVIEW" accuser "$T/brief.md" >/dev/null 2>"$T/err"
+[ $? = 1 ] || { echo "FAIL: failing codex did not exit 1"; failures=$((failures + 1)); }
+has "$T/err" "codex auth error"
 
 if [ "$failures" = 0 ]; then echo "review: all cases passed"; else echo "review: $failures failure(s)"; exit 1; fi

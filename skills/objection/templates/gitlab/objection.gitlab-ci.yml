@@ -1,0 +1,27 @@
+# objection check for GitLab: fails a merge request unless its description
+# carries an APPROVED /objection record for the MR's head commit and target
+# branch. Include it from .gitlab-ci.yml:
+#
+#   include:
+#     - local: .gitlab/objection.gitlab-ci.yml
+#
+# Then make it required: Settings > Merge requests > Merge checks >
+# "Pipelines must succeed".
+#
+# Threat model: this stops forgetting, not deliberate disguise. A merge
+# request pipeline runs the source branch's CI file, so a merge request can
+# drop this job from its own pipeline. Where that matters, keep the CI file
+# in another project (Settings > CI/CD > CI/CD configuration file) or use a
+# pipeline execution policy.
+objection:
+  stage: test
+  image: node:22
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  variables:
+    # The changed files are listed with git against the MR's diff base.
+    GIT_DEPTH: "0"
+  script:
+    # Pin a release tag instead of v1 if you prefer fixed versions.
+    - git clone --quiet --depth 1 --branch v1 https://github.com/victorserpa/objection.git /tmp/objection
+    - node /tmp/objection/skills/objection/gate/check-pr.mjs

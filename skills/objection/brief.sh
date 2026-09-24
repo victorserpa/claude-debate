@@ -42,7 +42,8 @@ for ref in "$diff_base" "$config_base"; do
 done
 
 sha=$(git rev-parse HEAD)
-dest="$(git rev-parse --path-format=absolute --git-common-dir)/objection"
+# Not --path-format=absolute: that needs git 2.31, older distributions ship 2.30.
+dest="$(cd "$(git rev-parse --git-common-dir)" && pwd)/objection"
 mkdir -p "$dest"
 out="$dest/brief-$sha.md"
 
@@ -69,7 +70,7 @@ rules=$(printf '%s' "$config" | FILES="$files" node -e '
 let raw = "";
 process.stdin.on("data", (c) => (raw += c)).on("end", () => {
   let cfg = {};
-  try { cfg = JSON.parse(raw || "{}"); } catch { process.stdout.write("(the config is not valid JSON: no rules could be read)\n@@SPLIT@@\n@@SPLIT@@\nyes\n@@SPLIT@@\nlean\n@@SPLIT@@\n"); return; }
+  try { cfg = JSON.parse(raw || "{}"); } catch { process.stdout.write("(the config is not valid JSON: no rules could be read)\n@@SPLIT@@\n@@SPLIT@@\nyes\n@@SPLIT@@\nlean\n@@SPLIT@@\n@@SPLIT@@\nsonnet medium default\n"); return; }
   const files = process.env.FILES.split("\n").filter(Boolean);
   const pick = (list, fmt) => (list || []).map((x) => {
     let re;
@@ -87,13 +88,26 @@ process.stdin.on("data", (c) => (raw += c)).on("end", () => {
   const one = (x) => String(x).replace(/\s+/g, " ").replace(/-->/g, "- ->").trim();
   process.stdout.write((cfg.reviewers || []).filter((r) => {
     try { return files.some((f) => new RegExp(r.paths).test(f)); } catch { return false; }
-  }).map((r) => `${one(r.agent || "reviewer")}\t${one(r.focus || "(no focus)")}`).join("\n") + "\n");
+  }).map((r) => `${one(r.agent || "reviewer")}\t${one(r.focus || "(no focus)")}`).join("\n") + "\n@@SPLIT@@\n");
+  // Model tier. Measured on one brief with a known HIGH: sonnet at effort
+  // medium found it for $0.05; opus at default effort for $0.33. The strong
+  // model is kept for what an invariant or strongPaths names, and thorough.
+  const matches = (re) => { try { return files.some((f) => new RegExp(re).test(f)); } catch { return false; } };
+  const m = cfg.models || {};
+  const word = (x, d) => (/^[A-Za-z0-9._-]+$/.test(String(x || "")) ? String(x) : d);
+  const budget = ["lean", "standard", "thorough"].includes(cfg.budget) ? cfg.budget : "lean";
+  const reason = (cfg.invariants || []).some((i) => matches(i.paths)) ? "invariant"
+    : cfg.strongPaths && matches(cfg.strongPaths) ? "strongPaths"
+    : budget === "thorough" ? "thorough" : "default";
+  const model = reason === "default" ? word(m.default, "sonnet") : word(m.strong, "opus");
+  process.stdout.write(`${model} ${word(m.effort, "medium")} ${reason}\n`);
 });')
 section() { printf '%s\n' "$rules" | awk -v n="$1" '$0=="@@SPLIT@@"{k++; next} k==n-1' | sed '/^$/d'; }
 invariants=$(section 1)
 focus=$(section 2)
 use_precedents=$(section 3)
 reviewers=$(section 5)
+model_tier=$(section 6)
 budget=$(section 4)
 
 precedents="none recorded for these files"
@@ -127,6 +141,7 @@ total=$(printf '%s\n' "$diff" | wc -l | tr -d ' ')
   printf '# objection brief: %s @ %s against %s\n\n' "$(git rev-parse --abbrev-ref HEAD)" "${sha:0:7}" "$diff_base"
   # Read by debate.sh; it is the base branch's budget, like the rules.
   printf '<!-- objection-budget: %s -->\n' "$budget"
+  printf '<!-- objection-model: %s -->\n' "$model_tier"
   if [ -n "$reviewers" ]; then
     printf '%s\n' "$reviewers" | sed 's/^/<!-- objection-reviewer: /; s/$/ -->/'
   fi

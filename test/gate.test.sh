@@ -202,6 +202,56 @@ check 0 $N Bash 'gh pr create --help'
 check 0 $N Bash 'gh pr merge --help'
 check 0 $N Bash 'gh pr merge --disable-auto 5'
 
+# --- GitLab: glab mr create / merge, glab api ----------------------------
+# The stub answers `glab mr view -F json` with $GLAB_SHA and develop.
+cat >"$T/bin/glab" <<'EOF2'
+#!/bin/bash
+if [ "$1 $2" = "mr view" ]; then
+  printf '{"iid":5,"sha":"%s","target_branch":"%s","description":"x"}\n' "$GLAB_SHA" "${GLAB_BASE:-develop}"; exit 0
+fi
+exit 1
+EOF2
+chmod +x "$T/bin/glab"
+case "$(uname -s)" in
+  MINGW* | MSYS* | CYGWIN*) export OBJECTION_GLAB="[\"bash\",\"$(cygpath -m "$T/bin/glab")\"]" ;;
+esac
+GL="$T/gl"
+git init -q "$GL" && optin "$GL" && gitc -C "$GL" add . && gitc -C "$GL" commit -q -m gl
+git init -q --bare "$T/gl-remote.git"
+git -C "$GL" remote add origin "$T/gl-remote.git"
+git -C "$GL" push -q -u origin HEAD:feat 2>/dev/null
+git -C "$GL" branch -q -u origin/feat 2>/dev/null || git -C "$GL" branch --set-upstream-to=origin/feat >/dev/null
+GL_SHA=$(git -C "$GL" rev-parse HEAD)
+mkdir -p "$GL/.git/objection"
+printf '<!-- objection: sha=%s base=origin/develop -->\n# x\nVERDICT: APPROVED\n' "$GL_SHA" >"$GL/.git/objection/$GL_SHA.md"
+# merge: auto-merge (glab's default) is refused; explicit off with a record passes.
+GLAB_SHA=$GL_SHA check 2 "$GL" Bash 'glab mr merge 5'
+GLAB_SHA=$GL_SHA check 0 "$GL" Bash 'glab mr merge 5 --auto-merge=false'
+GLAB_SHA=$GL_SHA check 0 "$GL" Bash 'glab mr merge --auto-merge=false --squash 5'
+GLAB_SHA=deadbeefdeadbeefdeadbeefdeadbeefdeadbeef check 2 "$GL" Bash 'glab mr merge 5 --auto-merge=false'
+GLAB_SHA=$GL_SHA GLAB_BASE=main check 2 "$GL" Bash 'glab mr merge 5 --auto-merge=false'
+GLAB_SHA=$GL_SHA check 2 "$GL" Bash 'glab mr merge $MR --auto-merge=false'
+GLAB_SHA=$GL_SHA check 2 "$GL" Bash '"glab" mr merge 5'
+GLAB_SHA=$GL_SHA check 2 "$GL" Bash 'echo "$(glab mr merge 5)"'
+# create: needs --target-branch and the debated commit pushed.
+check 0 "$GL" Bash 'glab mr create --target-branch develop --fill'
+check 0 "$GL" Bash 'glab mr create -b develop -t "x"'
+check 2 "$GL" Bash 'glab mr create --fill'
+check 2 "$GL" Bash 'glab mr create --target-branch main --fill'
+gitc -C "$GL" commit -q --allow-empty -m unpushed
+check 2 "$GL" Bash 'glab mr create --target-branch develop --fill'
+git -C "$GL" reset -q --hard "$GL_SHA"
+check 2 "$N" Bash 'glab mr create --target-branch develop --fill'
+# glab api: writes to merge_requests are refused, reads pass.
+check 2 "$GL" Bash 'glab api -X POST projects/1/merge_requests -f source_branch=feat'
+check 2 "$GL" Bash 'glab api --method PUT projects/1/merge_requests/5/merge'
+check 0 "$GL" Bash 'glab api projects/1/merge_requests/5'
+# Innocent look-alikes.
+check 0 "$N" Bash 'glab mr list'
+check 0 "$N" Bash 'glab mr view 5'
+check 0 "$N" Bash 'git commit -m "glab mr merge 5 later"'
+check 0 $F Bash 'glab mr merge 5'
+
 # --- stamp.sh ------------------------------------------------------------
 R="$T/stamp"
 git init -q "$R" && optin "$R" && gitc -C "$R" add . && gitc -C "$R" commit -q -m base

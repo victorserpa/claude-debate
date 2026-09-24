@@ -12,24 +12,55 @@
 // under "## Open".
 //
 // Inputs (GitHub Actions): GITHUB_EVENT_PATH, GITHUB_TOKEN, GITHUB_API_URL.
-// Test hook: OBJECTION_FILES (newline-separated changed files) skips the
-// API call.
+// Inputs (GitLab CI, merge request pipelines): CI_API_V4_URL, CI_PROJECT_ID,
+// CI_MERGE_REQUEST_IID, CI_JOB_TOKEN (the job token may GET a merge
+// request, per docs.gitlab.com/ci/jobs/ci_job_token), and the clone for
+// the file list (GIT_DEPTH: 0). The predefined description variable is
+// cut at 2700 characters, too short for a record: the API is read instead.
+// Test hooks: OBJECTION_FILES (newline-separated changed files) skips the
+// file listing; OBJECTION_MR_JSON (a file) stands in for the merge request.
 
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
+const gitlab = !!process.env.GITLAB_CI;
+
 function fail(msg) {
-  console.log(`::error title=objection::${msg}`);
+  if (!gitlab) console.log(`::error title=objection::${msg}`);
   console.error(`objection: ${msg}`);
   process.exit(1);
 }
 
-const event = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, "utf8"));
-const pr = event.pull_request;
-if (!pr) fail("this check only runs on pull_request events.");
-
-const head = pr.head.sha;
-const base = pr.base.ref;
-const body = pr.body || "";
+let event = null;
+let pr = null;
+let mr = null;
+let head;
+let base;
+let body;
+if (gitlab) {
+  if (!process.env.CI_MERGE_REQUEST_IID) fail("this check only runs in merge request pipelines (rules: if: $CI_PIPELINE_SOURCE == \"merge_request_event\").");
+  if (process.env.OBJECTION_MR_JSON) {
+    mr = JSON.parse(readFileSync(process.env.OBJECTION_MR_JSON, "utf8"));
+  } else {
+    const url = `${process.env.CI_API_V4_URL}/projects/${process.env.CI_PROJECT_ID}/merge_requests/${process.env.CI_MERGE_REQUEST_IID}`;
+    const res = await fetch(url, { headers: { "JOB-TOKEN": process.env.CI_JOB_TOKEN || "" } });
+    if (!res.ok) fail(`could not read the merge request (HTTP ${res.status}).`);
+    mr = await res.json();
+  }
+  // The MR's head as GitLab reports it; in a merged-results pipeline
+  // CI_COMMIT_SHA is a merge commit, not the debated one.
+  head = mr.sha;
+  base = mr.target_branch;
+  body = mr.description || "";
+  if (!head || !base) fail("the merge request has no head SHA or target branch.");
+} else {
+  event = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, "utf8"));
+  pr = event.pull_request;
+  if (!pr) fail("this check only runs on pull_request events.");
+  head = pr.head.sha;
+  base = pr.base.ref;
+  body = pr.body || "";
+}
 
 // The LAST stamp in the body wins: an older record left above a newer one
 // must not count.
@@ -47,6 +78,18 @@ const record = body.slice(stamp.index);
 async function changedFiles() {
   if (process.env.OBJECTION_FILES !== undefined)
     return process.env.OBJECTION_FILES.split("\n").filter(Boolean);
+  if (gitlab) {
+    // From the clone: no API page limit. The diff base GitLab computed for
+    // this MR, against the debated head.
+    const from = process.env.CI_MERGE_REQUEST_DIFF_BASE_SHA || `origin/${base}`;
+    try {
+      return execFileSync("git", ["diff", "--name-only", `${from}...${head}`], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 })
+        .split("\n")
+        .filter(Boolean);
+    } catch {
+      fail(`could not list the changed files with git (${from}...${head.slice(0, 7)}). Set GIT_DEPTH: 0 on this job.`);
+    }
+  }
   const api = process.env.GITHUB_API_URL || "https://api.github.com";
   const repo = event.repository.full_name;
   const files = [];
@@ -69,7 +112,7 @@ const files = await changedFiles();
 // The files API stops at 3000 files. A list that hits the limit, or that
 // is shorter than the PR says it is, proves nothing about the rest: a PR of
 // 3000 docs and one source file must not pass as documentation only.
-if (files.length >= 3000 || (Number.isInteger(pr.changed_files) && files.length !== pr.changed_files))
+if (!gitlab && (files.length >= 3000 || (Number.isInteger(pr.changed_files) && files.length !== pr.changed_files)))
   fail(`cannot prove the full list of changed files (listed ${files.length}, PR has ${pr.changed_files}). Split the PR.`);
 // Agent prompts, skills, instructions and the objection config are how the
 // debate itself behaves: weakening the defender must not ship without a

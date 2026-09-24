@@ -97,4 +97,36 @@ CHANGED=3001 run 1 "$many" "$DOCREC"
 CHANGED=3 run 1 "$(printf 'docs/a.md\ndocs/b.md')" "$DOCREC"
 CHANGED=2 run 0 "$(printf 'docs/a.md\ndocs/b.md')" "$DOCREC"
 
+# --- GitLab CI (merge request pipelines) ------------------------------------
+# The merge request comes from OBJECTION_MR_JSON (the API answer); the file
+# list from git, against the MR's diff base, in a real repository.
+G="$T/gl"
+git init -q "$G" && cd "$G" || exit 1
+gitc() { git -c user.email=t@t -c user.name=t "$@"; }
+printf 'a\n' >README.md && git add . && gitc commit -q -m base
+GBASE=$(git rev-parse HEAD)
+printf 'b\n' >>README.md && git add . && gitc commit -q -m docs
+GDOCS=$(git rev-parse HEAD)
+mkdir -p src && printf 'c\n' >src/x.ts && git add . && gitc commit -q -m code
+GCODE=$(git rev-parse HEAD)
+glrun() { # expected sha target body [iid]
+  node -e 'require("fs").writeFileSync(process.argv[1], JSON.stringify({sha:process.argv[2],target_branch:process.argv[3],description:process.argv[4]}))' "$T/mr.json" "$2" "$3" "$4"
+  GITLAB_CI=true CI_MERGE_REQUEST_IID="${5-7}" CI_MERGE_REQUEST_DIFF_BASE_SHA="$GBASE" OBJECTION_MR_JSON="$T/mr.json" \
+    node "$CHECK" >/dev/null 2>&1
+  local rc=$?
+  if [ "$rc" != "$1" ]; then echo "FAIL gitlab (expected $1, got $rc): sha=${2:0:7} target=$3"; failures=$((failures + 1)); fi
+}
+full() { printf '<!-- objection: sha=%s base=origin/%s -->\n## Accusation\nx\n## Defense\nx\n## Judge\nx\n## Open\nnothing\nOPEN: BLOCKER=0 HIGH=0\nVERDICT: APPROVED\n' "$1" "$2"; }
+short() { printf '<!-- objection: sha=%s base=origin/%s -->\ndocumentation only\nVERDICT: APPROVED\n' "$1" "$2"; }
+glrun 0 "$GCODE" main "$(full "$GCODE" main)"
+glrun 1 "$GCODE" main "$(full "$GDOCS" main)"
+glrun 1 "$GCODE" develop "$(full "$GCODE" main)"
+glrun 1 "$GCODE" main "no record here"
+# The file list is read from git: code needs the sections, docs do not.
+glrun 1 "$GCODE" main "$(short "$GCODE" main)"
+glrun 0 "$GDOCS" main "$(short "$GDOCS" main)"
+# Outside a merge request pipeline: refuse.
+glrun 1 "$GCODE" main "$(full "$GCODE" main)" ""
+cd "$T" || exit 1
+
 if [ "$failures" = 0 ]; then echo "check-pr: all cases passed"; else echo "check-pr: $failures failure(s)"; exit 1; fi

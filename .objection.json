@@ -7,5 +7,6 @@
     "bash test/roles-in-sync.test.sh",
     "bash test/precedents.test.sh"
   ],
-  "budget": "standard"
+  "budget": "standard",
+  "strongPaths": "^skills/objection/(gate/|stamp\\.sh$)"
 }

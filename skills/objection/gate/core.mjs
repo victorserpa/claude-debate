@@ -109,6 +109,18 @@ const GH = (() => {
 function gh(args, opts) {
   return execFileSync(GH[0], [...GH.slice(1), ...args], opts);
 }
+// The GitLab CLI; OBJECTION_GLAB is its test override, like OBJECTION_GH.
+const GLAB = (() => {
+  try {
+    const v = JSON.parse(process.env.OBJECTION_GLAB || "null");
+    return Array.isArray(v) && v.length && v.every((x) => typeof x === "string") ? v : ["glab"];
+  } catch {
+    return ["glab"];
+  }
+})();
+function glab(args, opts) {
+  return execFileSync(GLAB[0], [...GLAB.slice(1), ...args], opts);
+}
 
 export function gate(input) {
   try {
@@ -285,8 +297,10 @@ export function gate(input) {
     const rawCommand = input.command || "";
     // Disguised command name (`\gh`, `g\h`, `"gh"`, `'gh'`): to the shell it is
     // the same `gh`.
-    const command = rawCommand.replace(/\\([A-Za-z])/g, "$1").replace(/(["'])gh\1(?=\s)/g, "gh");
-    if (!/\bgh\b/.test(command)) return ALLOW;
+    const command = rawCommand
+      .replace(/\\([A-Za-z])/g, "$1")
+      .replace(/(["'])(gh|glab)\1(?=\s)/g, "$2");
+    if (!/\b(gh|glab)\b/.test(command)) return ALLOW;
 
     // --- Text that is not a command --------------------------------------------
     // Heredoc bodies and quoted strings (commit messages, grep patterns, echo)
@@ -363,7 +377,7 @@ export function gate(input) {
         if ((ch === "$" && s[p + 1] === "(") || ch === "`") {
           const end = ch === "`" ? (s.indexOf("`", p + 1) + 1 || s.length) : substEnd(s, p + 1);
           const code = s.slice(ch === "`" ? p + 1 : p + 2, end - 1);
-          out += /\bgh\b/.test(code) ? s.slice(p, end) : "''";
+          out += /\b(gh|glab)\b/.test(code) ? s.slice(p, end) : "''";
           p = end - 1;
           continue;
         }
@@ -389,7 +403,7 @@ export function gate(input) {
         if ((c === "$" && s[i + 1] === "(") || c === "`") {
           const end = c === "`" ? s.indexOf("`", i + 1) + 1 || s.length : substEnd(s, i + 1);
           const code = s.slice(c === "`" ? i + 1 : i + 2, c === "`" ? end - 1 : end - 1);
-          out += /\bgh\b/.test(code) ? ` ${code} ` : " '' ";
+          out += /\b(gh|glab)\b/.test(code) ? ` ${code} ` : " '' ";
           i = end;
           continue;
         }
@@ -421,7 +435,7 @@ export function gate(input) {
             else if (plain && /(^|\s)--(repo|base|head)=$/.test(out)) out += inside;
             else {
               out += "''";
-              const code = c === '"' ? substitutions(inside).filter((x) => /\bgh\b/.test(x)) : [];
+              const code = c === '"' ? substitutions(inside).filter((x) => /\b(gh|glab)\b/.test(x)) : [];
               if (code.length) out += ` ; ${code.map((x) => stripInertText(x)).join(" ; ")} `;
             }
             i = j + 1;
@@ -452,9 +466,9 @@ export function gate(input) {
           // the substitutions inside it can run: "docs: gh pr merge
           // ($(date))" keeps nothing, "$(gh pr create)" keeps the command.
           if (runsAsCode) {
-            out += /\bgh\b/.test(inside) ? ` ${stripInertText(inside)} ` : " '' ";
+            out += /\b(gh|glab)\b/.test(inside) ? ` ${stripInertText(inside)} ` : " '' ";
           } else if (c === '"') {
-            const code = substitutions(inside).filter((x) => /\bgh\b/.test(x));
+            const code = substitutions(inside).filter((x) => /\b(gh|glab)\b/.test(x));
             out += code.length ? ` ${code.map((x) => stripInertText(x)).join(" ; ")} ` : " '' ";
           } else {
             out += " '' ";
@@ -505,6 +519,20 @@ export function gate(input) {
         block("gh api writing to /pulls skips the debate record. Use gh pr create / gh pr merge after /objection.", false);
     }
 
+    // --- glab api (GitLab) ------------------------------------------------------
+    // Creating or merging a merge request through the API: POST to
+    // .../merge_requests or PUT to .../merge_requests/<iid>/merge.
+    for (const segment of noDocs.split(/\n|;|&&|\|\|?/)) {
+      if (!/(^|[\s;&|(`])(?:\S*\/)?glab\s+api\b/.test(segment)) continue;
+      const mrTarget = /merge_requests(?![\w/])|merge_requests\/\d+\/merge\b/.test(segment);
+      const read = /(-X|--method)\s*=?\s*GET\b/i.test(segment);
+      const write =
+        /(-X|--method)\s*=?\s*(POST|PUT)\b/i.test(segment) ||
+        /\s(-f|-F|--field|--raw-field|--input)[\s=]/.test(segment);
+      if (mrTarget && write && !read)
+        block("glab api writing to merge_requests skips the debate record. Use glab mr create / glab mr merge after /objection.", false);
+    }
+
     // --- gh pr <action> ----------------------------------------------------------
     // `gh` in any command position (start, after ; & | ( $( backtick, `time`,
     // `command`, VAR=x, absolute path), with -R/--repo before or after `pr`.
@@ -512,7 +540,11 @@ export function gate(input) {
       /(?:^|[\s;&|(`])(?:\S*\/)?gh((?:\s+(?:-R\s*=?|--repo(?:\s+|=))\S+)*)\s+pr((?:\s+(?:-R\s*=?|--repo(?:\s+|=))\S+)*)\s+(create|new|ready|merge)\b([^;&|\n)]*)/g;
 
     const matches = [...active.matchAll(reGh)];
-    if (matches.length === 0) return ALLOW;
+    // GitLab: `glab mr create|new|merge`, with -R/--repo before or after `mr`.
+    const reGlab =
+      /(?:^|[\s;&|(`])(?:\S*\/)?glab((?:\s+(?:-R\s*=?|--repo(?:\s+|=))\S+)*)\s+mr((?:\s+(?:-R\s*=?|--repo(?:\s+|=))\S+)*)\s+(create|new|merge)\b([^;&|\n)]*)/g;
+    const glabMatches = [...active.matchAll(reGlab)];
+    if (matches.length === 0 && glabMatches.length === 0) return ALLOW;
 
     function tokens(s) {
       return s.trim().split(/\s+/).filter(Boolean);
@@ -669,7 +701,8 @@ export function gate(input) {
 
       let common;
       try {
-        common = git(dir, "rev-parse", "--path-format=absolute", "--git-common-dir");
+        // Not --path-format=absolute (git 2.31+): resolved here instead.
+        common = resolve(dir, git(dir, "rev-parse", "--git-common-dir"));
       } catch {
         block(`could not find a git repository at ${dir}.`);
       }
@@ -738,6 +771,87 @@ export function gate(input) {
       }
 
       const problem = approved(common, sha, prBase);
+      if (problem) block(problem);
+    }
+
+    // --- glab mr <action> (GitLab) -----------------------------------------------
+    // Flags from docs.gitlab.com/cli/mr/create and /mr/merge. Stricter than
+    // gh on purpose where the gate cannot learn a value: no --target-branch
+    // on create is blocked instead of guessing the project default.
+    const GLAB_TAKES_VALUE = new Set([
+      "-R", "--repo", "-m", "--message", "--squash-message", "--sha",
+    ]);
+    for (const m of glabMatches) {
+      const [, glabGlobals, mrGlobals, rawAction, rest] = m;
+      const action = rawAction === "new" ? "create" : rawAction;
+      if (/(^|\s)(--help|-h)\b/.test(rest)) continue;
+      if (/\bxargs\b[^;&|\n]*$/.test(active.slice(0, m.index + 1)))
+        block("glab mr merge through xargs hides which merge request it is. Put its number in the command itself.", false);
+      const dir = dirBefore(m.index);
+      const repo = repoOf(`${glabGlobals} ${mrGlobals}`, rest);
+      let common;
+      try {
+        common = resolve(dir, git(dir, "rev-parse", "--git-common-dir"));
+      } catch {
+        block(`could not find a git repository at ${dir}.`);
+      }
+      let sha;
+      let mrBase;
+      try {
+        if (action === "create") {
+          mrBase = valueOf(rest, "-b", "--target-branch");
+          if (!mrBase)
+            block("glab mr create without --target-branch: the gate cannot tell which base the record must match. Pass --target-branch <base>.", false);
+          const source = valueOf(rest, "-s", "--source-branch");
+          const ref = source ? `refs/heads/${source}` : "HEAD";
+          sha = git(dir, "rev-parse", ref);
+          let upstream = null;
+          try {
+            upstream = git(dir, "rev-parse", `${source || ""}@{u}`);
+          } catch {
+            upstream = null;
+          }
+          if (!upstream)
+            block(`the branch has no upstream, so the gate cannot tell what the merge request will contain. Push it first (git push -u <remote> <branch>).`, false);
+          if (upstream !== sha)
+            block(`the branch remote is at ${upstream.slice(0, 7)} but the debate was about ${sha.slice(0, 7)}. Push the debated commit before opening the merge request.`, false);
+        } else {
+          // Auto-merge is glab's default and merges whatever the head is
+          // when the pipeline passes: only an explicit off is allowed.
+          if (!/(^|\s)--auto-merge=false\b/.test(rest))
+            block("glab mr merge auto-merges by default, which lets in commits pushed after the debate. Run it with --auto-merge=false, with the record for the current SHA.", false);
+          const toks = tokens(rest);
+          let target = null;
+          for (let k = 0; k < toks.length; k++) {
+            const t = toks[k];
+            if (GLAB_TAKES_VALUE.has(t)) {
+              k++;
+              continue;
+            }
+            if (t.startsWith("-")) continue;
+            if (t === "''" || t.startsWith("$"))
+              block("glab mr merge gets its merge request from a variable or a command, so the gate cannot tell which one it is. Put the number in the command itself.");
+            target = t;
+            break;
+          }
+          const args = ["mr", "view"];
+          if (target) args.push(target);
+          if (repo) args.push("-R", repo);
+          args.push("-F", "json");
+          const mr = JSON.parse(glab(args, { cwd: dir, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 15000 }));
+          sha = mr.sha;
+          mrBase = mr.target_branch;
+          if (!sha || !mrBase) throw new Error("glab answered without sha/target_branch");
+        }
+      } catch (e) {
+        if (e instanceof Blocked) throw e;
+        block(
+          action === "create"
+            ? `could not read the commit going into the merge request at ${dir}.`
+            : `could not read the head SHA of the merge request${repo ? ` in ${repo}` : ""} (glab mr view).`,
+        );
+      }
+      const problem = approved(common, sha, mrBase);
       if (problem) block(problem);
     }
 

@@ -30,6 +30,8 @@ printf '%s\n' "$last" >>"$FAKE_DIR/prompts-$role"
 prev=""
 for a in "$@"; do [ "$prev" = --model ] && printf '%s\n' "$a" >>"$FAKE_DIR/models-$role"; prev="$a"; done
 prev=""
+for a in "$@"; do [ "$prev" = --effort ] && printf '%s\n' "$a" >>"$FAKE_DIR/efforts-$role"; prev="$a"; done
+prev=""
 for a in "$@"; do [ "$prev" = --system-prompt-file ] && cat "$a" >"$FAKE_DIR/sysprompt-$role"; prev="$a"; done
 node -e 'process.stdout.write(JSON.stringify({result: require("fs").readFileSync(process.argv[1], "utf8"),
   usage: {input_tokens: 1000, output_tokens: 200}, total_cost_usd: 0.05}))' "$FAKE_DIR/$role.txt"
@@ -44,7 +46,7 @@ accuse() {
     printf '\nCould not evaluate: nothing.\n'
   } >"$T/accuser.txt"
 }
-reset() { rm -f "$T"/ran-* "$T"/stdin-* "$T"/prompts-* "$T"/sysprompt-* "$T"/models-*; }
+reset() { rm -f "$T"/ran-* "$T"/stdin-* "$T"/prompts-* "$T"/sysprompt-* "$T"/models-* "$T"/efforts-*; }
 
 R="$T/r"
 git init -q "$R" && cd "$R" || exit 1
@@ -62,6 +64,11 @@ printf '%s\n' "$out" >"$T/out"
 has "$T/out" "budget lean"
 has "$T/out" "findings: 0 BLOCKER, 1 HIGH, 1 MEDIUM, 1 LOW"
 has "$T/out" "accusers: generic"
+# The cheap tier by default, passed to both roles; the summary says so.
+has "$T/out" "model: sonnet, effort medium (default)"
+grep -qx sonnet "$T/models-accuser" || fail "the accuser did not run on sonnet"
+grep -qx sonnet "$T/models-defender" || fail "the defender did not run on sonnet"
+grep -qx medium "$T/efforts-accuser" || fail "the accuser did not get effort medium"
 has "$T/out" "defender: answered 1 finding(s)"
 has "$T/stdin-defender" "| 1 | HIGH | BUG | src/a.ts:3 | defect HIGH"
 hasnt "$T/stdin-defender" "defect MEDIUM"
@@ -163,7 +170,7 @@ tail -n 1 "$(git rev-parse --git-common-dir)/objection/usage.log" | grep -q "def
 [ "$(wc -l <"$(git rev-parse --git-common-dir)/objection/usage.log")" -gt "$lines_before" ] || fail "usage log did not grow"
 
 # No claude CLI: exit 3 reaches the caller, so it can fall back to subagents.
-OBJECTION_CLAUDE=/nonexistent/claude bash "$DEBATE" main >/dev/null 2>&1
+OBJECTION_CLAUDE=/nonexistent/claude OBJECTION_CODEX=/nonexistent/codex bash "$DEBATE" main >/dev/null 2>&1
 [ $? = 3 ] || fail "a missing claude CLI did not exit 3"
 
 # --- A second repository: defaults, extra reviewers, cleanup, self-review ---

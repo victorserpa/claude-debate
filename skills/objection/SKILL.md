@@ -68,6 +68,12 @@ its start-up plus what it reads. `review.sh` makes the start-up small
 prompt, tools and CLAUDE.md again. Either way, the number of reviewers
 multiplies the cost, and the brief keeps the reading small.
 
+**Models.** The reviewers run on sonnet at effort medium; opus where an
+invariant or `strongPaths` matches, or under `thorough` (`models` and
+`strongPaths` in the config). `debate.sh` applies this; `OBJECTION_MODEL`
+and `OBJECTION_EFFORT` override it. Without the `claude` CLI, `review.sh`
+runs the roles through the `codex` CLI when that is installed.
+
 **One brief per round.** Run `bash <this skill's directory>/brief.sh
 origin/<base> "<goal in one sentence>" "<scope, if the task states one>"`.
 It writes one file with the review diff (noise filtered, 5 lines of

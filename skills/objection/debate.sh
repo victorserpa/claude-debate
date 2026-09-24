@@ -120,8 +120,18 @@ brief=$(bash "$here/brief.sh" "$diff_base" "$goal" "$scope" "origin/$base")
 
 budget=$(sed -n 's/^<!-- objection-budget: \([a-z]*\) -->$/\1/p' "$brief" | head -n 1)
 [ -n "$budget" ] || budget=lean
+# Model and effort: the brief's tier (from the base config) unless the
+# caller set OBJECTION_MODEL / OBJECTION_EFFORT.
+tier=$(sed -n 's/^<!-- objection-model: \(.*\) -->$/\1/p' "$brief" | head -n 1)
+set -- $tier
+tier_model="${1:-sonnet}"
+tier_effort="${2:-medium}"
+tier_reason="${3:-default}"
+if [ -n "${OBJECTION_MODEL:-}" ]; then tier_model="$OBJECTION_MODEL"; tier_reason="OBJECTION_MODEL"; fi
+[ -z "${OBJECTION_EFFORT:-}" ] || tier_effort="$OBJECTION_EFFORT"
+export OBJECTION_MODEL="$tier_model" OBJECTION_EFFORT="$tier_effort"
 sha=$(git rev-parse HEAD)
-dir="$(git rev-parse --path-format=absolute --git-common-dir)/objection"
+dir="$(cd "$(git rev-parse --git-common-dir)" && pwd)/objection"
 accusation="$dir/accusation-$sha.md"
 findings="$dir/findings-$sha.md"
 defense="$dir/defense-$sha.md"
@@ -145,7 +155,7 @@ if [ "$budget" != lean ]; then
       accusers="$accusers + $agent"
       # An agent that names a Claude model runs on it; any other agent (a
       # different tool) is only a label here: this is review.sh's model.
-      model="${OBJECTION_MODEL:-}"
+      model="$OBJECTION_MODEL"
       case "$agent" in opus | sonnet | haiku | claude-*) model="$agent" ;; esac
       printf '\n### %s (focus: %s; run by review.sh%s)\n\n' "$agent" "$focus" "${model:+ on $model}" >>"$tmp/all"
       if OBJECTION_MODEL="$model" OBJECTION_FOCUS="$focus" bash "$here/review.sh" accuser "$brief" >"$tmp/one" </dev/null; then
@@ -200,7 +210,7 @@ fi
 {
   printf '# Debate: %s @ %s\n\n' "$(git rev-parse --abbrev-ref HEAD)" "${sha:0:7}"
   printf 'Budget: %s. Diff: %s...HEAD. Reviewers ran as isolated processes (review.sh, model %s).\n\n' \
-    "$budget" "$diff_base" "${OBJECTION_MODEL:-opus}"
+    "$budget" "$diff_base" "$OBJECTION_MODEL, effort $OBJECTION_EFFORT"
   printf '## Accusation\n\n'
   cat "$accusation"
   printf '\n## Defense\n\n'
@@ -232,6 +242,7 @@ done
 
 echo "objection: $(git rev-parse --abbrev-ref HEAD) @ ${sha:0:7}, budget $budget, diff $diff_base...HEAD"
 [ -z "$defaulted" ] || echo "$base_note"
+echo "model: $tier_model, effort $tier_effort ($tier_reason)"
 echo "accusers: $accusers"
 echo "findings: $(count BLOCKER) BLOCKER, $(count HIGH) HIGH, $(count MEDIUM) MEDIUM, $(count LOW) LOW"
 echo "defender: $defended"

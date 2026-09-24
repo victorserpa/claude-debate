@@ -107,11 +107,27 @@ work anywhere you did not opt in.
 | `reviewers` | your own reviewers, added as accusers when the diff touches `paths` (under `standard` and `thorough`); an `agent` named `opus`, `sonnet`, `haiku` or `claude-*` runs on that model in `debate.sh`; any other `agent` (another tool) is a label there, run it by hand for a second opinion |
 | `invariants` | rules that must never break, each with the `paths` it guards; a violation is a BLOCKER |
 | `budget` | `lean` (default), `standard` or `thorough`: how many reviewers and rounds a debate runs |
+| `models` | `{"default": "sonnet", "strong": "opus", "effort": "medium"}` (the defaults): the reviewers' model, and the stronger one used when an invariant or `strongPaths` matches, or under `thorough` |
+| `strongPaths` | a regex of paths that deserve the strong model (a gate, a validator, billing) |
 
-Requirements: `node`, `git`, `bash`, `perl` and the `gh` CLI. Linux and
-macOS have them; on Windows, Git for Windows brings `bash` and `perl`
-(Git Bash, which Claude Code needs there anyway). CI runs every test on
-all three systems.
+Requirements: `node`, `git`, `bash` and `perl`, plus the `claude` CLI or
+the `codex` CLI to run the reviewers cheaply, and `gh` or `glab` for the
+local gate. Linux and macOS have the first four; on Windows, Git for
+Windows brings `bash` and `perl` (Git Bash, which Claude Code needs
+there anyway). CI runs every test on Linux, macOS and Windows. Any git
+version from the last years works (nothing needs git 2.31 or later).
+Minimal container images (Alpine) lack `bash` and `perl`: install them.
+
+**Without GitHub, or without `gh`.** The debate itself (brief, reviewers,
+judge, record) needs only `git` and a reviewer CLI, on any host. What
+changes is enforcement:
+
+| where the code lives | local gate | CI check |
+|---|---|---|
+| GitHub, with `gh` | `gh pr create/ready/merge`, `gh api`, GitHub MCP | GitHub Action |
+| GitLab, with `glab` | `glab mr create/merge`, `glab api` | GitLab CI job |
+| GitHub or GitLab through the web UI only | nothing to intercept | the CI check still fails the PR/MR |
+| elsewhere (Bitbucket, Gitea, plain git) | none | none: the debate is advice, not a gate |
 
 ## Gates
 
@@ -152,6 +168,16 @@ jobs:
 
 A push changes the head SHA, so the check fails again until the new
 commits are debated and the body is updated.
+
+**GitLab CI.** Copy [`templates/gitlab/objection.gitlab-ci.yml`](skills/objection/templates/gitlab/objection.gitlab-ci.yml),
+include it from `.gitlab-ci.yml`, and turn on *Pipelines must succeed*
+(Settings > Merge requests). The same script reads the merge request
+through the API with the job token (the description variable GitLab
+provides is cut at 2700 characters) and lists the changed files with
+git. A merge request pipeline runs the source branch's CI file, so a
+merge request can drop the job from its own pipeline; keep the CI file
+in another project, or use a pipeline execution policy, where that
+matters. Not yet run on gitlab.com: covered by tests only.
 
 ## What the local gate blocks
 
@@ -254,6 +280,15 @@ it runs them in one session and says so in the record.
   the record is public in the PR body.
 - `curl` against the GitHub API with a token from `gh auth token` is not
   blocked by the local hook (the GitHub check still catches the PR).
+- **What a PR costs.** Measured with `usage.sh` on one brief with a known
+  HIGH: sonnet at effort medium found it for **$0.05**, opus at its
+  default effort for $0.33 (haiku misjudged it). So the reviewers run on
+  sonnet at effort medium, and opus only where an invariant or
+  `strongPaths` applies, or under `thorough`. A `lean` PR (one accuser,
+  the defender only for BLOCKER or HIGH) is about $0.05 to $0.15 of
+  reviewers, plus your session reading the draft and judging. With a
+  Claude subscription, `claude -p` spends plan usage, not dollars; the
+  dollars are the API price. Run `usage.sh` after a few PRs to see yours.
 - It is not free, and it is built to cost little. **Each reviewer runs as
   an isolated `claude -p` process** (`review.sh`): no tools, no MCP
   servers, no skills, no project CLAUDE.md, only its role and the brief.

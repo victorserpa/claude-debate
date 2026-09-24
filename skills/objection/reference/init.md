@@ -66,5 +66,10 @@ Then install a gate, and tell the user which one you installed:
    (it uses `victorserpa/objection@v1`),
    then ask the user to make it a required status check. Recommend it
    always; it is the only gate for tools without hooks.
+   On GitLab instead: `.gitlab/objection.gitlab-ci.yml` from
+   `templates/gitlab/objection.gitlab-ci.yml`, included from
+   `.gitlab-ci.yml`, and ask the user to turn on "Pipelines must succeed".
+   Elsewhere (Bitbucket, Gitea, no forge): say there is no gate, the
+   debate is advice.
 
 Commit the files. From then on the debate is enforced in this repository.

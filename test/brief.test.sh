@@ -103,6 +103,30 @@ awk '/^## Defects/{f=1;next} /^## /{f=0} f' "$out" | grep -qF "rounding lost a c
 has "$out" "<!-- objection-reviewer: money	money math -->"
 hasnt "$out" "objection-reviewer: docs"
 
+# Model tier, from the base config: the cheap model unless an invariant
+# matches, strongPaths matches, or the budget is thorough.
+M="$T/model"
+git init -q "$M" && cd "$M" || exit 1
+printf '{"bases":["main"],"invariants":[{"paths":"^src/pay","rule":"money exact"}],"strongPaths":"^src/gate/"}\n' >.objection.json
+mkdir -p src/gate && printf 'a\n' >src/ui.ts && printf 'a\n' >src/pay.ts && printf 'a\n' >src/gate/x.ts
+git add . && gitc commit -q -m base && git update-ref refs/remotes/origin/main HEAD
+printf 'b\n' >>src/ui.ts && git add . && gitc commit -q -m ui
+out=$(bash "$BRIEF" origin/main)
+has "$out" "<!-- objection-model: sonnet medium default -->"
+git reset -q --hard origin/main && printf 'b\n' >>src/pay.ts && git add . && gitc commit -q -m pay
+out=$(bash "$BRIEF" origin/main)
+has "$out" "<!-- objection-model: opus medium invariant -->"
+git reset -q --hard origin/main && printf 'b\n' >>src/gate/x.ts && git add . && gitc commit -q -m gate
+out=$(bash "$BRIEF" origin/main)
+has "$out" "<!-- objection-model: opus medium strongPaths -->"
+# Configured models and effort, and thorough.
+git reset -q --hard origin/main
+printf '{"bases":["main"],"budget":"thorough","models":{"default":"haiku","strong":"sonnet","effort":"low"}}\n' >.objection.json
+git add . && gitc commit -q -m cfg && git update-ref refs/remotes/origin/main HEAD
+printf 'c\n' >>src/ui.ts && git add . && gitc commit -q -m ui2
+out=$(bash "$BRIEF" origin/main)
+has "$out" "<!-- objection-model: sonnet low thorough -->"
+
 # Nothing to review, or an unknown base: refuse.
 (cd "$T/fresh" && git update-ref refs/remotes/origin/main HEAD && bash "$BRIEF" origin/main >/dev/null 2>&1) && { echo "FAIL: empty diff accepted"; failures=$((failures + 1)); }
 (cd "$R" && bash "$BRIEF" origin/nope >/dev/null 2>&1) && { echo "FAIL: unknown base accepted"; failures=$((failures + 1)); }
