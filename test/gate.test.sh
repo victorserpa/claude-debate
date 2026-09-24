@@ -500,10 +500,10 @@ git -C "$T/named" remote set-url alias1 "git@github.com-work:me/repo.git"
 check 2 "$T/named" Bash 'gh pr create --head me:feat --base develop -R up/repo'
 # ssh cannot answer: fail closed (kept, so ambiguous, so blocked), even for
 # an alias that would have resolved elsewhere.
-printf '#!/bin/bash\nexit 255\n' >"$T/bin/ssh" && chmod +x "$T/bin/ssh"
+# (A config file that does not exist makes ssh -G fail on every system; a
+# stub named ssh would not be run by node on Windows.)
 git -C "$T/named" remote set-url alias1 "git@gitlab-work:me/repo.git"
-check 2 "$T/named" Bash 'gh pr create --head me:feat --base develop -R up/repo'
-rm -f "$T/bin/ssh"
+OBJECTION_SSH_CONFIG="$T/no-such-config" check 2 "$T/named" Bash 'gh pr create --head me:feat --base develop -R up/repo'
 # A host that starts with "-" never reaches ssh as an option; kept (blocked).
 git -C "$T/named" remote set-url alias1 "ssh://-oProxyCommand=touch%20$T/pwned/me/repo.git"
 check 2 "$T/named" Bash 'gh pr create --head me:feat --base develop -R up/repo'
