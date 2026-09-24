@@ -9,7 +9,7 @@ on:
 permissions:
   contents: read
 jobs:
-  test:
+  os:
     # Windows runs the same bash scripts through Git Bash, which is what
     # Claude Code itself requires there.
     strategy:
@@ -32,3 +32,11 @@ jobs:
       - run: bash test/brief.test.sh
       - run: bash test/review.test.sh
       - run: bash test/debate.test.sh
+  # The ruleset requires a check named "test": one job that passes only
+  # when every system passed.
+  test:
+    needs: os
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: '[ "${{ needs.os.result }}" = success ]'
