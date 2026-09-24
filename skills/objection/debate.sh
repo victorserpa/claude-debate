@@ -84,6 +84,12 @@ if [ -z "$base" ]; then
 fi
 goal="${1:-not stated}"
 scope="${2:-not stated}"
+base_note=""
+if [ -n "$defaulted" ]; then
+  base_note="base: $base (the default: \"$defaulted\" is not a branch on origin, so it was read as the goal)"
+  # Said before anything is spent, and again in the summary.
+  echo "objection: $base_note" >&2
+fi
 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
@@ -225,9 +231,7 @@ for kind in brief accusation findings defense record; do
 done
 
 echo "objection: $(git rev-parse --abbrev-ref HEAD) @ ${sha:0:7}, budget $budget, diff $diff_base...HEAD"
-if [ -n "$defaulted" ]; then
-  echo "base: $base (defaultBase; \"$defaulted\" is not a branch on origin, so it was read as the goal)"
-fi
+[ -z "$defaulted" ] || echo "$base_note"
 echo "accusers: $accusers"
 echo "findings: $(count BLOCKER) BLOCKER, $(count HIGH) HIGH, $(count MEDIUM) MEDIUM, $(count LOW) LOW"
 echo "defender: $defended"

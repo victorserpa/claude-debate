@@ -215,7 +215,9 @@ printf '%s\n' "$out" | grep -qF "git fetch" || fail "no fetch hint for an unfetc
 # fell back (a typo like "developp" must be visible).
 reset
 out=$(bash "$QDEBATE" developp 2>/dev/null)
-printf '%s\n' "$out" | grep -qF "base: develop (defaultBase" || fail "a defaulted base is not announced ($out)"
+printf '%s\n' "$out" | grep -qF "base: develop (the default" || fail "a defaulted base is not announced ($out)"
+out=$(bash "$QDEBATE" develop 2>/dev/null)
+printf '%s\n' "$out" | grep -qF "base: develop (the default" && fail "a base given by name was announced as defaulted"
 # An agent that names a Claude model runs the extra accuser on that model
 # (the reviewers come from the base, so the base gets this config).
 git update-ref refs/remotes/origin/develop HEAD

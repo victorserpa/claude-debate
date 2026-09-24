@@ -484,7 +484,7 @@ git -C "$T/named" remote remove mirror
 # connects). The fork keeps its real (local) URL; the alias is a second
 # remote that makes the match ambiguous only if it is kept: blocked (2)
 # means it was taken for GitHub, allowed (0) means it was not.
-printf 'Host github-work\n  HostName github.com\nHost gitlab-work\n  HostName gitlab.com\n' >"$T/ssh_config"
+printf 'Host github-work github.com-work\n  HostName github.com\nHost gitlab-work\n  HostName gitlab.com\n' >"$T/ssh_config"
 export OBJECTION_SSH_CONFIG="$T/ssh_config"
 git -C "$T/named" remote add alias1 "git@github-work:me/repo.git"
 check 2 "$T/named" Bash 'gh pr create --head me:feat --base develop -R up/repo'
@@ -496,6 +496,18 @@ git -C "$T/named" remote set-url alias1 "git@github.com.evil.io:me/repo.git"
 check 0 "$T/named" Bash 'gh pr create --head me:feat --base develop -R up/repo'
 git -C "$T/named" remote set-url alias1 "ssh://git@github-work/me/repo.git"
 check 2 "$T/named" Bash 'gh pr create --head me:feat --base develop -R up/repo'
+git -C "$T/named" remote set-url alias1 "git@github.com-work:me/repo.git"
+check 2 "$T/named" Bash 'gh pr create --head me:feat --base develop -R up/repo'
+# ssh cannot answer: fail closed (kept, so ambiguous, so blocked), even for
+# an alias that would have resolved elsewhere.
+printf '#!/bin/bash\nexit 255\n' >"$T/bin/ssh" && chmod +x "$T/bin/ssh"
+git -C "$T/named" remote set-url alias1 "git@gitlab-work:me/repo.git"
+check 2 "$T/named" Bash 'gh pr create --head me:feat --base develop -R up/repo'
+rm -f "$T/bin/ssh"
+# A host that starts with "-" never reaches ssh as an option; kept (blocked).
+git -C "$T/named" remote set-url alias1 "ssh://-oProxyCommand=touch%20$T/pwned/me/repo.git"
+check 2 "$T/named" Bash 'gh pr create --head me:feat --base develop -R up/repo'
+[ -e "$T/pwned" ] && { echo "FAIL: a remote URL ran a command through ssh"; failures=$((failures + 1)); }
 git -C "$T/named" remote remove alias1
 unset OBJECTION_SSH_CONFIG
 gitc -C "$T/named" commit -q --allow-empty -m later
