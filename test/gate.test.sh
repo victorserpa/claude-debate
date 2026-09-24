@@ -253,6 +253,12 @@ GLAB_SHA=deadbeefdeadbeefdeadbeefdeadbeefdeadbeef check 2 "$GL" Bash 'glab mr up
 GLAB_SHA=deadbeefdeadbeefdeadbeefdeadbeefdeadbeef check 2 "$GL" Bash 'glab mr update 5 -r'
 GLAB_SHA=deadbeefdeadbeefdeadbeefdeadbeefdeadbeef check 0 "$GL" Bash 'glab mr update 5 --title x'
 GLAB_SHA=$GL_SHA check 0 "$GL" Bash 'glab mr update --label bug 5 --ready'
+# Leaving draft another way (--draft=false, --wip=false) is the same act.
+GLAB_SHA=deadbeefdeadbeefdeadbeefdeadbeefdeadbeef check 2 "$GL" Bash 'glab mr update 5 --draft=false'
+GLAB_SHA=deadbeefdeadbeefdeadbeefdeadbeefdeadbeef check 2 "$GL" Bash 'glab mr update 5 --wip=false'
+GLAB_SHA=deadbeefdeadbeefdeadbeefdeadbeefdeadbeef check 0 "$GL" Bash 'glab mr update 5 --draft'
+# A value before the number is not the number (the stub answers only 5).
+GLAB_SHA=$GL_SHA check 0 "$GL" Bash 'glab mr update --description 9 5 --ready'
 # Innocent look-alikes.
 check 0 "$N" Bash 'glab mr list'
 check 0 "$N" Bash 'glab mr view 5'

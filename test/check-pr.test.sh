@@ -157,6 +157,13 @@ grep -q "^good /api/v4/projects/42/merge_requests/7$" "$T/api.log" || { echo "FA
 apirun 0 bad "$(full "$GCODE" main)" false
 apirun 1 bad "$(full "$GCODE" main)" true
 apirun 1 bad "" false
+# Older GitLab sets no truncation flag: a description of 2700 characters or
+# more is taken as cut.
+long="$(printf 'x%.0s' $(seq 2700))
+$(full "$GCODE" main)"
+apirun 1 bad "$long" ""
+# ...while the same record, short, passes on that fallback.
+apirun 0 bad "$(full "$GCODE" main)" ""
 kill $srv 2>/dev/null; wait $srv 2>/dev/null
 # Outside a merge request pipeline: refuse.
 glrun 1 "$GCODE" main "$(full "$GCODE" main)" ""

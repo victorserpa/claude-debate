@@ -785,13 +785,17 @@ export function gate(input) {
     // in `merge`, -d is a switch, so the sets are kept apart.
     const GLAB_UPDATE_VALUE = new Set([
       "-t", "--title", "-l", "--label", "--reviewer", "-m", "--milestone", "--target-branch",
+      // Not in the current docs; older glab had it. Skipping its value
+      // keeps a number in a description from being read as the MR.
+      "-d", "--description",
     ]);
     for (const m of glabMatches) {
       const [, glabGlobals, mrGlobals, rawAction, rest] = m;
       const action = rawAction === "new" ? "create" : rawAction;
       if (/(^|\s)(--help|-h)\b/.test(rest)) continue;
       // `glab mr update` counts only when it takes a draft to review.
-      if (action === "update" && !/(^|\s)(--ready|-r)(\s|=|$)/.test(rest)) continue;
+      // (--ready/-r, or leaving draft with --draft=false / --wip=false).
+      if (action === "update" && !/(^|\s)((--ready|-r)(\s|=|$)|--(draft|wip)=false\b)/.test(rest)) continue;
       if (/\bxargs\b[^;&|\n]*$/.test(active.slice(0, m.index + 1)))
         block("glab mr merge through xargs hides which merge request it is. Put its number in the command itself.", false);
       const dir = dirBefore(m.index);
