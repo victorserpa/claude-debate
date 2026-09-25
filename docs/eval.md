@@ -60,7 +60,7 @@ and the rerun counted it. Run the eval yourself with `bash eval/run.sh`
 (`OBJECTION_RUNNER=gemini` or `codex` for the others, and
 `OBJECTION_GEMINI_MODEL` for the model). It calls a real model, so CI
 runs only its scoring, against a fake reviewer (test/eval.test.sh).
-Eighteen small cases prove the reviewers catch these bugs, not that they
+Nineteen small cases prove the reviewers catch these bugs, not that they
 catch every bug.
 
 ## Real bugs, replayed

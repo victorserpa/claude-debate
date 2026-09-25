@@ -41,6 +41,8 @@ while IFS= read -r line; do
       curl -fsSL "https://raw.githubusercontent.com/$repo/$rev/$f" -o "$out/$name.tmp/$side/$f" || rm -f "$out/$name.tmp/$side/$f"
     done
   done
+  # A download that failed on every file is not a fixture.
+  [ -n "$(find "$out/$name.tmp/change" -type f 2>/dev/null)" ] || { echo "fetch failed: $name" >&2; rm -rf "$out/$name.tmp"; exit 1; }
   printf '{"bases":["main"]}\n' >"$out/$name.tmp/config.json"
   GOAL="$goal" LINE="$line" node -e '
     const c = JSON.parse(process.env.LINE);

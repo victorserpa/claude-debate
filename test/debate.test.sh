@@ -443,6 +443,11 @@ d="$cdir/record-$(git rev-parse HEAD).md"
 grep -q "Carried over from ${old:0:7}" "$d" || fail "the draft does not say it was carried over"
 grep -q '^TODO(judge): confirm the rulings' "$d" || fail "the carried draft has no line for the judge"
 grep -q '^1. Open.$' "$d" || fail "the old rulings were not carried"
+# A git diff that fails while listing the changed files: not carried.
+mkdir -p "$T/badgit" && realgit=$(command -v git)
+printf '#!/bin/sh\ncase "$*" in *"--no-renames --name-only -z"*) exit 1;; esac\nexec "%s" "$@"\n' "$realgit" >"$T/badgit/git" && chmod +x "$T/badgit/git"
+reset; PATH="$T/badgit:$PATH" bash "$DEBATE" main >/dev/null 2>&1
+[ -e "$T/ran-accuser" ] || fail "a failed git diff carried the record over"
 # The base gains a commit in a.js: the diff was not judged against it.
 git checkout -q main && printf '0\n' >b.tmp && cat b.tmp a.js >a.new && mv a.new a.js && rm b.tmp && git add . && gitc commit -q -m "base touches a.js" && git update-ref refs/remotes/origin/main HEAD
 git checkout -q feat && gitc rebase -q main 2>/dev/null || { gitc rebase --abort; fail "test setup: rebase conflicted"; }

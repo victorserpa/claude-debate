@@ -324,7 +324,9 @@ if [ -z "$since" ] && [ -z "$force" ] && [ -z "$check_rows" ] && [ -z "${OBJECTI
       # changes the review too. A git that fails here is not "nothing
       # touched".
       # NUL-separated, so a name with a newline reaches git log whole.
-      touched=$( { git diff --no-renames --name-only -z "$new_mb" HEAD &&
+      # pipefail: a failed git diff sends xargs nothing, and BSD xargs then
+      # runs nothing and exits 0, which would read as "nothing touched".
+      touched=$(set -o pipefail; { git diff --no-renames --name-only -z "$new_mb" HEAD &&
         printf '%s\0' .objection.json .claude/objection.json .objection; } |
         xargs -0 git log --format=%h "$old_mb..$new_mb" --) || continue
       [ -z "$touched" ] || continue
