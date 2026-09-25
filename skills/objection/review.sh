@@ -115,16 +115,34 @@ if [ "$role" = defender ]; then
   [ -f "$findings" ] || { echo "findings not found: $findings" >&2; exit 2; }
   top=$(git rev-parse --show-toplevel)
   # Every path:line in the findings that exists in HEAD, once per file and
-  # line, with OBJECTION_EXCERPT_LINES lines each side.
+  # line, with OBJECTION_EXCERPT_LINES lines each side; then every path the
+  # findings name without a line (a type, a data file), from its top. Names
+  # keep [ ] ( ) @: app/[locale]/page.tsx, (group)/x.ts, @types/user.ts.
   : >"$work/excerpts"
-  grep -oE '[A-Za-z0-9_./-]+\.[A-Za-z0-9]+:[0-9]+' "$findings" | sort -u | while IFS=: read -r path line; do
+  : >"$work/seen"
+  n="${OBJECTION_EXCERPT_LINES:-40}"
+  grep -oE '[][A-Za-z0-9_@()./+-]+\.[A-Za-z0-9]+(:[0-9]+)?' "$findings" |
+    awk '!seen[$0]++ { if ($0 ~ /:[0-9]+$/) print; else bare[++b] = $0 } END { for (i = 1; i <= b; i++) print bare[i] }' |
+    while IFS= read -r ref; do
     # Stop reading files once the cap is passed (the rest would be cut).
     [ "$(wc -l <"$work/excerpts")" -gt "${OBJECTION_EXCERPT_MAX:-1500}" ] && break
-    gitref -C "$top" cat-file -e "HEAD:$path" 2>/dev/null || continue
-    n="${OBJECTION_EXCERPT_LINES:-40}"
-    from=$((line > n ? line - n : 1))
-    printf '## %s (lines %s-%s)\n\n```\n' "$path" "$from" "$((line + n))"
-    gitref -C "$top" show "HEAD:$path" | awk -v a="$from" -v b="$((line + n))" 'NR>=a && NR<=b {printf "%5d  %s\n", NR, $0}'
+    path="${ref%:*}" line=""
+    [ "$path" = "$ref" ] || line="${ref##*:}"
+    # Prose around a name: "(src/a.ts:3)". Stripped only when the name as
+    # written is not a file, since [locale]/ is part of a real one.
+    if ! gitref -C "$top" cat-file -e "HEAD:$path" 2>/dev/null; then
+      path="${path#"${path%%[A-Za-z0-9_@.]*}"}"
+      gitref -C "$top" cat-file -e "HEAD:$path" 2>/dev/null || continue
+    fi
+    if [ -z "$line" ]; then
+      grep -qxF "$path" "$work/seen" && continue
+      from=1 to=$((2 * n))
+    else
+      from=$((line > n ? line - n : 1)) to=$((line + n))
+    fi
+    printf '%s\n' "$path" >>"$work/seen"
+    printf '## %s (lines %s-%s)\n\n```\n' "$path" "$from" "$to"
+    gitref -C "$top" show "HEAD:$path" | awk -v a="$from" -v b="$to" 'NR>=a && NR<=b {printf "%5d  %s\n", NR, $0}'
     printf '```\n\n'
   done >"$work/excerpts"
   max="${OBJECTION_EXCERPT_MAX:-1500}"

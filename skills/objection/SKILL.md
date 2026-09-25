@@ -75,8 +75,8 @@ It prints a summary and the draft's path: read that one file.
   comes APPROVED with one `TODO(judge)` line. Read the diff and replace
   it with one sentence of your own on what it does and why it is safe, or
   write the findings and fix the counts and verdict.
-- A diff over 800 lines: tell the human before spending, and suggest
-  splitting the PR.
+- **Exit 5**: over 800 changed lines. Tell the human before spending and
+  suggest splitting the PR; `debate.sh --large` reviews it as it is.
 
 **The budget** (`budget` in `.objection.json`; **`lean` when absent**):
 

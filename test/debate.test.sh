@@ -433,6 +433,17 @@ printf '{"bases":["main"],"smallDiff":0}\n' >.objection.json && printf '2\n' >>a
 reset; bash "$DEBATE" main >/dev/null 2>&1
 grep -q "config .objection.json from the working copy (origin/main has none yet) sha256:" "$(git rev-parse --git-common-dir)/objection/record-$(git rev-parse HEAD).md" ||
   fail "the first PR's record does not name the working copy's config"
+# A diff over the large threshold is refused before any reviewer runs;
+# --large reviews it anyway.
+reset
+rc=0; OBJECTION_LARGE_DIFF=1 bash "$DEBATE" --force main >/dev/null 2>"$T/large-err" || rc=$?
+[ "$rc" = 5 ] || fail "a large diff did not exit 5 (got $rc)"
+[ -e "$T/ran-accuser" ] && fail "a large diff ran the accuser"
+grep -q "suggest splitting the PR" "$T/large-err" || fail "the large-diff refusal does not say what to do"
+reset
+OBJECTION_LARGE_DIFF=1 bash "$DEBATE" --large --force main >/dev/null 2>&1
+[ -e "$T/ran-accuser" ] || fail "--large did not review the large diff"
+
 # A rebase that keeps the diff: the APPROVED record carries over and no
 # reviewer runs, unless the base gained a commit in a changed file.
 K="$T/carry"

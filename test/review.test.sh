@@ -26,6 +26,7 @@ R="$T/repo"
 git init -q "$R" && cd "$R" || exit 1
 printf 'root rules\n' >CLAUDE.md
 mkdir -p src && seq 1 200 | sed 's/^/code line /' >src/a.ts
+mkdir -p 'app/[locale]' @types && printf 'layout line %s\n' 1 2 3 4 5 6 >'app/[locale]/layout.tsx' && seq 1 100 | sed 's/^/type line /' >@types/user.ts
 git add . && gitc commit -q -m base
 printf '# brief\nthe diff\n' >"$T/brief.md"
 
@@ -64,6 +65,16 @@ has "$T/stdin" "## src/a.ts (lines 60-140)"
 has "$T/stdin" "  100  code line 100"
 hasnt "$T/stdin" "code line 141"
 hasnt "$T/stdin" "## missing/file.ts"
+# Names with [ ] and @ (Next.js routes, @types), prose around a name, and a
+# file named without a line, read from its top.
+printf '| 1 | HIGH | BUG | app/[locale]/layout.tsx:5 | x, see (src/a.ts:150) | read | inspect @types/user.ts |\n' >"$T/findings2.md"
+rm -f "$T/stdin"
+bash "$REVIEW" defender "$T/brief.md" "$T/findings2.md" >/dev/null 2>&1
+has "$T/stdin" "## app/[locale]/layout.tsx (lines 1-45)"
+has "$T/stdin" "    5  layout line 5"
+has "$T/stdin" "## src/a.ts (lines 110-190)"
+has "$T/stdin" "## @types/user.ts (lines 1-80)"
+hasnt "$T/stdin" "type line 81"
 # A dirty working copy does not leak: excerpts come from HEAD. The recorded
 # stdin is removed first, so the case cannot pass on the previous run.
 printf 'UNCOMMITTED\n' >>src/a.ts

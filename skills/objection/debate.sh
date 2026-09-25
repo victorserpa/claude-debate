@@ -8,6 +8,8 @@
 #                                                      when the human asked for it
 #   --force                                            re-run a commit whose record
 #                                                      is already judged
+#   --large                                            review a diff over 800 changed
+#                                                      lines anyway (else exit 5)
 #
 # Rounds are capped: the base config's maxRounds, else 2 under lean and 3
 # otherwise. A round is a commit of this branch (since the base) that has
@@ -53,11 +55,13 @@ gitref() { MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' git "$@"; }
 since=""
 extra=""
 force=""
+large=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --since) since="${2:?--since needs the commit of the previous round}"; shift 2 ;;
     --extra-round) extra=yes; shift ;;
     --force) force=yes; shift ;;
+    --large) large=yes; shift ;;
     *) break ;;
   esac
 done
@@ -244,6 +248,16 @@ draft_tail() {
 # threshold is the base config's smallDiff (default 20; 0 turns it off),
 # or OBJECTION_SMALL_DIFF.
 lines=$(sed -n 's/^<!-- objection-lines: \([0-9]*\) -->$/\1/p' "$header" | head -n 1)
+# A diff past OBJECTION_LARGE_DIFF (800) changed lines is refused before
+# anything is spent: the brief keeps only its first lines, and reviewers
+# then guess about the code cut off. Measured on a 4600-line PR: its one
+# HIGH was about a type in a file past the cut, and it was wrong.
+large_max="${OBJECTION_LARGE_DIFF:-800}"
+case "$large_max" in '' | *[!0-9]*) large_max=800 ;; esac
+if [ -z "$large" ] && [ -n "$lines" ] && [ "$large_max" -gt 0 ] && [ "$lines" -gt "$large_max" ]; then
+  echo "objection: the diff has $lines changed lines, over $large_max. Tell the human before spending: suggest splitting the PR, or run debate.sh --large to review it as it is (the brief keeps the first ${OBJECTION_BRIEF_MAX_LINES:-3000} lines of the diff)." >&2
+  exit 5
+fi
 small=$(sed -n 's/^<!-- objection-small-diff: \([0-9]*\) -->$/\1/p' "$header" | head -n 1)
 [ -z "${OBJECTION_SMALL_DIFF:-}" ] || small="$OBJECTION_SMALL_DIFF"
 case "$small" in '' | *[!0-9]*) small=20 ;; esac
