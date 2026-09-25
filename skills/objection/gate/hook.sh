@@ -24,6 +24,8 @@ cwd=$(printf '%s' "$in" | sed -n 's/.*"cwd"[[:space:]]*:[[:space:]]*"\([^"]*\)".
 # `cd <dir> && gh ...`: the directories the command changes to count too.
 cds=$(printf '%s' "$in" | grep -oE '(^|[^A-Za-z0-9_])cd +[^;&|" ]+' | sed 's/.*cd *//')
 optin=""
+# Split on newlines only, and no globbing: a target is tested as written.
+set -f
 IFS_old=$IFS
 IFS='
 '
