@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- `hook.sh` run live on all four hosts: Claude Code, Cursor, Codex
+  (0.156) and Gemini CLI (0.61) each blocked `gh pr create` without a
+  record and allowed it with one. Codex and Gemini asked to trust the
+  folder and the changed hook first.
+
 ## 0.20.0 (2026-09-25)
 
 - **Twelve new eval cases**, not run yet: Rust, Java, a SQL migration,
