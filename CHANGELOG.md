@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.18.0 (2026-09-25)
 
 - **Real bugs, replayed.** `eval/real/` lists nine regressions from
   CPython, Redis, Rails, Django, Go, Vue, ESLint and curl, each a commit a
