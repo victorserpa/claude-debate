@@ -311,26 +311,35 @@ jobs:
 ```
 
 A push changes the head SHA, so the check fails again until the new
-commits are debated and the body is updated.
+commits are debated and the body is updated. GitHub's *Update branch*
+button is a push too: it adds a merge commit, which needs its own round.
 
 **3. Independent review in CI (optional).** The record is written on the
 agent's machine, with your credentials, so an agent that sets out to
-cheat can forge one. `review: true` adds a second step that runs the
+cheat can forge one. `review: true` runs the
 accuser itself, on GitHub's runner, with a key the agent never sees, on
 the head SHA GitHub reports, and fails when it finds a BLOCKER
 (`fail-on: high` for HIGH too, `none` to only report). The findings go
 to the job summary. The PR's code is never checked out or run: the base
 and the PR head are fetched as commits, and the scripts come from the
-action. About $0.05 per push on sonnet. Keep the template's
-`pull_request_target`: it runs from the base branch, and it is the
-trigger that gives a fork's PR the key (`pull_request` gives forks no
-secrets, so the step fails asking for one). The `claude` CLI is
+action. About $0.05 per push on sonnet. It lives in its own workflow,
+[`templates/github/objection-review.yml`](skills/objection/templates/github/objection-review.yml),
+which does not run on `edited`: a body edit changes no code, and a
+skipped run in the record workflow would count as the latest result
+and hide a failed review. Keep its `pull_request_target`: it runs from
+the base branch, so a PR cannot edit its own reviewer. A PR from a fork
+fails the review unless `review-forks: "true"`, so a stranger's pushes
+do not spend your key; review those by hand, or turn it on. A reply
+that is neither a findings table nor `NO FINDINGS` fails the check, as
+does a diff too large to fit the brief (unless `fail-on: none`). The
+reviewer runs without `GITHUB_TOKEN` in its environment. The `claude` CLI is
 installed at a pinned version (`claude-version`), since a new one can
 change the flags the reviewer is run with.
 
 ```yaml
       - uses: victorserpa/objection@v1
         with:
+          record: "false"
           review: true
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
@@ -345,15 +354,17 @@ Gemini CLI (pinned with `gemini-version`), with a Gemini API key, which
 has a free tier. `gemini-model` picks the model; empty uses the CLI's
 default. It was run live through `ci-review.sh` on a planted bug (caught
 as BLOCKER, check failed), and it reviews every same-repository PR here
-(the `review (gemini)` job in `.github/workflows/governance.yml`). One difference
-from the claude runner, which gets no tools: the Gemini CLI keeps the
-read-only tools of its plan mode (file reads, confined to an empty
-directory, and web search). It has no shell, so it cannot read the key
-from its environment.
+(`.github/workflows/review.yml`). Like the claude runner, it gets no
+tools: an admin policy denies every tool and MCP server, and the run
+fails if the policy does not load or if any tool call succeeds anyway.
+`runner: codex` (local only) disables the shell, web search, plugins
+and hooks, ignores the user's config, and fails if the output shows a
+command, a file change or a web search.
 
 ```yaml
       - uses: victorserpa/objection@v1
         with:
+          record: "false"
           review: true
           runner: gemini
           gemini-api-key: ${{ secrets.GEMINI_API_KEY }}
@@ -535,6 +546,17 @@ it runs them in one session and says so in the record.
     `review.sh` keeps in `.git/objection/usage.log`;
   - answers come in a fixed table capped at 15 rows, and the gate hook
     runs outside the model and costs no tokens.
+
+## Uninstall
+
+`/plugin uninstall objection@objection` removes the skill and the
+Claude Code hook. `init` also wrote files to the repository: delete
+`.objection.json`, the hook entries it added (`.claude/settings.json`,
+`.codex/hooks.json`, `.gemini/settings.json`, `.cursor/hooks.json`),
+`.github/workflows/objection*.yml` and `.gitlab/objection.gitlab-ci.yml`,
+then drop `record` and `review` from the required checks. Records live
+in `.git/objection/` (local, never pushed); precedents in
+`.objection/precedents.md`, which you may want to keep.
 
 ## How it compares to Ruflo
 

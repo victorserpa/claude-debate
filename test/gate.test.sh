@@ -166,6 +166,8 @@ check 2 $O Bash 'gh pr merge 5 --auto --squash'
 export STUB_SHA=deadbeef
 check 2 $O Bash 'gh pr merge 5 --squash'
 check 2 $O Bash 'gh pr ready 12'
+check 0 $O Bash 'gh pr ready 12 --undo'
+check 2 $O Bash 'gh pr ready 12 --undone'
 export STUB_SHA=$OK_SHA STUB_BASE=master
 check 2 $O Bash 'gh pr merge 5 --squash'
 export STUB_BASE=develop

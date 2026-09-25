@@ -687,9 +687,11 @@ export function gate(input) {
 
     // The record counts by its LAST verdict line, the same one stamp.sh reads.
     // It also needs the stamp that only stamp.sh writes on the first line, with
-    // the SHA and the base the diff was debated against: a file written by hand
-    // into `.git/objection/` does not count, and a record debated against one base
-    // does not release a PR to another base (different diff, different accusers).
+    // the SHA and the base the diff was debated against. That checks shape, not
+    // origin: anyone can write a stamped file by hand, so this stops an agent that
+    // skipped the debate, not one that forges a record (the CI review is the answer
+    // to that). A record debated against one base does not release a PR to another
+    // base (different diff, different accusers).
     function approved(common, sha, prBase) {
       const file = join(common, "objection", `${sha}.md`);
       if (!existsSync(file)) return `no /objection record for commit ${sha.slice(0, 7)}.`;
@@ -712,6 +714,8 @@ export function gate(input) {
       // Help and disabling auto-merge touch no PR.
       if (/(^|\s)(--help|-h)\b/.test(rest)) continue;
       if (action === "merge" && /(^|\s)--disable-auto\b/.test(rest)) continue;
+      // Back to draft only takes a PR further from merging.
+      if (action === "ready" && /(^|\s)--undo\b/.test(rest)) continue;
       // Target from stdin (`... | xargs gh pr merge`): the hook would check the
       // current branch's PR while another one gets merged.
       if (/\bxargs\b[^;&|\n]*$/.test(active.slice(0, m.index + 1)))

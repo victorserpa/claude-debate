@@ -1,5 +1,53 @@
 # Changelog
 
+## 0.17.0 (2026-09-24)
+
+**A security pass, and a round cap the script enforces.** Upgrade from
+0.16: it let a diff plant brief markers (below).
+
+- **Fixed, critical (0.16):** the definitions section put code from the
+  repository into the brief, and debate.sh read its markers (budget,
+  model, invariant checks) from anywhere in the brief, so a planted line
+  could turn an invariant check off or change the model. brief.sh now
+  ends its header with `<!-- objection-header-end -->` and debate.sh
+  reads markers only above it.
+- Gemini reviewers run under an admin policy that denies every tool and
+  MCP server; the run fails if the policy does not load or a tool call
+  succeeds. Before, a bad policy was ignored without a word.
+- Codex reviewers run ephemeral, with the user's config, rules, shell,
+  web search, plugins, apps and hooks off, and fail if the stream shows
+  a command, a file change or a web search.
+- CI review: a fork's PR fails unless `review-forks: "true"`, so strangers
+  cannot spend the key; the reviewer runs without `GITHUB_TOKEN`; a reply
+  with no findings table and no `NO FINDINGS` fails; a truncated brief
+  fails (unless `fail-on: none`); the PR comment neutralizes `<!--`,
+  images and mentions, and only edits the bot's own comment.
+- The review has its own workflow template,
+  `templates/github/objection-review.yml`, without `edited`: a skipped run
+  in the record workflow counted as the latest result and hid a failure.
+- The local gate reads the opt-in from the directory each command runs
+  in (`cd repo && gh pr create` from a session started elsewhere is
+  checked against that repository), treats `GH_REPO` like `-R`,
+  and lets `gh pr ready --undo` through.
+- **Round cap:** debate.sh refuses a round past `maxRounds` (2 under
+  lean, 3 otherwise; new config key) and exits 4, telling the agent to
+  close the record and ask the human. `--extra-round` runs one more when
+  the human asks; `--force` re-debates a commit already judged. SKILL.md
+  now says MEDIUM and LOW findings may stay Open: fix them only when
+  small and in scope. An agent had saved "every finding becomes a fix"
+  and ran a PR through 8 rounds, each one reviewing the previous fix.
+- Docs-only is decided by extension (md, mdx, rst, txt, adoc), and a
+  rename counts under both names, so renaming code to `.md` is not
+  docs-only.
+- PR bodies with CRLF line endings are read correctly by the check and
+  the precedent parser.
+- pr-body.sh keeps text written below the old record.
+- File names with non-ASCII characters reach invariant regexes as they
+  are (git quoted them before).
+- git grep in the definitions step has a timeout.
+- README: an Uninstall section, and the isolation of each runner as it
+  is now.
+
 ## 0.16.0 (2026-09-24)
 
 **Easier to set up, sees past the diff, speaks up on the PR.**

@@ -15,8 +15,8 @@
 #   finding.
 #
 # The first line it writes is a stamp with the SHA and the base. The hook
-# only accepts stamped records, so a file dropped into .git/objection/ by hand
-# does not count. Nothing stops someone from stamping a made-up record: the
+# only accepts stamped records, so a file without the stamp does not count.
+# Nothing stops someone from stamping a made-up record: the
 # rule that the record comes out of the debate, not out of whoever wrote the
 # code, lives in SKILL.md. This is a process guard, not a security boundary.
 set -eu

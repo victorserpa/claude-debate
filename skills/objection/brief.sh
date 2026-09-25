@@ -201,7 +201,7 @@ process.stdin.setEncoding("utf8").on("data", (d) => (diff += d)).on("end", () =>
     // ("getUser: async (").
     const re = `(function[*]?[[:space:]]+${n}|def[[:space:]]+${n}|func[[:space:]]+(\\([^)]*\\)[[:space:]]*)?${n}|fn[[:space:]]+${n}|^(export[[:space:]]+)?(const|let|var)[[:space:]]+${n}[[:space:]]*=|class[[:space:]]+${n}|^[[:space:]]*((public|private|protected|static|async|override)[[:space:]]+)*${n}[[:space:]]*\\([^)]*\\)[^;]*\\{)([^A-Za-z0-9_]|$)|${n}[[:space:]]*:[[:space:]]*(async[[:space:]]*)?(function|\\()`;
     let hits = [];
-    try { hits = execFileSync("git", ["grep", "-n", "-E", re, "HEAD", ...pathspec], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).split("\n").filter(Boolean); } catch { continue; }
+    try { hits = execFileSync("git", ["grep", "-n", "-E", re, "HEAD", ...pathspec], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 20000, maxBuffer: 64 << 20 }).split("\n").filter(Boolean); } catch { continue; }
     // A test file defines its own helpers: only a change to tests reads them.
     hits = hits.map((h) => h.match(/^HEAD:(.+?):(\d+):(.*)$/))
       .filter((m) => m && !addedText.has(m[3].trim()) && (onlyTests || !isTest(m[1])));
@@ -209,7 +209,7 @@ process.stdin.setEncoding("utf8").on("data", (d) => (diff += d)).on("end", () =>
     for (const [, file, at] of hits) {
       if (defs >= 8 || lines >= 80) break;
       let body = [];
-      try { body = execFileSync("git", ["show", `HEAD:${file}`], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).split("\n"); } catch { continue; }
+      try { body = execFileSync("git", ["show", `HEAD:${file}`], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 20000, maxBuffer: 64 << 20 }).split("\n"); } catch { continue; }
       const take = body.slice(Number(at) - 1, Number(at) - 1 + Math.min(12, 80 - lines));
       // Numbered like an excerpt: no line of the branch starts a line here.
       const numbered = take.map((l, k) => `${String(Number(at) + k).padStart(5)}  ${l}`);
