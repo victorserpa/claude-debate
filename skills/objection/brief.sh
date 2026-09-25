@@ -53,7 +53,7 @@ dest="$(cd "$(git rev-parse --git-common-dir)" && pwd)/objection"
 mkdir -p "$dest"
 out="$dest/brief-$sha.md"
 
-# Same noise filter as the review diff in SKILL.md.
+# The noise filter: lockfiles, snapshots, minified and generated files.
 X=(-- . ':!*.lock' ':!*lock.json' ':!*lock.yaml' ':!*.snap' ':!*.min.*' ':!dist/**' ':!build/**' ':!**/generated/**')
 # OBJECTION_BRIEF_STRICT=1 (the CI review, a barrier): only lockfiles stay
 # out. Build output is what a JavaScript Action ships (dist/index.js), so
@@ -165,19 +165,23 @@ else
 fi
 
 diff=$(git diff -U3 "$diff_base"...HEAD "${X[@]}")
-total=$(printf '%s\n' "$diff" | wc -l | tr -d ' ')
 # The diff as the reviewers read it: each hunk line numbered by the new
 # file, so a finding cites the line the code is on instead of one counted
 # from the @@ header (measured: off by one on eval/fixtures/prompt-injection).
-# Same line count as the raw diff, so the truncation below cuts the same.
+# Header lines that repeat what "diff --git" says (index hashes, and the
+# ---/+++ pair unless one side is /dev/null: a new or deleted file) are
+# dropped: tokens the reviewers pay for and never use.
 numbered=$(printf '%s\n' "$diff" | awk '
   /^diff --git / { hunk = 0; print; next }
+  !hunk && /^index [0-9a-f]+\.\.[0-9a-f]+/ { next }
+  !hunk && /^(---|\+\+\+) / && !/\/dev\/null/ { next }
   /^@@ / { hunk = 1; split($3, a, ","); n = substr(a[1], 2) + 0; print; next }
   !hunk { print; next }
   /^-/ { printf "      %s\n", $0; next }
   /^\\/ { printf "      %s\n", $0; next }
   { printf "%5d %s\n", n, $0; n++ }
 ')
+total=$(printf '%s\n' "$numbered" | wc -l | tr -d ' ')
 # Lines added plus removed, for debate.sh's small-diff skip. A binary
 # file, or an entry with no lines (a rename, a mode change), has no
 # honest count: "unknown", which is never small.

@@ -42,7 +42,7 @@ from the repository:
   gh never reads it: pass `--base` to `gh pr create` (the gate checks the
   base gh will really use: `--base`, else the branch's `gh-merge-base`,
   else the repository default on GitHub).
-- `verify`: the cheap proof that runs before any accuser (step 0 of SKILL.md).
+- `verify`: the cheap proof that runs before any accuser ("The cheap proof first" in SKILL.md).
 - `reviewers`: extra accusers by path regex. `agent` names a reviewer the
   project already defines for your tool (subagent, custom agent, or a
   prompt file path); `focus` goes into its prompt. The generic accuser
@@ -55,9 +55,9 @@ from the repository:
   the rule and a violation is a BLOCKER. Ask the user for the few that
   matter most; do not invent them.
 - `budget` (optional): `lean` (default), `standard` or `thorough`. See
-  "Token budget" in SKILL.md.
+  the budget table in SKILL.md.
 - `precedents` (optional, default `true`): keep and use the repository's
-  precedents (steps 1 and 5 of SKILL.md). `false` turns them off.
+  precedents ("Precedents" in SKILL.md). `false` turns them off.
 
 Then install a gate, and tell the user which one you installed:
 

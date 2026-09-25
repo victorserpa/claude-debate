@@ -150,6 +150,14 @@ grep -qx '   12  12' "$out" || { echo "FAIL: the brief lost the third line of co
 # Each hunk line carries its new-file line number; a removed line none.
 grep -qx '   15 +fifteen' "$out" || { echo "FAIL: an added line is not numbered by the new file"; failures=$((failures + 1)); }
 grep -qx '      -15' "$out" || { echo "FAIL: a removed line got a number"; failures=$((failures + 1)); }
+# Header lines that repeat the file name are dropped; a new file keeps
+# its /dev/null side, which says it is new.
+grep -q '^index [0-9a-f]' "$out" && { echo "FAIL: the brief kept an index line"; failures=$((failures + 1)); }
+grep -qx '+++ b/src/ctx.ts' "$out" && { echo "FAIL: the brief kept a +++ line that repeats the name"; failures=$((failures + 1)); }
+printf 'n\n' >src/new.ts && git add . && gitc commit -q -m new
+out=$(bash "$BRIEF" origin/main)
+grep -qx -- '--- /dev/null' "$out" || { echo "FAIL: a new file lost its /dev/null line"; failures=$((failures + 1)); }
+git reset -q --hard HEAD~1
 grep -qx '   11  11' "$out" && { echo "FAIL: the brief has more than three lines of context"; failures=$((failures + 1)); }
 
 # Nothing to review, or an unknown base: refuse.

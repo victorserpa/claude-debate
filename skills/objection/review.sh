@@ -78,7 +78,7 @@ if [ -z "$runner" ]; then
   if command -v "$claude_bin" >/dev/null 2>&1; then runner=claude
   elif command -v "$codex_bin" >/dev/null 2>&1; then runner=codex; auto_codex=yes
   else
-    echo "neither the claude nor the codex CLI was found: run the $role as a subagent instead (see SKILL.md)." >&2
+    echo "neither the claude nor the codex CLI was found: run the $role as a subagent instead (see reference/manual-roles.md)." >&2
     exit 3
   fi
 fi
@@ -88,7 +88,7 @@ case "$runner" in
   gemini) bin="$gemini_bin" ;;
   *) echo "OBJECTION_RUNNER must be claude, codex or gemini (got $runner)." >&2; exit 2 ;;
 esac
-command -v "$bin" >/dev/null 2>&1 || { echo "$runner CLI not found: run the $role as a subagent instead (see SKILL.md)." >&2; exit 3; }
+command -v "$bin" >/dev/null 2>&1 || { echo "$runner CLI not found: run the $role as a subagent instead (see reference/manual-roles.md)." >&2; exit 3; }
 command -v node >/dev/null 2>&1 || { echo "node not found: it reads the answer." >&2; exit 2; }
 command -v perl >/dev/null 2>&1 || { echo "perl not found: it enforces the timeout." >&2; exit 2; }
 
@@ -189,7 +189,7 @@ failed() {
   # Codex picked only because claude is missing (not logged in, a flag its
   # version rejects): exit 3, so the caller falls back to subagents.
   if [ -n "$auto_codex" ]; then
-    echo "objection: codex was used because claude is missing, and it failed: run the $role as a subagent (see SKILL.md)." >&2
+    echo "objection: codex was used because claude is missing, and it failed: run the $role as a subagent (see reference/manual-roles.md)." >&2
     exit 3
   fi
   exit 1

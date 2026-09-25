@@ -36,7 +36,7 @@
 # OBJECTION_KEEP (default 10) of each kind; stamped records are kept.
 #
 # Exit codes are review.sh's: 3 means no claude CLI (run the roles as
-# subagents, SKILL.md step 1), 2 a missing tool, 1 a failed run. When
+# subagents, reference/manual-roles.md), 2 a missing tool, 1 a failed run. When
 # the defender fails, the draft is still written and summarised, and the
 # exit code is the defender's: rerun only the defense, not the round.
 set -eu
@@ -234,7 +234,7 @@ draft_head() {
 }
 draft_tail() {
   printf '\n## Judge\n\n'
-  printf 'TODO(judge): rule on every finding with the rules of SKILL.md step 3.\n'
+  printf 'TODO(judge): rule on every finding with the rules of SKILL.md "Judge".\n'
   printf '\n## Open\n\n'
   printf 'TODO(judge): what stays open, then OPEN: BLOCKER=<n> HIGH=<n>, then the VERDICT line.\n'
 }
@@ -458,5 +458,5 @@ grep -qiE '^[[:space:]]*\|[[:space:]]*(#[[:space:]]*\|[[:space:]]*)?severity[[:s
   echo "warning: the accusation has no findings table and no NO FINDINGS line: read it before judging; it may not be a review."
 echo "defender: $defended"
 echo "draft record: $record"
-echo "next: judge each finding (SKILL.md step 3), replace the TODO(judge) lines, then stamp.sh."
+echo "next: judge each finding (SKILL.md "Judge"), replace the TODO(judge) lines, then stamp.sh."
 exit "$rc"
