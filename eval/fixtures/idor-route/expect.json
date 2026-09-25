@@ -1,0 +1,1 @@
+{"goal": "Let users delete their invoices", "severity": "HIGH", "match": "owner|authoriz|another user|any user|other users|anyone|IDOR|403|forbidden|not (check|verif)", "file": "src/invoices.js", "lines": [9, 10, 11, 12]}

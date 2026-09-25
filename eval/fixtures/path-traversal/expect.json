@@ -1,0 +1,1 @@
+{"goal": "Read uploads by file name instead of numeric id", "severity": "HIGH", "match": "travers|\\.\\./|anchor|\\^|outside|escape|any file|arbitrary|partial match|substring", "file": "src/files.js", "lines": [5, 8, 9]}

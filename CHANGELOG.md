@@ -15,6 +15,11 @@
   without arguments; `init.sh --help` prints its usage and exits 0.
 - README: run init on the default branch, so the config is not part of
   the first reviewed diff.
+- The eval has three more cases: path traversal through an unanchored
+  regex, a DELETE route without the owner check, and a clean SQL change.
+  claude sonnet and the Gemini CLI default each caught 12 of 12 bugs with
+  no false alarm on the three clean changes, with every reviewer tool
+  off.
 
 ## 0.17.0 (2026-09-24)
 

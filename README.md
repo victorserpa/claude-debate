@@ -63,7 +63,7 @@ and whether the check is required, one line each, with the fix.
 
 ## Known bugs, caught
 
-[`eval/`](eval) plants ten bugs in small repositories and adds two
+[`eval/`](eval) plants twelve bugs in small repositories and adds three
 changes with no bug at all: a negative cart total, an authorization
 check turned into a deny-list, a temp dir leaked on a retry, pages that
 start at 1 but skip the first, a charge that lost its row lock, a SQL
@@ -72,13 +72,18 @@ query built by concatenating a search term, request headers (with the
 `forEach(async ...)` and never awaited, a ban check on a user fetched
 without `await` (the `async` is in a file the PR does not touch), and
 the negative total again with a comment telling the reviewer the change
-is approved. It runs the accuser on each. Latest runs, all twelve cases:
+is approved, a file name checked by a regex with no anchors before it
+reaches `path.join` (path traversal), and a new DELETE route that skips
+the owner check its GET sibling has. One clean change adds `ORDER BY`
+and a bounded `LIMIT` to a parameterized query, to see whether SQL alone
+draws a false alarm. It runs the accuser on each. Latest runs (0.17,
+with every reviewer tool off), all fifteen cases:
 
-| runner | bugs caught | false alarm on the two clean changes | cost |
+| runner | bugs caught | false alarm on the three clean changes | cost |
 |---|---|---|---|
-| claude sonnet, effort medium | 10 of 10 (8 BLOCKER, 2 HIGH) | none | $0.11 for all twelve |
-| gemini-3.1-pro-preview (the Gemini CLI's default) | 10 of 10 (8 BLOCKER, 2 HIGH) | none | about 6k tokens a review (measured on PR #42) |
-| gemini-3-flash-preview | 10 of 10 (9 BLOCKER, 1 HIGH) | none | Flash pricing, below Pro |
+| claude sonnet, effort medium | 12 of 12 (11 BLOCKER, 1 HIGH) | none | $0.18 for all fifteen |
+| gemini-3.1-pro-preview (the Gemini CLI's default) | 12 of 12 (11 BLOCKER, 1 HIGH) | none | about 6k tokens a review (measured on PR #42) |
+| gemini-3-flash-preview (0.16, first twelve cases) | 10 of 10 (9 BLOCKER, 1 HIGH) | none of two | Flash pricing, below Pro |
 
 Severities move a step between runs (a HIGH one run is a BLOCKER the
 next); the catches did not. The cross-file case is why the brief now carries the definitions the
@@ -97,7 +102,7 @@ and the rerun counted it. Run the eval yourself with `bash eval/run.sh`
 (`OBJECTION_RUNNER=gemini` or `codex` for the others, and
 `OBJECTION_GEMINI_MODEL` for the model). It calls a real model, so CI
 runs only its scoring, against a fake reviewer (test/eval.test.sh).
-Twelve small cases prove the reviewers catch these bugs, not that they
+Fifteen small cases prove the reviewers catch these bugs, not that they
 catch every bug.
 
 ## Track record
