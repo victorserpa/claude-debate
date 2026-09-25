@@ -1,1 +1,1 @@
-{"goal": "Newest orders first, with a bounded page size", "clean": true}
+{"goal": "Newest orders first, and let callers ask for up to 200 instead of the fixed 50", "clean": true}

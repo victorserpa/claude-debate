@@ -301,7 +301,8 @@ EOF_CHECKS
 # against the same base) and the commits the base gained touch none of
 # the changed files, no reviewer runs: the old record is carried over and
 # the judge confirms it. A base commit in any changed file (either name
-# of a rename) or in the objection config, a failed invariant check,
+# of a rename) or in the objection config or precedents, a failed
+# invariant check,
 # --since, --force or OBJECTION_NO_CARRY=1: the full round runs.
 carried=""
 if [ -z "$since" ] && [ -z "$force" ] && [ -z "$check_rows" ] && [ -z "${OBJECTION_NO_CARRY:-}" ]; then
@@ -318,11 +319,13 @@ if [ -z "$since" ] && [ -z "$force" ] && [ -z "$check_rows" ] && [ -z "${OBJECTI
       old_mb=$(git merge-base "origin/$base" "$old" 2>/dev/null) || continue
       git merge-base --is-ancestor "$old_mb" "$new_mb" 2>/dev/null || continue
       [ "$(git diff "$old_mb" "$old" | git patch-id --stable | cut -d' ' -f1)" = "$new_pid" ] || continue
-      # Both names of a rename, and the objection config: a base commit
-      # that adds an invariant for these files changes the review too. A
-      # git that fails here is not "nothing touched".
-      changed_files=$(git diff --no-renames --name-only "$new_mb" HEAD) || continue
-      touched=$(printf '%s\n.objection.json\n.claude/objection.json\n' "$changed_files" | tr '\n' '\0' |
+      # Both names of a rename, and the objection config and precedents: a
+      # base commit that adds an invariant or a precedent for these files
+      # changes the review too. A git that fails here is not "nothing
+      # touched".
+      # NUL-separated, so a name with a newline reaches git log whole.
+      touched=$( { git diff --no-renames --name-only -z "$new_mb" HEAD &&
+        printf '%s\0' .objection.json .claude/objection.json .objection; } |
         xargs -0 git log --format=%h "$old_mb..$new_mb" --) || continue
       [ -z "$touched" ] || continue
       carried="$old"
