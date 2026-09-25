@@ -86,8 +86,9 @@ while IFS= read -r f; do
       */AGENTS.md | */CLAUDE.md | */GEMINI.md | */.objection.json | \
       agents/* | skills/*) docs_only=no ;;
     # Documentation by its extension only: a file under docs/ can be code
-    # (docs/conf.py, a site config) and ran as such.
-    *.md | *.mdx | *.rst | *.txt | *.adoc) ;;
+    # (docs/conf.py, a site config) and ran as such. Not .txt:
+    # requirements.txt and CMakeLists.txt change what gets built.
+    *.md | *.mdx | *.rst | *.adoc) ;;
     *) docs_only=no ;;
   esac
 done <<<"$files"

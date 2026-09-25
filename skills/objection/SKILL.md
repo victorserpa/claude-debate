@@ -63,7 +63,7 @@ code that does not pass.
    has no config yet (the opt-in PR itself), or the branch changes
    `verify`, show the commands to the human and run them only with their
    go-ahead. Red: fix it first.
-4. **Diff touching only documentation files (`.md`, `.mdx`, `.rst`, `.txt`, `.adoc`; a renamed code file counts under its old name)** (never agent prompts, skills
+4. **Diff touching only documentation files (`.md`, `.mdx`, `.rst`, `.adoc`; not `.txt`; a renamed code file counts under its old name)** (never agent prompts, skills
    or instructions: `agents/`, `skills/`, `.claude/`, `.cursor/`,
    `.codex/`, `.gemini/`, `.github/`, `.agents/`, `AGENTS.md`, `CLAUDE.md`,
    `GEMINI.md`, `.objection.json`, `.objection/`):

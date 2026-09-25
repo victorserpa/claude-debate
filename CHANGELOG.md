@@ -36,7 +36,8 @@
   now says MEDIUM and LOW findings may stay Open: fix them only when
   small and in scope. An agent had saved "every finding becomes a fix"
   and ran a PR through 8 rounds, each one reviewing the previous fix.
-- Docs-only is decided by extension (md, mdx, rst, txt, adoc), and a
+- Docs-only is decided by extension (md, mdx, rst, adoc; not txt, since
+  requirements.txt changes the build), and a
   rename counts under both names, so renaming code to `.md` is not
   docs-only.
 - PR bodies with CRLF line endings are read correctly by the check and

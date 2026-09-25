@@ -412,6 +412,9 @@ STUB_WANT="5 -R o/r" check 0 $O Bash 'gh -R"o/r" pr merge 5'
 STUB_WANT="5 -R o/other" check 0 $O Bash 'GH_REPO=o/other gh pr merge 5'
 STUB_WANT="5" check 2 $O Bash 'GH_REPO=o/other gh pr merge 5'
 check 2 $O Bash 'GH_REPO="$R" gh pr merge 5'
+# Quotes around a literal value are the shell's, not the repository's.
+STUB_WANT="5 -R o/other" check 0 $O Bash 'GH_REPO="o/other" gh pr merge 5'
+STUB_WANT="5 -R o/other" check 0 $O Bash "GH_REPO='o/other' gh pr merge 5"
 STUB_WANT="5 -R o/r" check 0 $O Bash 'gh --repo="o/r" pr merge 5 --squash'
 # -m and -r are --merge and --rebase, not flags that take a value.
 STUB_WANT="338" check 0 $O Bash 'gh pr merge -m 338'

@@ -319,7 +319,7 @@ agent's machine, with your credentials, so an agent that sets out to
 cheat can forge one. `review: true` runs the
 accuser itself, on GitHub's runner, with a key the agent never sees, on
 the head SHA GitHub reports, and fails when it finds a BLOCKER
-(`fail-on: high` for HIGH too, `none` to only report). The findings go
+(`fail-on: high` for HIGH too, `none` to only report; a review that did not run or did not answer still fails). The findings go
 to the job summary. The PR's code is never checked out or run: the base
 and the PR head are fetched as commits, and the scripts come from the
 action. About $0.05 per push on sonnet. It lives in its own workflow,

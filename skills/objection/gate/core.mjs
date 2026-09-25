@@ -442,6 +442,7 @@ export function gate(input) {
             const plain = !/[\s;&|()`<>$]/.test(inside);
             if (plain && /(^|\s)-[RBH]$/.test(out)) out += ` ${inside}`;
             else if (plain && /(^|\s)--(repo|base|head)=$/.test(out)) out += inside;
+            else if (plain && /(^|[\s;&|(])GH_REPO=$/.test(out)) out += inside;
             else {
               out += "''";
               const code = c === '"' ? substitutions(inside).filter((x) => /\b(gh|glab)\b/.test(x)) : [];
@@ -580,7 +581,7 @@ export function gate(input) {
     const UNREADABLE = "\u0000unreadable";
 
     // GH_REPO selects the repository like -R does: set in the command
-    // (`GH_REPO=o/r gh pr merge 5`, `export GH_REPO=o/r; ...`), else in the
+    // (`GH_REPO=o/r gh pr merge 5`, `export GH_REPO="o/r"; ...`), else in the
     // hook's own environment. Unread, the gate checked PR 5 of the local
     // repository while gh merged PR 5 of another one.
     function envRepo(pos) {

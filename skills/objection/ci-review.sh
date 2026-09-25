@@ -45,8 +45,9 @@ event=$(node -e '
   const e = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
   const p = e.pull_request || {};
   if (!p.number || !p.base || !p.head) process.exit(1);
-  // A fork: the head repository is not the base repository.
-  const fork = !!(p.head.repo && p.base.repo && p.head.repo.full_name !== p.base.repo.full_name);
+  // A fork: the head repository is not the base repository. A deleted
+  // fork has no head repository, and its diff is still an outsider one.
+  const fork = !p.head.repo || !p.base.repo || p.head.repo.full_name !== p.base.repo.full_name;
   console.log([p.number, p.base.ref, p.head.sha, String(p.title || "not stated").replace(/\s+/g, " "), fork ? "fork" : "same"].join("\n"));
 ' "$GITHUB_EVENT_PATH") || { echo "objection review: the event is not a pull request." >&2; exit 1; }
 number=$(printf '%s\n' "$event" | sed -n 1p)
@@ -170,9 +171,13 @@ medium=$(count MEDIUM)
 low=$(count LOW)
 
 # An answer with no findings table and no "NO FINDINGS" line (empty, a
-# refusal, prose) is not a review: counting its rows gave "passed".
+# refusal, prose) is not a review: counting its rows gave "passed". A
+# header row, a finding row without one, or the NO FINDINGS line counts.
+# It fails even under fail-on: none, like an accuser that did not run.
 answered=yes
-grep -qiE '^[[:space:]]*\|[[:space:]]*(#[[:space:]]*\|[[:space:]]*)?severity[[:space:]]*\|' "$accusation" || grep -qx 'NO FINDINGS' "$accusation" || answered=""
+grep -qiE '^[[:space:]]*\|[[:space:]]*(#[[:space:]]*\|[[:space:]]*)?severity[[:space:]]*\|' "$accusation" ||
+  grep -qE '^[[:space:]]*\|([^|]*\|)?[[:space:]]*(BLOCKER|HIGH|MEDIUM|LOW)[[:space:]]*\|' "$accusation" ||
+  grep -qiE '^[[:space:]]*NO FINDINGS\.?[[:space:]]*$' "$accusation" || answered=""
 verdict="passed"
 status=0
 if [ "$rc" != 0 ]; then

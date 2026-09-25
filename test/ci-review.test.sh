@@ -162,6 +162,10 @@ run && fail "a fork's PR passed without a review"
 [ -e "$T/stdin" ] && fail "the accuser ran on a fork's PR"
 has "$T/summary" "not run on a fork's PR"
 OBJECTION_REVIEW_FORKS=true run || fail "review-forks: true did not review the fork's PR"
+# A deleted fork has no head repository: still a stranger's diff.
+printf '{"pull_request":{"number":7,"title":"x","base":{"ref":"main","repo":{"full_name":"o/r"}},"head":{"sha":"%s","repo":null}}}\n' "$head" >"$T/event.json"
+run && fail "a deleted fork's PR passed without a review"
+[ -e "$T/stdin" ] && fail "the accuser ran on a deleted fork's PR"
 event "Add x" "$head"
 # The reviewer sees neither the GitHub token nor the other runner's key.
 answer
@@ -174,6 +178,13 @@ run && fail "an answer with no table passed"
 has "$T/summary" "no findings table"
 printf 'NO FINDINGS\n' >"$T/answer"
 run || fail "NO FINDINGS failed the review"
+printf 'NO FINDINGS.\n' >"$T/answer"
+run || fail "NO FINDINGS. failed the review"
+# Finding rows without a header row are still a table.
+printf '| 1 | LOW | BUG | a.ts:1 | x | read | p |\n' >"$T/answer"
+run || fail "a LOW row without a header failed the review"
+printf 'I could not review this.\n' >"$T/answer"
+OBJECTION_FAIL_ON=none run && fail "fail-on none passed an answer with no table"
 # A diff cut for size fails, unless fail-on is none.
 answer
 OBJECTION_BRIEF_MAX_LINES=2 run && fail "a truncated diff passed"

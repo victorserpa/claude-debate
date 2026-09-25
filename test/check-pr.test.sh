@@ -40,6 +40,9 @@ run 0 "$CODE" "$(record $HEAD origin/main nothing APPROVED | sed 's/$/\r/')"
 DOCREC="$(printf '<!-- objection: sha=%s base=origin/main -->\nVERDICT: APPROVED\n' "$HEAD")"
 run 0 "docs/guide.md" "$DOCREC"
 run 1 "docs/conf.py" "$DOCREC"
+# requirements.txt and CMakeLists.txt change the build.
+run 1 "requirements.txt" "$DOCREC"
+run 1 "CMakeLists.txt" "$DOCREC"
 run 1 "docs/.vitepress/config.mts" "$DOCREC"
 run 1 "$CODE" "$(record $OLD origin/main nothing APPROVED)"
 run 1 "$CODE" "$(record $HEAD origin/develop nothing APPROVED)"
@@ -209,5 +212,33 @@ kill $srv 2>/dev/null; wait $srv 2>/dev/null
 # Outside a merge request pipeline: refuse.
 glrun 1 "$GCODE" main "$(full "$GCODE" main)" ""
 cd "$T" || exit 1
+
+# --- The GitHub files API: a local server stands in for it. A rename is one
+# entry (and one in changed_files) but counts under both names.
+node -e '
+const http = require("http");
+const fs = require("fs");
+const s = http.createServer((q, r) => {
+  r.setHeader("content-type", "application/json");
+  r.end(fs.readFileSync(process.argv[1]));
+}).listen(0, "127.0.0.1", () => fs.writeFileSync(process.argv[2], String(s.address().port)));
+setTimeout(() => process.exit(0), 20000);
+' "$T/files.json" "$T/ghport" &
+ghsrv=$!
+for _ in $(seq 50); do [ -s "$T/ghport" ] && break; sleep 0.1; done
+ghrun() { # expected files-json changed body
+  printf '%s' "$2" >"$T/files.json"
+  node -e 'require("fs").writeFileSync(process.argv[1], JSON.stringify({pull_request:{number:1,head:{sha:process.argv[2]},base:{ref:"main"},body:process.argv[3],changed_files:+process.argv[4]},repository:{full_name:"o/r"}}))' "$T/event.json" "$HEAD" "$4" "$3"
+  GITHUB_EVENT_PATH="$T/event.json" GITHUB_API_URL="http://127.0.0.1:$(cat "$T/ghport")" GITHUB_TOKEN=t node "$CHECK" >/dev/null 2>&1
+  local rc=$?
+  [ "$rc" = "$1" ] || { echo "FAIL github api (expected $1, got $rc): $2"; failures=$((failures + 1)); }
+}
+RENAMED='[{"filename":"src/b.ts","previous_filename":"src/a.ts"}]'
+ghrun 0 "$RENAMED" 1 "$(record $HEAD origin/main nothing APPROVED)"
+# Code renamed to .md is not documentation: the old name counts.
+ghrun 1 '[{"filename":"docs/a.md","previous_filename":"src/a.ts"}]' 1 "$DOCREC"
+ghrun 0 '[{"filename":"docs/b.md","previous_filename":"docs/a.md"}]' 1 "$DOCREC"
+ghrun 1 "$RENAMED" 2 "$(record $HEAD origin/main nothing APPROVED)"
+kill $ghsrv 2>/dev/null; wait $ghsrv 2>/dev/null
 
 if [ "$failures" = 0 ]; then echo "check-pr: all cases passed"; else echo "check-pr: $failures failure(s)"; exit 1; fi
