@@ -18,7 +18,8 @@ debate.
 
 "This skill's directory" means the directory containing this file. The
 scripts there: `debate.sh` (one round), `stamp.sh` (validates and stores
-a record), `pr-body.sh` (puts it in the PR body), `init.sh`, `doctor.sh`,
+a record), `pr-body.sh` (puts it in the PR body), `open-issue.sh` (an
+issue for what stayed open), `init.sh`, `doctor.sh`,
 `precedents.mjs`, and `brief.sh` / `review.sh` (what `debate.sh` runs).
 
 ## init and doctor
@@ -188,7 +189,9 @@ serious finding open, and stores it with a stamp line for the SHA.
 the body (your summary from `OBJECTION_SUMMARY`, then the record, with
 the accusation and defense folded) and prints its path for
 `gh pr create --body-file <path>`. `pr-body.sh --update` replaces the
-record in an open PR's body and keeps the rest. A later push changes the
+record in an open PR's body and keeps the rest. Anything left in "Open":
+`bash <this skill's directory>/open-issue.sh` opens one issue with it
+(once per commit; `--dry-run` shows it first). A later push changes the
 SHA: debate the new commits (`debate.sh --since`) and update the body.
 
 With `"enforce": false` (advisory mode) the hook lets the PR through and

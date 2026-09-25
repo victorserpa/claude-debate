@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **`open-issue.sh`**: one issue for what a stamped record left open (the
+  Open section, the branch, the commit and the PR), once per commit;
+  `--dry-run` prints it. The skill ran `gh issue create` by hand for this.
 - **`/objection try`**: one review of a branch with no setup. `debate.sh`
   needs no config (lean budget, `origin/HEAD` as the base, everything
   under `.git/objection/`), which is how it ran on three other

@@ -23,6 +23,7 @@ skills/objection/            the skill, self-contained
   precedents.mjs             keeps .objection/precedents.md
   gate/core.mjs              gate logic, tool-neutral
   gate/hook.mjs              local hook for Claude Code, Codex, Gemini CLI, Cursor
+  open-issue.sh              one issue for what a record left open
   gate/hook.sh               runs hook.mjs; blocks a PR command when node cannot run
   gate/check-pr.mjs          GitHub check
   templates/                 hook configs per tool + the GitHub workflow
