@@ -1,0 +1,1 @@
+{"goal": "Only admins may delete projects", "severity": "HIGH", "match": "return|still (runs|deletes|executes)|falls through|continues|headers already sent|not stop", "file": "src/routes/projects.ts", "lines": [7, 8, 9]}

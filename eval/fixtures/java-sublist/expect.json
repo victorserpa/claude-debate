@@ -1,0 +1,1 @@
+{"goal": "Page the product list with a page size", "severity": "MEDIUM", "match": "IndexOutOfBounds|out of bounds|past the end|last page|size\\(\\)|exceed|Math\\.min|beyond", "file": "src/main/java/shop/Catalog.java", "lines": [15, 16]}

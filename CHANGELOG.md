@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **Twelve new eval cases**, not run yet: Rust, Java, a SQL migration,
+  Terraform, TypeScript, Ruby, PHP and shell bugs, and four more clean
+  changes (eight in all, for the false-alarm rate). With the nine real
+  bugs, 40 cases. Each brief builds with the bug lines in the diff, and
+  the scorer was checked both ways on hand-written answers.
 - **Whatever breaks node, the message says which.** When the gate cannot
   run, `hook.sh` now tells node not on the hook's PATH (127) from a node
   that would not start (126: a version manager's shim, asdf, mise, volta,

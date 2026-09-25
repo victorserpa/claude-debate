@@ -1,0 +1,1 @@
+{"goal": "Store the quantity compactly on the order line", "severity": "HIGH", "match": "u8|truncat|wrap|256|overflow|free|zero|charged less|mismatch", "file": "src/order.rs", "lines": [4, 7]}

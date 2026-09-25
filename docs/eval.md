@@ -2,8 +2,9 @@
 
 ## Known bugs, caught
 
-[`eval/`](../eval) plants fifteen bugs in small repositories (JavaScript,
-Python and Go) and adds four changes with no bug at all: a negative cart total, an authorization
+[`eval/`](../eval) plants twenty-three bugs in small repositories and adds
+eight changes with no bug at all. The first nineteen cases (JavaScript,
+Python and Go, four of them clean): a negative cart total, an authorization
 check turned into a deny-list, a temp dir leaked on a retry, pages that
 start at 1 but skip the first, a charge that lost its row lock, a SQL
 query built by concatenating a search term, request headers (with the
@@ -62,6 +63,21 @@ and the rerun counted it. Run the eval yourself with `bash eval/run.sh`
 runs only its scoring, against a fake reviewer (test/eval.test.sh).
 Nineteen small cases prove the reviewers catch these bugs, not that they
 catch every bug.
+
+**Added in 0.20, not run yet** (twelve cases, so 31 planted and 9 real,
+40 in all; eight clean changes to measure false alarms instead of four):
+a Rust quantity truncated to `u8` before pricing while shipping uses the
+full one, a Java `subList` past the end of the last page, a migration
+adding a `NOT NULL` column with no default to a table that has rows, a
+Terraform policy that opens the whole uploads bucket to serve avatars, an
+Express 403 without `return` so the delete still runs, a Rails
+`permit!` that lets a user set their own role, a PHP `==` on md5 hashes
+(`0e` magic hashes), and a deploy script that runs `rm -rf "$dir"/*`
+with `$dir` empty once `set -u` is gone. Clean: a Rust helper extracted, a
+TypeScript parameter whose default keeps the old output, a nullable
+column, and a Java log line with a count. Each was checked without a
+model: its brief builds with the bug lines in the diff, and the scorer
+catches a row that cites them and misses one that does not.
 
 ## Real bugs, replayed
 

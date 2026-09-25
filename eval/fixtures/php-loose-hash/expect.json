@@ -1,0 +1,1 @@
+{"goal": "Check password reset tokens by hash", "severity": "HIGH", "match": "==|loose|0e|magic|type juggl|hash_equals|===|md5", "file": "src/reset.php", "lines": [4]}

@@ -1,0 +1,1 @@
+{"goal": "Let users edit their profile fields", "severity": "HIGH", "match": "role|admin|mass assignment|any attribute|every attribute|escalat|privilege", "file": "app/controllers/profiles_controller.rb", "lines": [6]}

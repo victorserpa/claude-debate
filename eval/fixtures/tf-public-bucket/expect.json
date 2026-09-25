@@ -1,0 +1,1 @@
+{"goal": "Serve user avatars through the CDN", "severity": "HIGH", "match": "public|every object|all uploads|whole bucket|avatars/|not only|anyone|Principal", "file": "infra/storage.tf", "lines": [8, 9, 10, 11, 22]}

@@ -1,0 +1,1 @@
+{"goal": "Let the deploy script clean a custom build directory", "severity": "HIGH", "match": "empty|unset|/\\*|root|set -u|:\\?|every file|filesystem", "file": "scripts/deploy.sh", "lines": [2, 4, 5]}

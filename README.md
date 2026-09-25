@@ -67,13 +67,17 @@ and whether the check is required, one line each, with the fix.
 
 ## Known bugs, caught
 
-[`eval/`](eval) plants fifteen bugs in small repositories (JavaScript,
-Python and Go) and adds four changes with no bug at all: a SQL query
+[`eval/`](eval) plants twenty-three bugs in small repositories
+(JavaScript, TypeScript, Python, Go, Rust, Java, Ruby, PHP, shell, SQL
+migrations and Terraform) and adds eight changes with no bug at all: a SQL query
 built by concatenation, a session cookie read with `pickle.loads`, an
 authorization check turned into a deny-list, a DELETE route without the
 owner check its GET has, a Go `err` shadowed by `:=` that marks a failed
 charge paid, a ban check on a user fetched without `await`, and more,
-including a comment telling the reviewer the change is approved.
+including a comment telling the reviewer the change is approved. The
+table below is the first nineteen; the twelve added in 0.20 (the Rust,
+Java, Ruby, PHP, shell, migration and Terraform ones, four of them clean)
+have not been run yet.
 
 | | planted bugs (15) | false alarms (4 clean) | real bugs, replayed (9 × 4 runs) |
 |---|---|---|---|
