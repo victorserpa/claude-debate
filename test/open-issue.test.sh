@@ -109,6 +109,13 @@ out=$(bash "$OI" --dry-run)
 printf '%s' "$out" | head -n 1 | grep -qx "Open findings from commit ${sha:0:7}" || fail "a detached HEAD gave the title [$(printf '%s' "$out" | head -n 1)]"
 git checkout -q -
 
+# An Open section past GitHub's body limit is cut, with a note.
+rec "- 1 (LOW): $(head -c 70000 /dev/zero | tr '\0' x)"
+out=$(bash "$OI" --dry-run)
+[ "${#out}" -lt 65536 ] || fail "a long Open section was not cut (${#out} characters)"
+printf '%s' "$out" | grep -q "cut at 60000 characters" || fail "the cut has no note"
+rec "- 1 (LOW): x"
+
 # --dry-run prints and creates nothing.
 rm -f "$T/created"
 out=$(bash "$OI" --dry-run) || fail "--dry-run failed"

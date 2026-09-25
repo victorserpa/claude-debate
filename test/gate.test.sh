@@ -724,6 +724,9 @@ shrun_at() { # expected run-dir payload-cwd command
 shrun_at 2 "$T" "$O" "gh pr merge 5 --squash"
 shrun_at 2 "$T" "$T" "cd $O && gh pr merge 5 --squash"
 shrun_at 0 "$T" "$F" "gh pr merge 5 --squash"
+# A quoted cd target with a space (JSON-escaped quotes in the payload).
+git init -q "$T/sp ace" && optin "$T/sp ace"
+shrun_at 2 "$T" "$T" "cd \\\"$T/sp ace\\\" && gh pr merge 5 --squash"
 shrun 0 "$F" "gh pr merge 5 --squash"
 shrun 2 "$O" "gh pr create --fill" cursor
 grep -q '"permission":"deny"' "$T/sh.out" || { echo "FAIL: hook.sh sent Cursor no deny"; failures=$((failures + 1)); }
