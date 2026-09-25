@@ -147,10 +147,12 @@ cat >"$T/codex" <<'EOF2'
 #!/bin/bash
 printf '%s\n' "$@" >"$FAKE_DIR/codex-args"
 cat >"$FAKE_DIR/codex-stdin"
+[ -n "${CODEX_RAN:-}" ] && ran='{"type":"item.completed","item":{"type":"command_execution"}}' || ran=""
 last=""
 prev=""
 for a in "$@"; do [ "$prev" = -o ] && last="$a"; prev="$a"; done
 printf '| HIGH | BUG | a.ts:1 | codex finding | read | p |\n' >"$last"
+[ -n "$ran" ] && printf '{"type":"command_execution"}\n'
 printf '{"type":"thread.started"}\n{"type":"turn.completed","usage":{"input_tokens":1234,"cached_input_tokens":0,"output_tokens":56}}\n'
 EOF2
 chmod +x "$T/codex"
@@ -159,7 +161,11 @@ out=$(OBJECTION_CLAUDE=/nonexistent/claude OBJECTION_CODEX="$T/codex" bash "$REV
 has "$T/codex-args" "exec"
 has "$T/codex-args" "read-only"
 has "$T/codex-args" "--skip-git-repo-check"
-has "$T/codex-args" "model_instructions_file='$ROOT/skills/objection/roles/accuser.md'"
+has "$T/codex-args" "model_instructions_file=\"$ROOT/skills/objection/roles/accuser.md\""
+# Its tools off, the user's config out, no environment for commands; a
+# tool item in the stream fails the review.
+for a in shell_tool unified_exec plugins hooks --ignore-user-config --ephemeral 'shell_environment_policy.inherit="none"' 'web_search="disabled"'; do has "$T/codex-args" "$a"; done
+CODEX_RAN=1 OBJECTION_RUNNER=codex OBJECTION_CODEX="$T/codex" bash "$REVIEW" accuser "$T/brief.md" >/dev/null 2>&1 && { echo "FAIL: a codex tool call passed"; failures=$((failures + 1)); }
 has "$T/codex-args" "project_doc_max_bytes=0"
 has "$T/codex-args" 'model_reasoning_effort="medium"'
 has "$T/codex-stdin" "Do not run commands or open files."

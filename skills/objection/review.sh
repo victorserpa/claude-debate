@@ -261,16 +261,34 @@ if (log) {
 fi
 
 if [ "$runner" = codex ]; then
-  # Codex keeps read-only tools, so the prompt forbids using them; the
-  # prompt goes first on stdin (`codex exec -`), the material after it.
+  # A read-only sandbox still lets Codex read any file on the machine
+  # (~/.ssh, other projects' .env) and run read-only commands: verified
+  # live with codex-cli 0.156, where `cat` of a file outside the workspace
+  # ran and its content came back. So its tools are turned off (shell,
+  # exec, plugins, apps, hooks, sub-agents, web search), the user's config,
+  # rules and skills stay out, and no environment variable reaches a
+  # command. Verified live: the same request answered with no command run.
+  # Any tool item in the --json stream still fails the review. The prompt
+  # goes first on stdin (`codex exec -`), the material after it.
+  # A TOML basic string: an apostrophe in the path (a folder named
+  # "Victor's") broke the literal string used before.
+  role_toml=$(printf '%s' "$role_file" | sed 's/\\/\\\\/g; s/"/\\"/g')
   { printf '%s\n\n' "${prompt/You have NO tools: you cannot open files or run commands, so never pretend to./Do not run commands or open files.}"; cat "$input"; } >"$work/stdin"
   run_limited "${OBJECTION_TIMEOUT:-900}" "$codex_bin" exec --json -o "$work/last" \
-    --sandbox read-only --skip-git-repo-check \
-    -c "model_instructions_file='$role_file'" -c project_doc_max_bytes=0 \
+    --sandbox read-only --skip-git-repo-check --ephemeral --ignore-user-config --ignore-rules \
+    --disable shell_tool --disable unified_exec --disable multi_agent --disable plugins \
+    --disable apps --disable hooks \
+    -c 'web_search="disabled"' -c skills.include_instructions=false \
+    -c 'shell_environment_policy.inherit="none"' -c 'approval_policy="never"' \
+    -c "model_instructions_file=\"$role_toml\"" -c project_doc_max_bytes=0 \
     -c "model_reasoning_effort=\"$effort\"" \
     ${OBJECTION_CODEX_MODEL:+-m "$OBJECTION_CODEX_MODEL"} \
     - <"$work/stdin" >"$out" 2>"$work/err" || failed
   [ -s "$work/last" ] || failed
+  if grep -qE '"type":"(command_execution|mcp_tool_call|web_search|file_change)"' "$out"; then
+    echo "objection: Codex ran a tool although its tools are off; the review is not trusted." >&2
+    failed
+  fi
   # Usage from the last turn.completed event of the --json stream.
   node -e '
 const fs = require("fs");
