@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.20.0 (2026-09-25)
 
 - **Twelve new eval cases**, not run yet: Rust, Java, a SQL migration,
   Terraform, TypeScript, Ruby, PHP and shell bugs, and four more clean
