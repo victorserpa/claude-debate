@@ -1,1 +1,1 @@
-{"goal": "Every user belongs to a tenant", "severity": "HIGH", "match": "existing rows|default|backfill|fail|NOT NULL|null values|nullable first", "file": "db/migrations/002_user_tenant.sql", "lines": [2]}
+{"goal": "Every user belongs to a tenant", "severity": "HIGH", "match": "existing rows|backfill|default value|null values|rows already|nullable first|without a default|no default", "file": "db/migrations/002_user_tenant.sql", "lines": [1]}

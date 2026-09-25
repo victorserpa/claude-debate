@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-# BUILD_DIR comes from the CI job when it sets one.
+# BUILD_DIR comes from the CI job.
 build_dir="${BUILD_DIR}"
 rm -rf "$build_dir"/*
 npm run build -- --out-dir "${build_dir:-./build}"
