@@ -357,6 +357,16 @@ runs=$(awk -v b="$(git rev-parse --abbrev-ref HEAD)" '$1 == b {print $2}' "$T/us
 [ "$runs" -ge 7 ] 2>/dev/null || fail "usage counted $runs runs, expected at least 7"
 bash "$USAGE" "$(git rev-parse --abbrev-ref HEAD)" | grep -qE '^total: [0-9]+ runs, [0-9]+ input' || fail "usage.sh <branch> has no total"
 bash "$USAGE" no-such-branch | grep -qF "no runs logged" || fail "an unknown branch is not reported"
+# --summary: the median is per branch (every run of a PR summed), not per run.
+U="$T/usage-sum"
+git init -q "$U" && mkdir -p "$U/.git/objection" && printf '%s\n' \
+  "2026-08-01T00:00:00Z	a	x	accuser	sonnet	1	1	0.10	ok" \
+  "2026-08-02T00:00:00Z	a	x	defender	sonnet	1	1	0.10	ok" \
+  "2026-09-01T00:00:00Z	b	y	accuser	sonnet	1	1	0.05	ok" \
+  "2026-09-02T00:00:00Z	c	z	accuser	sonnet	1	1	1.00	ok" >"$U/.git/objection/usage.log"
+sum=$(cd "$U" && bash "$USAGE" --summary)
+printf '%s\n' "$sum" | grep -qF 'per branch: 3 branches, median $0.200, mean $0.417, max $1.000' || fail "usage.sh --summary median is wrong ($sum)"
+printf '%s\n' "$sum" | grep -qE '^2026-08 +1 +2 +0\.200$' || fail "usage.sh --summary month row is wrong ($sum)"
 # Outside a repository: a message, not a raw git error.
 (cd "$T" && bash "$USAGE" 2>&1) >"$T/outside"
 rc=$?

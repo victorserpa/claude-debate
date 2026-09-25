@@ -91,7 +91,7 @@ Models: sonnet at effort medium; opus where an invariant or `strongPaths`
 matches, or under `thorough`; later rounds at low effort (`models` in the
 config; `OBJECTION_MODEL`, `OBJECTION_DEFENDER_MODEL`, `OBJECTION_EFFORT`
 override). A `reviewers` entry with `agent: gemini` or `codex` runs that
-CLI: a second model family. `usage.sh` shows what each branch cost.
+CLI: a second model family. `usage.sh` shows what each branch cost; `usage.sh --summary`, the median per PR.
 
 ## 2. Judge: this session, never a smaller model
 

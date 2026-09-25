@@ -21,7 +21,10 @@
   the defender only for BLOCKER or HIGH) is about $0.05 to $0.15 of
   reviewers, plus your session reading the draft and judging. With a
   Claude subscription, `claude -p` spends plan usage, not dollars; the
-  dollars are the API price. Run `usage.sh` after a few PRs to see yours.
+  dollars are the API price. Run `usage.sh --summary` after a few PRs to
+  see yours. objection's own 26 PRs (standard budget, gate and validator
+  changes that pull in opus, up to three rounds): median $0.15, mean
+  $0.46, max $2.52 of reviewers.
 - It is not free, and it is built to cost little. **Each reviewer runs as
   an isolated `claude -p` process** (`review.sh`): no tools, no MCP
   servers, no skills, no project CLAUDE.md, only its role and the brief.
