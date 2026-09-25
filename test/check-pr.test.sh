@@ -302,6 +302,8 @@ kill $ghsrv 2>/dev/null; wait $ghsrv 2>/dev/null
 if node --no-experimental-fetch -e 0 2>/dev/null; then
   out=$(GITHUB_EVENT_PATH="$T/event.json" node --no-experimental-fetch "$CHECK" 2>&1) && { echo "FAIL: check-pr passed without fetch"; failures=$((failures + 1)); }
   printf '%s' "$out" | grep -q "needs Node.js 18 or later" || { echo "FAIL: check-pr without fetch does not say it needs 18 ($out)"; failures=$((failures + 1)); }
+else
+  echo "note: this node has no --no-experimental-fetch, so the no-fetch case did not run"
 fi
 
 if [ "$failures" = 0 ]; then echo "check-pr: all cases passed"; else echo "check-pr: $failures failure(s)"; exit 1; fi
