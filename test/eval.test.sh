@@ -21,6 +21,10 @@ row='| HIGH | BUG | src/export.js:%s | %s | read | %s |'
 # A cited bug line, or the bug said in the defect cell: caught.
 [ "$(score missing-cleanup "$(printf "$row" 11 'x' 'p')")" = CAUGHT ] || fail "a cited bug line was not caught"
 [ "$(score missing-cleanup "$(printf "$row" 40 'the temp dir leaks on retry' 'p')")" = CAUGHT ] || fail "the bug in words was not caught"
+# Which evidence counted: the line when cited, else the words.
+how() { FAKE_ROW="$2" bash "$ROOT/eval/run.sh" "$1" 2>/dev/null | awk -v n="$1" '$1 == n' | grep -oE '\((line|words)\)'; }
+[ "$(how missing-cleanup "$(printf "$row" 11 'x' 'p')")" = "(line)" ] || fail "a cited line was not reported as (line)"
+[ "$(how missing-cleanup "$(printf "$row" 40 'the temp dir leaks on retry' 'p')")" = "(words)" ] || fail "a catch in words was not reported as (words)"
 # The file named in the defect cell too: the file:line cell still counts.
 [ "$(score missing-cleanup '| HIGH | BUG | the temp dir in src/export.js leaks | src/export.js:11 | read | p |')" = CAUGHT ] || fail "a file named twice was not caught"
 # An unrelated finding in the same file is not a catch, even when a

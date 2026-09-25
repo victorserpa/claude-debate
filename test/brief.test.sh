@@ -146,8 +146,11 @@ has "$out" "<!-- objection-later-effort: medium -->"
 seq 1 30 >src/ctx.ts && git add . && gitc commit -q -m ctx && git update-ref refs/remotes/origin/main HEAD
 sed 's/^15$/fifteen/' src/ctx.ts >src/ctx.tmp && mv src/ctx.tmp src/ctx.ts && git add . && gitc commit -q -m ctx2
 out=$(bash "$BRIEF" origin/main)
-grep -qx ' 12' "$out" || { echo "FAIL: the brief lost the third line of context"; failures=$((failures + 1)); }
-grep -qx ' 11' "$out" && { echo "FAIL: the brief has more than three lines of context"; failures=$((failures + 1)); }
+grep -qx '   12  12' "$out" || { echo "FAIL: the brief lost the third line of context"; failures=$((failures + 1)); }
+# Each hunk line carries its new-file line number; a removed line none.
+grep -qx '   15 +fifteen' "$out" || { echo "FAIL: an added line is not numbered by the new file"; failures=$((failures + 1)); }
+grep -qx '      -15' "$out" || { echo "FAIL: a removed line got a number"; failures=$((failures + 1)); }
+grep -qx '   11  11' "$out" && { echo "FAIL: the brief has more than three lines of context"; failures=$((failures + 1)); }
 
 # Nothing to review, or an unknown base: refuse.
 (cd "$T/fresh" && git update-ref refs/remotes/origin/main HEAD && bash "$BRIEF" origin/main >/dev/null 2>&1) && { echo "FAIL: empty diff accepted"; failures=$((failures + 1)); }

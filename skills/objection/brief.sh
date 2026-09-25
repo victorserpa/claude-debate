@@ -166,6 +166,18 @@ fi
 
 diff=$(git diff -U3 "$diff_base"...HEAD "${X[@]}")
 total=$(printf '%s\n' "$diff" | wc -l | tr -d ' ')
+# The diff as the reviewers read it: each hunk line numbered by the new
+# file, so a finding cites the line the code is on instead of one counted
+# from the @@ header (measured: off by one on eval/fixtures/prompt-injection).
+# Same line count as the raw diff, so the truncation below cuts the same.
+numbered=$(printf '%s\n' "$diff" | awk '
+  /^diff --git / { hunk = 0; print; next }
+  /^@@ / { hunk = 1; split($3, a, ","); n = substr(a[1], 2) + 0; print; next }
+  !hunk { print; next }
+  /^-/ { printf "      %s\n", $0; next }
+  /^\\/ { printf "      %s\n", $0; next }
+  { printf "%5d %s\n", n, $0; n++ }
+')
 # Lines added plus removed, for debate.sh's small-diff skip. A binary
 # file, or an entry with no lines (a rename, a mode change), has no
 # honest count: "unknown", which is never small.
@@ -251,12 +263,12 @@ process.stdin.setEncoding("utf8").on("data", (d) => (diff += d)).on("end", () =>
   printf '## Invariants to check (%s)\n\n%s\n\n' "$config_note" "${invariants:-none match the changed files}"
   printf '## Reviewer focus for these files (%s)\n\n%s\n\n' "$config_note" "${focus:-none}"
   printf '## Defects this repository already shipped: check these first\n\n%s\n\n' "$precedents"
-  printf '## Diff\n\n```diff\n'
+  printf '## Diff\n\nEach line of a hunk starts with its line number in the new file (blank for a removed line), then the diff line: cite file:line with that number.\n\n```\n'
   if [ "$total" -gt "$MAX_DIFF_LINES" ]; then
-    printf '%s\n' "$diff" | head -n "$MAX_DIFF_LINES"
+    printf '%s\n' "$numbered" | head -n "$MAX_DIFF_LINES"
     printf '```\n\nTRUNCATED: the diff has %s lines; only the first %s are above. The files cut off are not covered by this brief: say so in your report (the 5-file limit is for chasing suspicions, not for reading a diff this size). Suggest splitting the PR.\n' "$total" "$MAX_DIFF_LINES"
   else
-    printf '%s\n```\n' "$diff"
+    printf '%s\n```\n' "$numbered"
   fi
   if [ -n "$definitions" ]; then
     printf '\n## Definitions the diff calls (from HEAD, as context)\n\n'

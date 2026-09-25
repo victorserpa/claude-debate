@@ -25,7 +25,7 @@ T=$(mktemp -d)
 trap 'rm -rf "$T"' EXIT
 pass=0
 total=0
-printf '%-18s %-10s %-8s %s\n' fixture expected result "cost / note"
+printf '%-18s %-10s %-22s %s\n' fixture expected result "cost / note"
 for name in "${names[@]}"; do
   f="$here/fixtures/$name"
   [ -f "$f/expect.json" ] || continue
@@ -61,20 +61,24 @@ for name in "${names[@]}"; do
     const cites = (t) => (e.lines || []).some((n) => new RegExp(`${e.file.replace(/[.]/g, "\\.")}:(\\d+-)?${n}\\b`).test(t));
     // The file:line cell cites a bug line, or the defect cell next to it
     // says the bug in words: a keyword elsewhere in the row does not count.
-    const about = (r) => {
+    // "line" when it cites a bug line, "words" when only the defect cell
+    // says it: a catch by line is the stronger evidence, so it wins.
+    const how = (r) => {
       const cells = r.text.split("|");
       // The file:line cell, else the first cell that names the file.
       let i = cells.findIndex((c) => c.includes(e.file + ":"));
       if (i < 0) i = cells.findIndex((c) => c.includes(e.file));
-      return i >= 0 && (cites(cells[i]) || re.test(cells[i + 1] || ""));
+      if (i < 0) return "";
+      return cites(cells[i]) ? "line" : re.test(cells[i + 1] || "") ? "words" : "";
     };
-    const hit = rows.find((r) => rank[r.sev] >= rank[e.severity] && about(r));
-    const near = rows.find(about);
-    console.log(hit ? `CAUGHT ${hit.sev}` : near ? `LOW-RATED ${near.sev}` : "MISSED");
+    const strong = rows.filter((r) => rank[r.sev] >= rank[e.severity] && how(r));
+    const hit = strong.find((r) => how(r) === "line") || strong[0];
+    const near = rows.find(how);
+    console.log(hit ? `CAUGHT ${hit.sev} (${how(hit)})` : near ? `LOW-RATED ${near.sev}` : "MISSED");
   ' "$f/expect.json" "$T/$name.out" "$rc")
   exp=$(node -e 'const e=require(process.argv[1]); console.log(e.clean ? "no bug" : e.severity + "+")' "$f/expect.json")
   case "$verdict" in CAUGHT* | PASS) pass=$((pass + 1)) ;; esac
-  printf '%-18s %-10s %-12s %s\n' "$name" "$exp" "$verdict" "${cost:-?}"
+  printf '%-18s %-10s %-22s %s\n' "$name" "$exp" "$verdict" "${cost:-?}"
   [ -z "${EVAL_KEEP:-}" ] || cp "$T/$name.out" "$EVAL_KEEP/$name.out"
 done
 case "${OBJECTION_RUNNER:-claude}" in
