@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.16.0 (2026-09-25)
+## 0.16.0 (2026-09-24)
 
 **Easier to set up, sees past the diff, speaks up on the PR.**
 
