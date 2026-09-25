@@ -76,8 +76,9 @@ is approved, a file name checked by a regex with no anchors before it
 reaches `path.join` (path traversal), and a new DELETE route that skips
 the owner check its GET sibling has. One clean change adds `ORDER BY`
 and a bounded `LIMIT` to a parameterized query, to see whether SQL alone
-draws a false alarm. It runs the accuser on each. Latest runs (0.17,
-with every reviewer tool off), all fifteen cases:
+draws a false alarm. It runs the accuser on each. Latest runs (with
+every reviewer tool off and the diff numbered by line), all fifteen
+cases; every catch cited one of the bug's lines, not just its words:
 
 | runner | bugs caught | false alarm on the three clean changes | cost |
 |---|---|---|---|

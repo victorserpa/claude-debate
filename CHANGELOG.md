@@ -20,6 +20,12 @@
   claude sonnet and the Gemini CLI default each caught 12 of 12 bugs with
   no false alarm on the three clean changes, with every reviewer tool
   off.
+- The brief numbers each line of the diff by the new file (blank for a
+  removed line), so a finding cites the line the code is on instead of
+  one counted from the `@@` header: sonnet had cited the line above the
+  bug in the prompt-injection case. The eval now says whether each catch
+  cited a bug line or only named the bug; with the numbered diff, all
+  twelve catches cited the line, on sonnet and on the Gemini default.
 
 ## 0.17.0 (2026-09-24)
 
