@@ -5,6 +5,8 @@
 #   bash eval/run.sh                      claude, the review.sh defaults
 #   OBJECTION_RUNNER=gemini bash eval/run.sh
 #   OBJECTION_MODEL=opus bash eval/run.sh [fixture...]
+#   EVAL_DEFENSE=1 bash eval/run.sh       also runs the defender on each
+#                                         false alarm and each catch
 #
 # Each fixtures/<name> has base/ (the code before), change/ (the files
 # the PR writes), config.json (.objection.json at the base) and
@@ -77,9 +79,36 @@ for name in "${names[@]}"; do
     console.log(hit ? `CAUGHT ${hit.sev} (${how(hit)})` : near ? `LOW-RATED ${near.sev}` : "MISSED");
   ' "$f/expect.json" "$T/$name.out" "$rc")
   exp=$(node -e 'const e=require(process.argv[1]); console.log(e.clean ? "no bug" : e.severity + "+")' "$f/expect.json")
+  # EVAL_DEFENSE=1: the debate does not stop at the accuser. A false
+  # alarm goes to the defender, as debate.sh would send it; so does a
+  # catch, to see whether the defender would talk the judge out of a real
+  # bug. The result says what the defender ruled on each row sent.
+  defense=""
+  case "${EVAL_DEFENSE:-}:$verdict" in
+    1:FALSE-ALARM* | 1:CAUGHT*)
+      node -e '
+        const fs = require("fs");
+        const rows = fs.readFileSync(process.argv[1], "utf8").split("\n").filter((l) => /^\s*\|\s*\**(BLOCKER|HIGH)\b/i.test(l));
+        const out = ["| # | severity | kind | file:line | defect | evidence | proof path |", "|---|---|---|---|---|---|---|"];
+        rows.forEach((l, k) => out.push(`| ${k + 1} ` + l.trim()));
+        fs.writeFileSync(process.argv[2], out.join("\n") + "\n");
+      ' "$T/$name.out" "$T/$name.findings"
+      if (cd "$r" && bash "$skill/review.sh" defender "$brief" "$T/$name.findings" >"$T/$name.defense" 2>>"$T/$name.err"); then
+        defense=$(node -e '
+          const fs = require("fs");
+          const v = fs.readFileSync(process.argv[1], "utf8").split("\n").filter((l) => /^\s*\|\s*\d+\s*\|/.test(l))
+            .map((l) => (l.split("|")[2] || "").trim().toUpperCase());
+          const n = (w) => v.filter((x) => x.startsWith(w)).length;
+          console.log(`defense: ${n("REFUTED")} refuted, ${n("UPHELD")} upheld, ${n("CANNOT")} cannot verify`);
+        ' "$T/$name.defense")
+      else
+        defense="defense: failed"
+      fi
+      ;;
+  esac
   case "$verdict" in CAUGHT* | PASS) pass=$((pass + 1)) ;; esac
-  printf '%-18s %-10s %-22s %s\n' "$name" "$exp" "$verdict" "${cost:-?}"
-  [ -z "${EVAL_KEEP:-}" ] || cp "$T/$name.out" "$EVAL_KEEP/$name.out"
+  printf '%-18s %-10s %-22s %s%s\n' "$name" "$exp" "$verdict" "${cost:-?}" "${defense:+; $defense}"
+  [ -z "${EVAL_KEEP:-}" ] || { cp "$T/$name.out" "$EVAL_KEEP/$name.out"; [ ! -f "$T/$name.defense" ] || cp "$T/$name.defense" "$EVAL_KEEP/$name.defense"; }
 done
 case "${OBJECTION_RUNNER:-claude}" in
   gemini) who="gemini ${OBJECTION_GEMINI_MODEL:-(its default)}" ;;

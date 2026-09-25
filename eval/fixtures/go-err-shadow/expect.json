@@ -1,0 +1,1 @@
+{"goal": "Skip the charge for zero-total orders", "severity": "HIGH", "match": "shadow|:=|declared in the inner|inner scope|never (set|assigned)|always nil|paid .*(fail|without)|marked paid", "file": "billing/charge.go", "lines": [7, 12, 15]}

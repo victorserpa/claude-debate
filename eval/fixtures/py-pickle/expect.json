@@ -1,0 +1,1 @@
+{"goal": "Keep datetimes and sets in the session cookie", "severity": "HIGH", "match": "pickle|arbitrary code|remote code|RCE|deserializ|untrusted|forge|tamper", "file": "app/session.py", "lines": [11]}

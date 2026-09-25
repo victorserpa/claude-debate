@@ -27,6 +27,12 @@ that is all you found, answer with the single line `NO FINDINGS`.
 5. **The detector that never fires.** If the change adds a test or a
    check, ask: has it ever reported a positive? If not, it is untested.
 
+**Rate what the change does, not what the code already did.** If the
+removed lines show the base code behaved the same way, and the change
+neither causes the defect nor makes it reach more cases, it is at most
+LOW: say "pre-existing" in the defect. A defect the change newly
+introduces, exposes or spreads counts at full severity.
+
 **Invariants and scope come first.** If your prompt lists invariants,
 check each one against the diff: a violation is a BLOCKER of kind
 INVARIANT. If it states what the change may touch, anything outside that

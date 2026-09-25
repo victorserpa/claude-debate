@@ -26,6 +26,16 @@
   bug in the prompt-injection case. The eval now says whether each catch
   cited a bug line or only named the bug; with the numbered diff, all
   twelve catches cited the line, on sonnet and on the Gemini default.
+- The accuser and the defender now rate what the change does, not what
+  the code already did: a defect the removed lines show the base code
+  had, which the change neither causes nor spreads, is at most LOW
+  ("pre-existing"). Measured on a new clean case (slugs that drop
+  accents): sonnet's false alarm went from 6 of 9 runs to 2 of 9.
+- The eval has Python and Go cases: a session cookie read with
+  `pickle.loads` (remote code execution) and an `err` shadowed by `:=`
+  that marks a failed charge as paid, plus a clean Python change.
+- `EVAL_DEFENSE=1 bash eval/run.sh` also runs the defender on each false
+  alarm and each catch, and reports what it ruled.
 
 ## 0.17.0 (2026-09-24)
 
