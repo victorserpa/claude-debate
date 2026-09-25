@@ -22,8 +22,11 @@ printf '%s' "$in" | grep -qE '(^|[^A-Za-z0-9_])gh([^A-Za-z0-9_]|$)|pull_request|
 # comes out of the JSON with sed (Windows backslashes turned to /).
 cwd=$(printf '%s' "$in" | sed -n 's/.*"cwd"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1 | sed 's#\\\\#/#g')
 # `cd <dir> && gh ...`: the directories the command changes to count too.
-# A quoted target reaches this as \"dir with space\" inside the JSON.
-cds=$(printf '%s' "$in" | grep -oE '(^|[^A-Za-z0-9_])cd +(\\"[^"\\]+\\"|[^;&|" ]+)' | sed -e 's/^.*cd *//' -e 's/^\\"//' -e 's/\\"$//')
+# A quoted target reaches this as \"dir with space\" inside the JSON, and
+# a Windows one with its backslashes doubled; both are turned into /. Only
+# the leading `cd ` is stripped, since a target may itself hold "cd ".
+cds=$(printf '%s' "$in" | grep -oE '(^|[^A-Za-z0-9_])cd +(\\"([^"\\]|\\\\)+\\"|[^;&|" ]+)' |
+  sed -E -e 's/^([^A-Za-z0-9_])?cd +//' -e 's/^\\"//' -e 's/\\"$//' -e 's#\\\\#/#g')
 optin=""
 # Split on newlines only, and no globbing: a target is tested as written.
 set -f
