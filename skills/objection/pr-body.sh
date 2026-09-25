@@ -44,6 +44,15 @@ fi
 if [ -n "$update" ]; then
   [ -n "$has_pr" ] || { echo "no open PR for this branch: create it with gh pr create --body-file <path>." >&2; exit 1; }
   # The CI check compares the record with the PR's head: push first.
+  # Right after a push GitHub can still report the old head for a few
+  # seconds; when the pushed branch already has this SHA, wait for it.
+  if [ "$pr_head" != "$sha" ] && [ "$(git rev-parse '@{u}' 2>/dev/null)" = "$sha" ]; then
+    for _ in 1 2 3 4 5 6; do
+      sleep "${OBJECTION_PR_WAIT:-3}"
+      pr_head=$("$gh_bin" pr view --json headRefOid -q .headRefOid 2>/dev/null || true)
+      [ "$pr_head" != "$sha" ] || break
+    done
+  fi
   [ "$pr_head" = "$sha" ] || { echo "the PR's head is ${pr_head:0:7}, the record is for ${sha:0:7}: push, then update." >&2; exit 1; }
 fi
 

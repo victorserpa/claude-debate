@@ -16,7 +16,14 @@ hasnt() { grep -qF -- "$2" "$1" && fail "$1 has [$2]"; }
 cat >"$T/gh" <<'STUB'
 #!/bin/bash
 case "$1 $2" in
-  "pr view") [ -f "$FAKE/body" ] || exit 1; cat "$FAKE/head"; cat "$FAKE/body" ;;
+  "pr view")
+    [ -f "$FAKE/body" ] || exit 1
+    case "$*" in
+      *"-q .headRefOid") cat "$FAKE/head" ;;
+      *) cat "$FAKE/head"; cat "$FAKE/body" ;;
+    esac
+    # A push GitHub has not seen yet: the next view reports the new head.
+    [ ! -f "$FAKE/head-next" ] || mv "$FAKE/head-next" "$FAKE/head" ;;
   "pr edit") cp "$4" "$FAKE/edited" ;;
 esac
 STUB
@@ -81,5 +88,18 @@ awk '/^<details>$/{d=NR} /^## Accusation$/{a=NR} /^## Defense$/{f=NR} /^<\/detai
   fail "the fold is not around the accusation and the defense only"
 node -e 'require("fs").writeFileSync(process.argv[1], JSON.stringify({pull_request:{number:1,head:{sha:process.argv[2]},base:{ref:"main"},body:require("fs").readFileSync(process.argv[3],"utf8")},repository:{full_name:"o/r"}}))' "$T/event.json" "$(git rev-parse HEAD)" "$out"
 GITHUB_EVENT_PATH="$T/event.json" OBJECTION_FILES="src/a.ts" node "$ROOT/skills/objection/gate/check-pr.mjs" >/dev/null 2>&1 || fail "the CI check refused a folded body"
+
+# Right after a push, GitHub still reports the old head: when the pushed
+# branch has the SHA, --update waits for it instead of refusing.
+git init -q --bare "$T/remote.git" && git remote add origin "$T/remote.git" 2>/dev/null
+git push -q -u origin HEAD:refs/heads/lag 2>/dev/null && git branch -q --set-upstream-to=origin/lag
+printf 'Body.\n' >"$T/body"; echo 2222222222222222222222222222222222222222 >"$T/head"; git rev-parse HEAD >"$T/head-next"
+OBJECTION_PR_WAIT=0 bash "$PB" --update >/dev/null 2>&1 || fail "--update did not wait for GitHub to see the push"
+# An unpushed SHA is still refused at once.
+echo 2222222222222222222222222222222222222222 >"$T/head"; rm -f "$T/head-next"
+printf 'y\n' >>a && git add . && gitc commit -q -m unpushed
+u=$(git rev-parse HEAD); printf '<!-- objection: sha=%s base=origin/main -->\n# Debate: u\nVERDICT: APPROVED\n' "$u" >".git/objection/$u.md"
+err=$(OBJECTION_PR_WAIT=0 bash "$PB" --update 2>&1 >/dev/null) && fail "--update accepted an unpushed SHA"
+case "$err" in *"push, then update"*) ;; *) fail "an unpushed SHA was refused for another reason ($err)" ;; esac
 
 [ "$failures" -eq 0 ] && echo "pr-body: all cases passed" || { echo "pr-body: $failures failure(s)"; exit 1; }

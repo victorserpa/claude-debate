@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- The carry-over also refuses when the base gained a precedent
+  (`.objection/`), and reads file names NUL-separated, so a name with a
+  newline is still seen.
+- `pr-body.sh --update` right after a push waits a few seconds for
+  GitHub to report the new head, when the pushed branch already has it,
+  instead of refusing.
+- The clean SQL case in the eval no longer changes what callers get
+  (the base already had `LIMIT 50`): with an unbounded base, a reviewer
+  that flagged the new limit was right.
 - pr-body.sh folds the accusation and the defense under `<details>`
   ("Accusation and defense (N findings)"), so the PR shows the rulings,
   what is open and the verdict first. The section lines stay whole, and
