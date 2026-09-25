@@ -153,6 +153,15 @@ check 2 $N mcp__ccd_pr__set_auto_merge ''
 check 0 $O Bash 'gh pr create --fill --base develop'
 check 0 $N Bash "cd $O && gh pr create --base develop"
 check 0 $N Bash "cd '$O' && gh pr create -B develop"
+# "cd" inside a quoted title is not a cd: allowed, as with any title
+# (it used to block as "cannot tell which directory").
+check 0 $O Bash 'gh pr create --base develop --title "fix: reads quoted cd targets; ok"'
+check 0 $N Bash "cd $O && gh pr create --base develop --title \"reads cd x; y\""
+check 0 $O Bash "gh pr create --base develop --title 'cd a; b'"
+# ...and the same title on a repository with no record still blocks.
+check 2 $N Bash 'gh pr create --base develop --title "fix: reads quoted cd targets; ok"'
+# A cd inside a quoted $( ) runs: still read as a cd.
+check 2 $O Bash "echo \"\$(cd $N && gh pr create --base develop)\""
 # A record debated against develop does not release a PR to master
 # (defaultBase in the config is master).
 check 2 $O Bash 'gh pr create --fill'

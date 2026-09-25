@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **The gate no longer blocks a PR whose title says "cd".** A quoted
+  argument such as `--title "reads quoted cd targets; ok"` counted as a
+  `cd`, the counts disagreed, and the gate blocked with "cannot tell which
+  directory gh will run in" (it blocked this release's own PR). Only a
+  `cd` outside quotes counts now; one inside a quoted `$( )` still does.
 - `hook.sh` reads a quoted `cd "dir with space" && gh ...` target when
   node cannot run (it missed it before).
 - `open-issue.sh` cuts an Open section past GitHub's body limit, with a

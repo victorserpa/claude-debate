@@ -626,6 +626,28 @@ export function gate(input) {
       return null;
     }
 
+    // The `cd` matches of re in s whose keyword is outside quoted text. A
+    // title or body like "reads quoted cd targets; ok" is not a cd, and
+    // counting it blocked an innocent `gh pr create` (the counts below did
+    // not agree). A `$(...)` inside double quotes runs, so it counts.
+    function cdsOutsideQuotes(s, re) {
+      const quoted = new Uint8Array(s.length);
+      let q = "";
+      for (let p = 0; p < s.length; p++) {
+        const ch = s[p];
+        if (q === "'") { quoted[p] = 1; if (ch === "'") q = ""; continue; }
+        if (ch === "\\" && q !== "'") { if (q) { quoted[p] = 1; quoted[p + 1] = 1; } p++; continue; }
+        if (q === '"') {
+          if (ch === '"') { quoted[p] = 1; q = ""; continue; }
+          if (ch === "$" && s[p + 1] === "(") { p = substEnd(s, p + 1) - 1; continue; }
+          quoted[p] = 1;
+          continue;
+        }
+        if (ch === "'" || ch === '"') { quoted[p] = 1; q = ch; }
+      }
+      return [...s.matchAll(re)].filter((m) => !quoted[m.index + (m[0].startsWith("cd") ? 0 : 1)]);
+    }
+
     // Directory `gh` will run in: the last `cd` before it.
     function dirBefore(pos) {
       const before = active.slice(0, pos);
@@ -634,7 +656,7 @@ export function gate(input) {
       // text shifting the count. Without certainty about the directory, the
       // record checked could belong to another repository.
       const nActive = [...active.matchAll(/(?:^|[\s;&|(])cd\s/g)].length;
-      const nOriginal = [...dropInnocentSubsts(noDocs).matchAll(/(?:^|[\s;&|(])cd\s/g)].length;
+      const nOriginal = cdsOutsideQuotes(dropInnocentSubsts(noDocs), /(?:^|[\s;&|(])cd\s/g).length;
       if (
         /\(\s*cd\b[^)]*\)/.test(before) ||
         /(^|[\s;&|(])(pushd|popd)\b/.test(before) ||
@@ -650,7 +672,7 @@ export function gate(input) {
       const reCdOriginal = /(?:^|[\s;&|(])cd\s+("([^"]+)"|'([^']+)'|([^\s;&|)]+))/g;
       const n = [...active.slice(0, pos).matchAll(reCdActive)].length;
       if (n > 0) {
-        const m = [...noDocs.matchAll(reCdOriginal)][n - 1];
+        const m = cdsOutsideQuotes(noDocs, reCdOriginal)[n - 1];
         if (m) {
           // `cd "$(git rev-parse --show-toplevel)"` is how agents go back to
           // the repository root: resolve it the same way instead of reading
