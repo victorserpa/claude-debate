@@ -53,6 +53,21 @@ line=$(EVAL_DEFENSE=1 FAKE_DEFENSE="$up" FAKE_ROW="$(printf "$row" 11 'x' 'p')" 
 case "$line" in *"defense: 0 refuted, 1 upheld, 0 cannot verify"*) ;; *) fail "the defense on a catch was not reported ($line)" ;; esac
 line=$(EVAL_DEFENSE=1 FAKE_DEFENSE="$def" FAKE_ROW="NO FINDINGS" bash "$ROOT/eval/run.sh" clean 2>/dev/null | awk '$1 == "clean"')
 case "$line" in *defense:*) fail "the defender ran on a clean pass ($line)" ;; esac
+# EVAL_FIXTURES: another fixture directory (eval/real/fetch.sh builds one).
+X="$T/fx" && mkdir -p "$X/one/base/src" "$X/one/change/src"
+printf '{"bases":["main"]}\n' >"$X/one/config.json"
+printf 'a\n' >"$X/one/base/src/a.js" && printf 'b\n' >"$X/one/change/src/a.js"
+printf '{"goal":"g","severity":"HIGH","match":"zzz","file":"src/a.js","lines":[1]}\n' >"$X/one/expect.json"
+line=$(EVAL_FIXTURES="$X" FAKE_ROW="| HIGH | BUG | src/a.js:1 | x | read | p |" bash "$ROOT/eval/run.sh" one 2>/dev/null | awk '$1 == "one"')
+case "$line" in *CAUGHT*) ;; *) fail "EVAL_FIXTURES was not used ($line)" ;; esac
+# A range holding a bug line counts; a range too wide to name it does not.
+[ "$(score missing-cleanup "$(printf "$row" '5-12' 'x' 'p')")" = CAUGHT ] || fail "a range holding the bug line was not caught"
+[ "$(score missing-cleanup "$(printf "$row" '1-200' 'x' 'p')")" = MISSED ] || fail "a 200-line range counted as citing the bug"
+[ "$(score missing-cleanup "$(printf "$row" '~11' 'x' 'p')")" = CAUGHT ] || fail "an approximate ~line citation was not read"
+# EVAL_RESCORE: scores saved answers without calling the model.
+mkdir -p "$T/saved" && printf '| HIGH | BUG | src/export.js:11 | x | read | p |\n' >"$T/saved/missing-cleanup.out"
+line=$(EVAL_RESCORE="$T/saved" OBJECTION_CLAUDE=/nonexistent bash "$ROOT/eval/run.sh" missing-cleanup 2>/dev/null | awk '$1 == "missing-cleanup"')
+case "$line" in *CAUGHT*) ;; *) fail "EVAL_RESCORE did not score the saved answer ($line)" ;; esac
 # No fixture ran: not a pass.
 bash "$ROOT/eval/run.sh" nosuch >/dev/null 2>&1
 [ $? = 2 ] || fail "an empty run did not exit 2"

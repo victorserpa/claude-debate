@@ -63,7 +63,7 @@ and whether the check is required, one line each, with the fix.
 
 ## Known bugs, caught
 
-[`eval/`](eval) plants fourteen bugs in small repositories (JavaScript,
+[`eval/`](eval) plants fifteen bugs in small repositories (JavaScript,
 Python and Go) and adds four changes with no bug at all: a SQL query
 built by concatenation, a session cookie read with `pickle.loads`, an
 authorization check turned into a deny-list, a DELETE route without the
@@ -71,10 +71,19 @@ owner check its GET has, a Go `err` shadowed by `:=` that marks a failed
 charge paid, a ban check on a user fetched without `await`, and more,
 including a comment telling the reviewer the change is approved.
 
-EVAL_TABLE
+| | planted bugs (15) | false alarms (4 clean) | real bugs, replayed (9 × 4 runs) |
+|---|---|---|---|
+| **objection**, sonnet | 15 caught, every one citing the line | 0 | **81%** at the right severity, 94% found |
+| same model, plain "review this diff" prompt | 14 (the cross-file bug rated MEDIUM) | 0 | 61% at the right severity, 81% found |
+| **objection**, Gemini CLI default | 15 caught | 1 | 67% (two runs) |
 
-Each case is small, so this proves the reviewers catch these bugs, not
-that they catch everything. How it is scored, every case, how the numbers
+The real bugs are regressions from CPython, Redis, Rails, Django, Go,
+Vue, ESLint and curl, each reviewed as the PR that introduced it: the
+harder test, and where the brief and the roles earn their cost ($0.23 for
+the nineteen planted cases on sonnet, against $0.13 for the plain prompt).
+
+Nine real bugs are still a small sample, and a reviewer still misses
+some: no number here says it catches everything. How it is scored, every case, how the numbers
 moved between versions, and the false-alarm rate across repeated runs:
 [docs/eval.md](docs/eval.md). Run it yourself: `bash eval/run.sh`.
 

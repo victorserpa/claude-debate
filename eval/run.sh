@@ -5,6 +5,8 @@
 #   bash eval/run.sh                      claude, the review.sh defaults
 #   OBJECTION_RUNNER=gemini bash eval/run.sh
 #   OBJECTION_MODEL=opus bash eval/run.sh [fixture...]
+#   EVAL_FIXTURES=<dir> bash eval/run.sh  other fixtures (eval/real/fetch.sh
+#                                         builds the real-bug ones)
 #   EVAL_BASELINE=1 bash eval/run.sh      the same model with a plain "review
 #                                         this diff" prompt and the raw diff
 #   EVAL_DEFENSE=1 bash eval/run.sh       also runs the defender on each
@@ -22,7 +24,8 @@
 set -u
 here="$(cd "$(dirname "$0")" && pwd)"
 skill="$here/../skills/objection"
-cd "$here/fixtures" || exit 1
+fixtures="${EVAL_FIXTURES:-$here/fixtures}"
+cd "$fixtures" || exit 1
 names=("$@")
 [ ${#names[@]} -gt 0 ] || names=(*)
 T=$(mktemp -d)
@@ -31,10 +34,18 @@ pass=0
 total=0
 printf '%-18s %-10s %-22s %s\n' fixture expected result "cost / note"
 for name in "${names[@]}"; do
-  f="$here/fixtures/$name"
+  f="$fixtures/$name"
   [ -f "$f/expect.json" ] || continue
   total=$((total + 1))
   r="$T/$name"
+  if [ -n "${EVAL_RESCORE:-}" ]; then
+    # Score answers saved by an earlier run (EVAL_KEEP) with this scorer,
+    # without calling a model: how a scoring fix is applied to runs
+    # already paid for, the same for every side.
+    [ -f "$EVAL_RESCORE/$name.out" ] || { printf '%-18s no saved answer\n' "$name"; continue; }
+    cp "$EVAL_RESCORE/$name.out" "$T/$name.out" && : >"$T/$name.err"
+    rc=0
+  else
   mkdir -p "$r" && cp -R "$f/base/." "$r/" && cp "$f/config.json" "$r/.objection.json"
   (
     cd "$r" && git init -q -b main && git add -A &&
@@ -57,6 +68,7 @@ for name in "${names[@]}"; do
   fi
   (cd "$r" && OBJECTION_ROLES_DIR="${roles:-${OBJECTION_ROLES_DIR:-$skill/roles}}" bash "$skill/review.sh" accuser "$brief" >"$T/$name.out" 2>"$T/$name.err")
   rc=$?
+  fi
   cost=$(sed -n 's/.*(\(\$[0-9.]*\)).*/\1/p; s/.*output tokens (\([a-z]*\))$/\1/p' "$T/$name.err" | tail -n 1)
   verdict=$(node -e '
     const fs = require("fs");
@@ -75,7 +87,15 @@ for name in "${names[@]}"; do
     if (e.clean) { console.log(rows.some((r) => rank[r.sev] >= 2) ? "FALSE-ALARM" : "PASS"); process.exit(); }
     // About the bug: it cites a line of the bug, or says it in words.
     const re = new RegExp(e.match, "i");
-    const cites = (t) => (e.lines || []).some((n) => new RegExp(`${e.file.replace(/[.]/g, "\\.")}:(\\d+-)?${n}\\b`).test(t));
+    // A cited line, or a range that holds a line of the bug and is
+    // no wider than 60 lines ("a.c:1248-1298" names the bug at 1297; a
+    // whole-file range names nothing). "~174" is how a reviewer without
+    // line numbers cites an estimate: it counts like "174".
+    const esc = e.file.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const cites = (t) => [...t.matchAll(new RegExp(`${esc}:~?(\\d+)(?:-~?(\\d+))?`, "g"))].some((m) => {
+      const a = +m[1], b = m[2] ? +m[2] : a;
+      return b >= a && b - a <= 60 && (e.lines || []).some((n) => n >= a && n <= b);
+    });
     // The file:line cell cites a bug line, or the defect cell next to it
     // says the bug in words: a keyword elsewhere in the row does not count.
     // "line" when it cites a bug line, "words" when only the defect cell
