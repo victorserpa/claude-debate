@@ -16,7 +16,7 @@ hasnt() { grep -qF -- "$2" "$1" && fail "$1 has [$2]"; }
 cat >"$T/gh" <<'STUB'
 #!/bin/bash
 case "$1 $2" in
-  "issue list") cat "$FAKE/issues.json" ;;
+  "issue list") [ ! -f "$FAKE/list-fails" ] || exit 1; cat "$FAKE/issues.json" ;;
   "issue create") printf '%s\n' "$@" >"$FAKE/created"; echo "https://github.com/o/r/issues/9" ;;
   "pr view") echo "https://github.com/o/r/pull/3" ;;
 esac
@@ -65,6 +65,34 @@ out=$(bash "$OI") || fail "second run failed"
 node -e 'console.log(JSON.stringify([{url:"https://github.com/o/r/issues/5",body:"<!-- objection-open: sha=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb -->"}]))' >"$T/issues.json"
 bash "$OI" >/dev/null || fail "run with another commit's issue failed"
 [ -e "$T/created" ] || fail "another commit's issue stopped this one"
+
+# A failed lookup creates nothing (it could be a duplicate).
+rm -f "$T/created"; : >"$T/list-fails"
+bash "$OI" >/dev/null 2>&1 && fail "a failed issue list still succeeded"
+[ -e "$T/created" ] && fail "a failed issue list still created an issue"
+rm -f "$T/list-fails"; echo '[]' >"$T/issues.json"
+
+# An Open section in prose is still open.
+rm -f "$T/created"
+rec "MEDIUM: the retry is unbounded, left for a later PR."
+bash "$OI" >/dev/null || fail "a prose Open section failed"
+has "$T/created" "MEDIUM: the retry is unbounded"
+
+# Only a stamped, APPROVED record: not a draft, not REJECTED.
+rm -f "$T/created"
+printf '# Debate: feat\n\n## Open\n\n- 1 (LOW): x\n\nOPEN: BLOCKER=0 HIGH=0\nVERDICT: APPROVED\n' >".git/objection/$sha.md"
+bash "$OI" >/dev/null 2>&1 && fail "an unstamped record opened an issue"
+rec "- 1 (LOW): x"
+sed -i.bak 's/^VERDICT: APPROVED$/VERDICT: REJECTED/' ".git/objection/$sha.md"
+bash "$OI" >/dev/null 2>&1 && fail "a REJECTED record opened an issue"
+[ -e "$T/created" ] && fail "a record that is not APPROVED created an issue"
+
+# A detached HEAD (a CI checkout): the commit, not "HEAD", in the title.
+rec "- 1 (LOW): x"
+git checkout -q --detach
+out=$(bash "$OI" --dry-run)
+printf '%s' "$out" | head -n 1 | grep -qx "Open findings from commit ${sha:0:7}" || fail "a detached HEAD gave the title [$(printf '%s' "$out" | head -n 1)]"
+git checkout -q feat
 
 # --dry-run prints and creates nothing.
 rm -f "$T/created"
