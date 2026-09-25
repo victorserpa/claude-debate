@@ -14,6 +14,7 @@ set -eu
 here="$(cd "$(dirname "$0")" && pwd)"
 out="${1:-${TMPDIR:-/tmp}/objection-real}"
 mkdir -p "$out"
+failed=0
 
 api() { # api <path>: the GitHub REST API, through gh when it is logged in
   if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
@@ -42,7 +43,9 @@ while IFS= read -r line; do
     done
   done
   # A download that failed on every file is not a fixture.
-  [ -n "$(find "$out/$name.tmp/change" -type f 2>/dev/null)" ] || { echo "fetch failed: $name" >&2; rm -rf "$out/$name.tmp"; exit 1; }
+  if [ -z "$(find "$out/$name.tmp/change" -type f 2>/dev/null)" ]; then
+    echo "fetch failed, skipped: $name" >&2; rm -rf "$out/$name.tmp"; failed=$((failed + 1)); continue
+  fi
   printf '{"bases":["main"]}\n' >"$out/$name.tmp/config.json"
   GOAL="$goal" LINE="$line" node -e '
     const c = JSON.parse(process.env.LINE);
@@ -52,3 +55,5 @@ while IFS= read -r line; do
   echo "fetched: $name ($repo@${sha:0:7}, parent ${parent:0:7})"
 done <"$here/cases.jsonl"
 echo "$out"
+# Every case that downloaded is usable; the exit status still says some did not.
+[ "$failed" = 0 ] || { echo "$failed case(s) failed to download" >&2; exit 1; }

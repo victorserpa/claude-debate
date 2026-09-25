@@ -66,7 +66,9 @@ body="$dir/body-$sha.md"
   # PR wants the rulings and what is open, and a long table pushed them
   # off the screen. The section lines stay whole lines, which is how the
   # CI check and the precedent parser find them.
-  if grep -qx '## Accusation' "$record" && grep -qx '## Judge' "$record"; then
+  # Only when Judge comes after Accusation: the other order left the fold
+  # open over the rulings.
+  if [ "$(awk '/^## Accusation$/ && !a { a = NR } /^## Judge$/ && a && !j { j = NR } END { print (a && j) ? "yes" : "no" }' "$record")" = yes ]; then
     n=$(awk '/^## Accusation$/ { a = 1; next } /^## / { a = 0 } a && /^[[:space:]]*\|[[:space:]]*[0-9]+[[:space:]]*\|/ { c++ } END { print c + 0 }' "$record")
     awk -v n="$n" '
       /^## Accusation$/ && !open { printf "<details>\n<summary>Accusation and defense (%s finding%s)</summary>\n\n", n, (n == 1 ? "" : "s"); open = 1 }

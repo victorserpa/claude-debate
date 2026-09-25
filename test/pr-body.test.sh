@@ -88,6 +88,11 @@ awk '/^<details>$/{d=NR} /^## Accusation$/{a=NR} /^## Defense$/{f=NR} /^<\/detai
   fail "the fold is not around the accusation and the defense only"
 node -e 'require("fs").writeFileSync(process.argv[1], JSON.stringify({pull_request:{number:1,head:{sha:process.argv[2]},base:{ref:"main"},body:require("fs").readFileSync(process.argv[3],"utf8")},repository:{full_name:"o/r"}}))' "$T/event.json" "$(git rev-parse HEAD)" "$out"
 GITHUB_EVENT_PATH="$T/event.json" OBJECTION_FILES="src/a.ts" node "$ROOT/skills/objection/gate/check-pr.mjs" >/dev/null 2>&1 || fail "the CI check refused a folded body"
+# A hand-written record with Judge before Accusation: no fold, so the
+# rulings are never hidden inside an unclosed <details>.
+printf '<!-- objection: sha=%s base=origin/main -->\n# Debate: odd\n\n## Judge\n\n1. fixed.\n\n## Accusation\n\n| 1 | HIGH | BUG | a:1 | x | read | p |\n\n## Defense\n\nnone.\n\n## Open\n\nnothing.\n\nOPEN: BLOCKER=0 HIGH=0\nVERDICT: APPROVED\n' "$(git rev-parse HEAD)" >".git/objection/$(git rev-parse HEAD).md"
+out=$(bash "$PB") || fail "odd-order body failed"
+grep -q '<details>' "$out" && fail "a record with Judge before Accusation was folded"
 
 # Right after a push, GitHub still reports the old head: when the pushed
 # branch has the SHA, --update waits for it instead of refusing.

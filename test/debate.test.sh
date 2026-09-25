@@ -446,6 +446,10 @@ grep -q '^1. Open.$' "$d" || fail "the old rulings were not carried"
 # A git diff that fails while listing the changed files: not carried.
 mkdir -p "$T/badgit" && realgit=$(command -v git)
 printf '#!/bin/sh\ncase "$*" in *"--no-renames --name-only -z"*) exit 1;; esac\nexec "%s" "$@"\n' "$realgit" >"$T/badgit/git" && chmod +x "$T/badgit/git"
+# BSD xargs, on every platform: empty input runs nothing and exits 0 (GNU
+# xargs runs the command once, which would hide the bug on Linux).
+realxargs=$(command -v xargs)
+printf '#!/bin/sh\nf=$(mktemp) && cat >"$f"\n[ -s "$f" ] || { rm -f "$f"; exit 0; }\n"%s" "$@" <"$f"; rc=$?; rm -f "$f"; exit $rc\n' "$realxargs" >"$T/badgit/xargs" && chmod +x "$T/badgit/xargs"
 reset; PATH="$T/badgit:$PATH" bash "$DEBATE" main >/dev/null 2>&1
 [ -e "$T/ran-accuser" ] || fail "a failed git diff carried the record over"
 # The base gains a commit in a.js: the diff was not judged against it.
