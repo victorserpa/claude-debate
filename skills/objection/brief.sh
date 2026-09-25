@@ -198,7 +198,9 @@ process.stdin.setEncoding("utf8").on("data", (d) => (diff += d)).on("end", () =>
       let body = [];
       try { body = execFileSync("git", ["show", `HEAD:${file}`], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).split("\n"); } catch { continue; }
       const take = body.slice(Number(at) - 1, Number(at) - 1 + Math.min(12, 80 - lines));
-      out.push(`${file}:${at} (${n})\n\`\`\`\n${take.join("\n")}\n\`\`\``);
+      // Numbered like an excerpt: no line of the branch starts a line here.
+      const numbered = take.map((l, k) => `${String(Number(at) + k).padStart(5)}  ${l}`);
+      out.push(`${file}:${at} (${n})\n\`\`\`\n${numbered.join("\n")}\n\`\`\``);
       lines += take.length; defs++;
     }
   }
@@ -220,6 +222,9 @@ process.stdin.setEncoding("utf8").on("data", (d) => (diff += d)).on("end", () =>
   if [ -n "$reviewers" ]; then
     printf '%s\n' "$reviewers" | sed 's/^/<!-- objection-reviewer: /; s/$/ -->/'
   fi
+  # debate.sh reads markers only above this line: everything below quotes
+  # the branch under review.
+  printf '<!-- objection-header-end -->\n'
   printf '\n'
   printf 'Goal: %s\nScope: %s\n\n' "$goal" "$scope"
   printf '## Reading rules\n\n'

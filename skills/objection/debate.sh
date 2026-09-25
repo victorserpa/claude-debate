@@ -117,12 +117,19 @@ if [ -n "$since" ]; then
   goal="Round after a fix: hunt regressions from the fix first. Goal of the PR: $goal"
 fi
 brief=$(bash "$here/brief.sh" "$diff_base" "$goal" "$scope" "origin/$base")
+# Markers are read from the header only: brief.sh writes them above its
+# first "objection-header-end" line. The rest of the brief quotes the
+# branch under review (diff, definitions), so a marker planted there would
+# pick a reviewer or run an invariant check's command.
+header="$tmp/brief-header"
+sed '/^<!-- objection-header-end -->$/q' "$brief" >"$header"
+grep -qx '<!-- objection-header-end -->' "$header" || { echo "the brief has no header end marker: rebuild it with this version's brief.sh." >&2; exit 1; }
 
-budget=$(sed -n 's/^<!-- objection-budget: \([a-z]*\) -->$/\1/p' "$brief" | head -n 1)
+budget=$(sed -n 's/^<!-- objection-budget: \([a-z]*\) -->$/\1/p' "$header" | head -n 1)
 [ -n "$budget" ] || budget=lean
 # Model and effort: the brief's tier (from the base config) unless the
 # caller set OBJECTION_MODEL / OBJECTION_EFFORT.
-tier=$(sed -n 's/^<!-- objection-model: \(.*\) -->$/\1/p' "$brief" | head -n 1)
+tier=$(sed -n 's/^<!-- objection-model: \(.*\) -->$/\1/p' "$header" | head -n 1)
 set -- $tier
 tier_model="${1:-sonnet}"
 tier_effort="${2:-medium}"
@@ -133,7 +140,7 @@ defender_effort="$tier_effort"
 # A later round reviews only the fix: the accuser runs at the config's
 # laterEffort (default low); the defender keeps the round's effort.
 if [ -n "$since" ]; then
-  later=$(sed -n 's/^<!-- objection-later-effort: \([A-Za-z]*\) -->$/\1/p' "$brief" | head -n 1)
+  later=$(sed -n 's/^<!-- objection-later-effort: \([A-Za-z]*\) -->$/\1/p' "$header" | head -n 1)
   tier_effort="${later:-low}"
   tier_reason="$tier_reason, later round"
 fi
@@ -144,7 +151,7 @@ if [ -n "${OBJECTION_EFFORT:-}" ]; then
 fi
 # The defender's model: the config's models.defender (default sonnet),
 # whatever the accuser runs on; OBJECTION_DEFENDER_MODEL overrides it.
-defender_model=$(sed -n 's/^<!-- objection-defender: \([A-Za-z0-9._-]*\) -->$/\1/p' "$brief" | head -n 1)
+defender_model=$(sed -n 's/^<!-- objection-defender: \([A-Za-z0-9._-]*\) -->$/\1/p' "$header" | head -n 1)
 defender_model="${OBJECTION_DEFENDER_MODEL:-${defender_model:-sonnet}}"
 export OBJECTION_MODEL="$tier_model" OBJECTION_EFFORT="$tier_effort"
 sha=$(git rev-parse HEAD)
@@ -178,8 +185,8 @@ draft_tail() {
 # reviewer: the judge reads it and the verify step still runs. The
 # threshold is the base config's smallDiff (default 20; 0 turns it off),
 # or OBJECTION_SMALL_DIFF.
-lines=$(sed -n 's/^<!-- objection-lines: \([0-9]*\) -->$/\1/p' "$brief" | head -n 1)
-small=$(sed -n 's/^<!-- objection-small-diff: \([0-9]*\) -->$/\1/p' "$brief" | head -n 1)
+lines=$(sed -n 's/^<!-- objection-lines: \([0-9]*\) -->$/\1/p' "$header" | head -n 1)
+small=$(sed -n 's/^<!-- objection-small-diff: \([0-9]*\) -->$/\1/p' "$header" | head -n 1)
 [ -z "${OBJECTION_SMALL_DIFF:-}" ] || small="$OBJECTION_SMALL_DIFF"
 case "$small" in '' | *[!0-9]*) small=20 ;; esac
 if [ "$budget" = lean ] && [ "$brief_reason" = default ] && [ "$small" -gt 0 ] &&
@@ -228,7 +235,7 @@ while IFS="$(printf '\t')" read -r cmd rule; do
 "
   fi
 done <<EOF_CHECKS
-$(sed -n 's/^<!-- objection-invariant-check: \(.*\) -->$/\1/p' "$brief")
+$(sed -n 's/^<!-- objection-invariant-check: \(.*\) -->$/\1/p' "$header")
 EOF_CHECKS
 
 # An exit 3 (no claude CLI) must reach the caller as 3, so no `|| exit 1`;
@@ -245,7 +252,7 @@ rc=0
 # the answers already paid for are kept.
 accusers="generic"
 if [ "$budget" != lean ]; then
-  sed -n 's/^<!-- objection-reviewer: \(.*\) -->$/\1/p' "$brief" >"$tmp/reviewers"
+  sed -n 's/^<!-- objection-reviewer: \(.*\) -->$/\1/p' "$header" >"$tmp/reviewers"
   if [ -s "$tmp/reviewers" ]; then
     { printf '### generic\n\n'; cat "$accusation"; } >"$tmp/all"
     while IFS="$(printf '\t')" read -r agent focus; do

@@ -160,9 +160,9 @@ export function gate(input) {
       }
     }
 
-    const config = loadConfig(sessionDir);
-    if (!config) return ALLOW;
-    advisory = config.enforce === false;
+    // Opt-in is decided per command, in the directory gh runs in (below):
+    // a session opened in a parent folder, with `cd repo && gh pr merge`,
+    // used to skip the gate because the parent has no config.
 
     // The base `gh pr create` uses without --base: the branch's
     // gh-merge-base setting, else the repository's default branch as GitHub
@@ -287,6 +287,10 @@ export function gate(input) {
     // They do not go through `gh`, so there is no SHA to check: send them to the
     // path that checks.
     if (input.kind === "tool") {
+      // No command, so no directory of its own: the session's decides.
+      const sessionCfg = loadConfig(sessionDir);
+      if (!sessionCfg) return ALLOW;
+      advisory = sessionCfg.enforce === false;
       if (
         /(create|merge|update)_pull_request(?!_review)|pull_request_branch|auto_merge|mark.*ready|(create|merge|ready)_pr(?![a-z0-9])(?!_comment|_review)/i.test(
           tool,
@@ -575,6 +579,20 @@ export function gate(input) {
 
     const UNREADABLE = "\u0000unreadable";
 
+    // GH_REPO selects the repository like -R does: set in the command
+    // (`GH_REPO=o/r gh pr merge 5`, `export GH_REPO=o/r; ...`), else in the
+    // hook's own environment. Unread, the gate checked PR 5 of the local
+    // repository while gh merged PR 5 of another one.
+    function envRepo(pos) {
+      const set = [...active.slice(0, pos).matchAll(/(?:^|[\s;&|(])(?:export\s+)?GH_REPO=(\S*)/g)].at(-1);
+      if (set) {
+        if (!set[1] || set[1] === "''" || set[1].startsWith("$"))
+          block("GH_REPO is set from a variable or a quoted value, so the gate cannot tell which repository gh will use. Pass -R owner/repo instead.");
+        return set[1];
+      }
+      return process.env.GH_REPO || null;
+    }
+
     function targetOf(rest) {
       const toks = tokens(rest);
       for (let k = 0; k < toks.length; k++) {
@@ -699,7 +717,10 @@ export function gate(input) {
       if (/\bxargs\b[^;&|\n]*$/.test(active.slice(0, m.index + 1)))
         block("gh pr merge/ready through xargs hides which PR it is. Put the PR number in the command itself.", false);
       const dir = dirBefore(m.index);
-      const repo = repoOf(globals, rest);
+      const cfg = loadConfig(dir);
+      if (!cfg) continue;
+      advisory = cfg.enforce === false;
+      const repo = repoOf(globals, rest) || envRepo(m.index);
 
       if (action === "merge" && /(^|\s)--auto\b/.test(rest))
         block("gh pr merge --auto lets in commits pushed after the debate. Merge without --auto, with the record for the current SHA.", false);
@@ -806,6 +827,9 @@ export function gate(input) {
       if (/\bxargs\b[^;&|\n]*$/.test(active.slice(0, m.index + 1)))
         block("glab mr merge through xargs hides which merge request it is. Put its number in the command itself.", false);
       const dir = dirBefore(m.index);
+      const cfg = loadConfig(dir);
+      if (!cfg) continue;
+      advisory = cfg.enforce === false;
       const repo = repoOf(`${glabGlobals} ${mrGlobals}`, rest);
       let common;
       try {

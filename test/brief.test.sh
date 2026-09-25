@@ -172,7 +172,7 @@ git add . && gitc commit -q -m change
 out=$(bash "$BRIEF" origin/main)
 has "$out" "## Definitions the diff calls"
 has "$out" "src/users.js:1 (getUser)"
-has "$out" "export async function getUser(id) {"
+has "$out" "    1  export async function getUser(id) {"
 has "$out" "src/store.js:2 (load)"
 has "$out" "src/store.js:7 (save)"
 hasnt "$out" "(common)"
