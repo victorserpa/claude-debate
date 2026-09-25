@@ -6,6 +6,18 @@
   ("Accusation and defense (N findings)"), so the PR shows the rulings,
   what is open and the verdict first. The section lines stay whole, and
   the CI check reads a folded body (test/pr-body.test.sh runs it).
+- **A rebase no longer costs a round.** When the branch's diff is
+  byte-for-byte one an APPROVED record already judged (same `git
+  patch-id`, same base) and the commits the base gained touch none of the
+  changed files, `debate.sh` runs no reviewer: the draft carries the old
+  record, with one line for the judge to confirm after `verify`. A base
+  commit in a changed file, a failed invariant check, `--since` or
+  `--force` run the full round.
+- SKILL.md is 1,600 words instead of 3,000: it loads into the session
+  that judges, the most expensive context of the debate. Running the
+  roles by hand (no `claude` CLI) moved to `reference/manual-roles.md`.
+- The brief drops diff header lines that repeat the file name (`index`
+  hashes, and the `---`/`+++` pair unless a side is `/dev/null`).
 - Each record says which round it was ("Round 2 of 3."), and a round run
   with `--extra-round` says it ran past the cap, so the human reading the
   PR sees it. debate.sh prints the same line.

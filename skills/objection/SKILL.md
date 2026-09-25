@@ -65,6 +65,11 @@ It prints a summary and the draft's path: read that one file.
 - **Exit 3** (no `claude` CLI): read `reference/manual-roles.md` and run
   the roles as it says.
 - **Exit 4**: the round cap (below). Stop and tell the human.
+- **Same diff, new SHA** (a rebase, GitHub's *Update branch*): when an
+  APPROVED record already judged exactly this diff and the base gained
+  nothing in the changed files, no reviewer runs; the draft carries the
+  old record with one `TODO(judge)` line. Run `verify`, confirm, delete
+  the line.
 - **A small diff under `lean`** (at most `smallDiff` changed lines, default
   20, no invariant or `strongPaths` touched) runs no reviewer: the draft
   comes APPROVED with one `TODO(judge)` line. Read the diff and replace

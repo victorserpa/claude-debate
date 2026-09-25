@@ -331,7 +331,11 @@ jobs:
 
 A push changes the head SHA, so the check fails again until the new
 commits are debated and the body is updated. GitHub's *Update branch*
-button is a push too: it adds a merge commit, which needs its own round.
+button is a push too, and so is a rebase: the SHA changes. When the diff
+itself did not (same patch-id) and the base gained nothing in the
+changed files, `debate.sh` carries the APPROVED record over without
+running a reviewer, and the judge confirms it; otherwise it is a new
+round.
 
 **3. Independent review in CI (optional).** The record is written on the
 agent's machine, with your credentials, so an agent that sets out to

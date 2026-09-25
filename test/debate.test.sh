@@ -423,6 +423,34 @@ printf '{"bases":["main"],"smallDiff":0}\n' >.objection.json && printf '2\n' >>a
 reset; bash "$DEBATE" main >/dev/null 2>&1
 grep -q "config .objection.json from the working copy (origin/main has none yet) sha256:" "$(git rev-parse --git-common-dir)/objection/record-$(git rev-parse HEAD).md" ||
   fail "the first PR's record does not name the working copy's config"
+# A rebase that keeps the diff: the APPROVED record carries over and no
+# reviewer runs, unless the base gained a commit in a changed file.
+K="$T/carry"
+git init -q "$K" && cd "$K" || exit 1
+printf '{"bases":["main"],"smallDiff":0}\n' >.objection.json && printf '1\n' >a.js && printf 'x\n' >other.js
+git add . && gitc commit -q -m base && git branch -q -M main && git update-ref refs/remotes/origin/main HEAD
+git checkout -q -b feat && printf '2\n' >>a.js && git add . && gitc commit -q -m feat
+old=$(git rev-parse HEAD)
+cdir="$(git rev-parse --git-common-dir)/objection"
+mkdir -p "$cdir"
+printf '<!-- objection: sha=%s base=origin/main -->\n# Debate: feat @ x\n\n## Accusation\n\n| # | severity | kind | file:line | defect | evidence | proof path |\n|---|---|---|---|---|---|---|\n| 1 | LOW | BUG | a.js:2 | nit | read | p |\n\n## Defense\n\nnot run.\n\n## Judge\n\n1. Open.\n\n## Open\n\n- 1 (LOW)\n\nOPEN: BLOCKER=0 HIGH=0\nVERDICT: APPROVED\n' "$old" >"$cdir/$old.md"
+git checkout -q main && printf 'y\n' >>other.js && git add . && gitc commit -q -m "base moves" && git update-ref refs/remotes/origin/main HEAD
+git checkout -q feat && git rebase -q main
+reset; accuse HIGH
+out=$(bash "$DEBATE" main 2>&1) || fail "the carry-over run failed ($out)"
+[ -e "$T/ran-accuser" ] && fail "a rebased identical diff ran the accuser"
+d="$cdir/record-$(git rev-parse HEAD).md"
+grep -q "Carried over from ${old:0:7}" "$d" || fail "the draft does not say it was carried over"
+grep -q '^TODO(judge): confirm the rulings' "$d" || fail "the carried draft has no line for the judge"
+grep -q '^1. Open.$' "$d" || fail "the old rulings were not carried"
+# The base gains a commit in a.js: the diff was not judged against it.
+git checkout -q main && printf '0\n' >b.tmp && cat b.tmp a.js >a.new && mv a.new a.js && rm b.tmp && git add . && gitc commit -q -m "base touches a.js" && git update-ref refs/remotes/origin/main HEAD
+git checkout -q feat && git rebase -q main 2>/dev/null || { git rebase --abort; fail "test setup: rebase conflicted"; }
+reset
+bash "$DEBATE" main >/dev/null 2>&1
+[ -e "$T/ran-accuser" ] || fail "a base commit in a changed file still carried the record over"
+cd "$R" || exit 1
+
 cd "$R" || exit 1
 
 if [ "$failures" = 0 ]; then echo "debate: all cases passed"; else echo "debate: $failures failure(s)"; exit 1; fi
