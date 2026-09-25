@@ -127,7 +127,7 @@ template() {
     # Codex and Gemini may run hooks without a POSIX sh, they call node.
     case "$(uname -s)/$1" in
       MINGW*/claude/* | MSYS*/claude/* | CYGWIN*/claude/*) cat ;;
-      MINGW* | MSYS* | CYGWIN*) sed 's#sh \([^ ]*\)/gate/hook\.sh#node \1/gate/hook.mjs#' ;;
+      MINGW* | MSYS* | CYGWIN*) sed 's#sh \(.*\)/gate/hook\.sh#node \1/gate/hook.mjs#' ;;
       *) cat ;;
     esac
   }

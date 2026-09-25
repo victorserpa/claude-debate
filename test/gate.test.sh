@@ -700,6 +700,18 @@ shrun() { # expected cwd command [host]
 shrun 2 "$O" "gh pr merge 5 --squash"
 grep -q "the gate did not run (node exited 126)" "$T/sh.err" || { echo "FAIL: hook.sh does not say node did not run"; failures=$((failures + 1)); }
 shrun 0 "$O" "ls -la"
+# The host may start the hook outside the project: the payload's cwd, and
+# a `cd` in the command, still find the opted-in repository.
+shrun_at() { # expected run-dir payload-cwd command
+  local rc
+  (cd "$2" && printf '{"cwd":"%s","tool_name":"Bash","tool_input":{"command":"%s"}}' "$3" "$4" |
+    PATH="$T/badnode:$PATH" sh "$HOOKSH" >/dev/null 2>&1)
+  rc=$?
+  [ "$rc" = "$1" ] || { echo "FAIL hook.sh (expected $1, got $rc): $4 run in $2, cwd $3"; failures=$((failures + 1)); }
+}
+shrun_at 2 "$T" "$O" "gh pr merge 5 --squash"
+shrun_at 2 "$T" "$T" "cd $O && gh pr merge 5 --squash"
+shrun_at 0 "$T" "$F" "gh pr merge 5 --squash"
 shrun 0 "$F" "gh pr merge 5 --squash"
 shrun 2 "$O" "gh pr create --fill" cursor
 grep -q '"permission":"deny"' "$T/sh.out" || { echo "FAIL: hook.sh sent Cursor no deny"; failures=$((failures + 1)); }

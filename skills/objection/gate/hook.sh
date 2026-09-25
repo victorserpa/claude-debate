@@ -17,8 +17,23 @@ printf '%s' "$in" | node "$here/hook.mjs" "$@"
 rc=$?
 case "$rc" in 0 | 2) exit "$rc" ;; esac
 printf '%s' "$in" | grep -qE '(^|[^A-Za-z0-9_])gh([^A-Za-z0-9_]|$)|pull_request|auto_merge' || exit 0
-top=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
-[ -f "$top/.objection.json" ] || [ -f "$top/.claude/objection.json" ] || exit 0
+# Opted in: any place the host may mean. hook.mjs reads the payload's cwd
+# first, since a host can start the hook elsewhere; without node the cwd
+# comes out of the JSON with sed (Windows backslashes turned to /).
+cwd=$(printf '%s' "$in" | sed -n 's/.*"cwd"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1 | sed 's#\\\\#/#g')
+# `cd <dir> && gh ...`: the directories the command changes to count too.
+cds=$(printf '%s' "$in" | grep -oE '(^|[^A-Za-z0-9_])cd +[^;&|" ]+' | sed 's/.*cd *//')
+optin=""
+IFS_old=$IFS
+IFS='
+'
+for d in $cds "$cwd" "${CLAUDE_PROJECT_DIR:-}" "${CURSOR_PROJECT_DIR:-}" "${GEMINI_PROJECT_DIR:-}" "$PWD"; do
+  [ -n "$d" ] && [ -d "$d" ] || continue
+  top=$(git -C "$d" rev-parse --show-toplevel 2>/dev/null) || continue
+  { [ -f "$top/.objection.json" ] || [ -f "$top/.claude/objection.json" ]; } && { optin=yes; break; }
+done
+IFS=$IFS_old
+[ -n "$optin" ] || exit 0
 msg="[objection] Blocked: the gate did not run (node exited $rc), so it cannot check this command. Make node run in this repository (a .tool-versions or .nvmrc may pin a version that is not installed), then retry."
 case " $* " in
   *" cursor "*) printf '{"continue":true,"permission":"deny","userMessage":"%s","agentMessage":"%s"}' "$msg" "$msg" ;;

@@ -56,7 +56,7 @@ has .objection.json '"go test ./..."'
 # Codex and Gemini, which may lack a POSIX sh there.
 case "$(uname -s)" in
   MINGW* | MSYS* | CYGWIN*) has .cursor/hooks.json "node $ROOT/skills/objection/gate/hook.mjs --host cursor" ;;
-  *) has .cursor/hooks.json "sh $ROOT/skills/objection/gate/hook.sh --host cursor" ;;
+  *) has .cursor/hooks.json "sh \\\"$ROOT/skills/objection/gate/hook.sh\\\" --host cursor" ;;
 esac
 hasnt .cursor/hooks.json "<SKILL_DIR>"
 has "$T/out" "there is no CI gate"
@@ -97,5 +97,14 @@ bash "$INIT" --dry-run >"$T/out" 2>&1 || fail "dry run failed"
 has "$T/out" "would write: .objection.json"
 has "$T/out" "verify: none found"
 bash "$INIT" --host vscode >/dev/null 2>&1 && fail "an unknown host was accepted"
+
+# On Windows (uname faked), Cursor gets node, even when the skill's path
+# has a space.
+mkdir -p "$T/fakeuname" "$T/sk dir" && printf '#!/bin/sh\necho MINGW64_NT-10.0\n' >"$T/fakeuname/uname" && chmod +x "$T/fakeuname/uname"
+cp -R "$ROOT/skills/objection" "$T/sk dir/objection"
+repo win ssh://git@git.example.com/me/win.git
+PATH="$T/fakeuname:$PATH" bash "$T/sk dir/objection/init.sh" --host cursor >"$T/out" 2>&1 || fail "init failed on faked Windows ($(cat "$T/out"))"
+grep -qF 'node \"' .cursor/hooks.json && grep -qF 'sk dir/objection/gate/hook.mjs\" --host cursor' .cursor/hooks.json || fail "Windows with a spaced skill path did not get node"
+hasnt .cursor/hooks.json "hook.sh"
 
 [ "$failures" -eq 0 ] && echo "init: all cases passed" || { echo "init: $failures failure(s)"; exit 1; }
