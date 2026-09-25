@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **The eval, measured in full**: 40 cases (23 planted, 8 clean, 9 real
+  bugs), five runs each on Claude sonnet and on the Gemini CLI's default.
+  Sonnet caught 91% of all bugs with 5% false alarms, meeting both v1.0
+  bars; Gemini caught 93% with 12.5% false alarms, over the 10% bar.
+- clean-ts-default had a real bug: a new second parameter let
+  `dates.map(isoDay)` pass the array index as the separator. Gemini found
+  it; sonnet missed it five times. It now takes an options object.
 - `hook.sh` run live on all four hosts: Claude Code, Cursor, Codex
   (0.156) and Gemini CLI (0.61) each blocked `gh pr create` without a
   record and allowed it with one. Codex and Gemini asked to trust the

@@ -74,16 +74,21 @@ built by concatenation, a session cookie read with `pickle.loads`, an
 authorization check turned into a deny-list, a DELETE route without the
 owner check its GET has, a Go `err` shadowed by `:=` that marks a failed
 charge paid, a ban check on a user fetched without `await`, and more,
-including a comment telling the reviewer the change is approved. The
-table below is the first nineteen; the twelve added in 0.20 (the Rust,
-Java, Ruby, PHP, shell, migration and Terraform ones, four of them clean)
-have not been run yet.
+including a comment telling the reviewer the change is approved.
 
-| | planted bugs (15) | false alarms (4 clean) | real bugs, replayed (9 × 4 runs) |
-|---|---|---|---|
-| **objection**, sonnet | 15 caught, every one citing the line | 0 | **81%** at the right severity, 94% found |
-| same model, plain "review this diff" prompt | 14 (the cross-file bug rated MEDIUM) | 0 | 61% at the right severity, 81% found |
-| **objection**, Gemini CLI default | 15 caught | 1 | 67% (two runs) |
+All 40 cases, five runs each, on two model families (0.20):
+
+| | planted bugs (23 × 5) | false alarms (8 clean × 5) | real bugs (9 × 5) | caught, planted and real |
+|---|---|---|---|---|
+| **objection**, Claude sonnet | 114 of 115 | 2 (5%) | 71% at the right severity, 87% found | **91%** |
+| **objection**, Gemini CLI default | 115 of 115 | 5 (12.5%) | 76% at the right severity | **93%** |
+| same model, plain "review this diff" prompt (earlier, 19 cases, 9 real × 4) | 14 of 15 | 0 of 4 | 61% at the right severity, 81% found | |
+
+Sonnet meets both of the v1.0 bars (90% caught, at most 10% false
+alarms); Gemini catches more and alarms more, over the 10% bar. One
+"clean" case was not clean: Gemini found that a new optional parameter
+turned `dates.map(isoDay)` into passing the array index as the separator.
+Sonnet missed it five times; the case was fixed and re-run clean on both.
 
 The real bugs are regressions from CPython, Redis, Rails, Django, Go,
 Vue, ESLint and curl, each reviewed as the PR that introduced it: the
