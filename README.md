@@ -88,7 +88,7 @@ Sonnet meets both of the v1.0 bars (90% caught, at most 10% false
 alarms); Gemini catches more and alarms more, over the 10% bar. One
 "clean" case was not clean: Gemini found that a new optional parameter
 turned `dates.map(isoDay)` into passing the array index as the separator.
-Sonnet missed it five times; the case was fixed and re-run clean on both.
+Sonnet missed it five times; the case now adds a separate function instead, and passed clean 5 of 5 on both.
 
 The real bugs are regressions from CPython, Redis, Rails, Django, Go,
 Vue, ESLint and curl, each reviewed as the PR that introduced it: the

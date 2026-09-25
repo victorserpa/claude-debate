@@ -1,1 +1,1 @@
-{"goal": "Let callers choose the date separator, keeping \"-\" as before", "clean": true}
+{"goal":"Add a variant that takes the date separator; isoDay keeps \"-\" and its signature","clean":true}

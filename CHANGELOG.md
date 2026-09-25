@@ -8,7 +8,9 @@
   bars; Gemini caught 93% with 12.5% false alarms, over the 10% bar.
 - clean-ts-default had a real bug: a new second parameter let
   `dates.map(isoDay)` pass the array index as the separator. Gemini found
-  it; sonnet missed it five times. It now takes an options object.
+  it; sonnet missed it five times. It now adds `isoDayWith(d, sep)` and
+  leaves `isoDay` as it was (an options object, tried first, broke the
+  same call at compile time in TypeScript).
 - `hook.sh` run live on all four hosts: Claude Code, Cursor, Codex
   (0.156) and Gemini CLI (0.61) each blocked `gh pr create` without a
   record and allowed it with one. Codex and Gemini asked to trust the

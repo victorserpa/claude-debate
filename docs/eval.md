@@ -37,8 +37,12 @@ redis-610eb26 rated MEDIUM by sonnet (Gemini rated it HIGH every time).
 clean-ts-default was not clean when it was first written: making `sep` a
 second parameter lets `dates.map(isoDay)` pass the array index as the
 separator. Gemini reported it in two runs; sonnet missed it in all five.
-It now takes `{ sep }` and passed 5 of 5 on each runner; those runs
-replace its first results in the table. Every run's raw output, the
+Its first fix, an options object `{ sep }`, broke the same call at
+compile time in TypeScript (a `number` is not an options object), which
+the CI review caught. It now leaves `isoDay` as it was and adds
+`isoDayWith(d, sep)`; `[date].map(isoDay)` typechecks under `--strict`,
+and it passed 5 of 5 on each runner. Those runs replace its first results
+in the table. Every run's raw output, the
 re-runs included: [results/2026-09-25.md](../eval/results/2026-09-25.md).
 
 Earlier runs, the first nineteen cases:
