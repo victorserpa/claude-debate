@@ -9,6 +9,8 @@
 # installed: 126) or crashes (1) let `gh pr merge` through. On such a
 # failure this blocks what hook.mjs would have checked (the same test it
 # uses for input it cannot parse), and only where the repository opted in.
+# It does not stop a host that cannot start sh itself, nor a PR command
+# written so that the test above misses it (the required check covers both).
 here=$(cd "$(dirname "$0")" && pwd)
 in=$(cat)
 printf '%s' "$in" | node "$here/hook.mjs" "$@"
