@@ -33,7 +33,8 @@ while [ $# -gt 0 ]; do
     --host) host="${2:?--host needs plugin, claude, cursor, codex or gemini}"; shift 2 ;;
     --dry-run) dry=yes; shift ;;
     --advisory) advisory=yes; shift ;;
-    *) echo "usage: init.sh [--host plugin|claude|cursor|codex|gemini] [--advisory] [--dry-run]" >&2; exit 2 ;;
+    -h|--help) echo "usage: init.sh [--host plugin|claude|cursor|codex|gemini] [--advisory] [--dry-run]"; exit 0 ;;
+    *) echo "init.sh: unknown option $1" >&2; echo "usage: init.sh [--host plugin|claude|cursor|codex|gemini] [--advisory] [--dry-run]" >&2; exit 2 ;;
   esac
 done
 case "$host" in plugin | claude | cursor | codex | gemini) ;; *) echo "unknown host: $host" >&2; exit 2 ;; esac

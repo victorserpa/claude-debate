@@ -30,7 +30,8 @@ export "GIT_CONFIG_KEY_$_n=core.quotePath" "GIT_CONFIG_VALUE_$_n=false" "GIT_CON
 # path list ("origin\\main;file"); these calls must reach git untouched.
 gitref() { MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' git "$@"; }
 
-diff_base="${1:?usage: brief.sh <diff-base> [goal] [scope] [config-base]}"
+[ -n "${1:-}" ] || { echo "usage: brief.sh <diff-base> [goal] [scope] [config-base]" >&2; exit 2; }
+diff_base="$1"
 goal="${2:-not stated}"
 scope="${3:-not stated}"
 config_base="${4:-$diff_base}"

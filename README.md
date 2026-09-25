@@ -53,7 +53,9 @@ reviewers.
 Then, in a repository, ask your agent for `/objection init` (other agents:
 [Install](#install)). It reads what it can (bases, your test and type
 checks, your forge) and asks nothing else. To try it without blocking
-anyone, say `/objection init --advisory`. From then on, when the agent is
+anyone, say `/objection init --advisory`. Run it on the default branch
+and merge its files there first: from a feature branch, the config
+becomes part of the first diff the accuser reviews. From then on, when the agent is
 about to open a PR, it runs the debate first; you get the record in the
 PR body. Something seems off? `/objection doctor` checks the tools, the
 config, the hooks (and the trust Codex and Gemini need), the CI workflow

@@ -54,8 +54,9 @@ export "GIT_CONFIG_KEY_$_n=core.quotePath" "GIT_CONFIG_VALUE_$_n=false" "GIT_CON
 # path list ("origin\\main;file"); these calls must reach git untouched.
 gitref() { MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' git "$@"; }
 
-role="${1:?usage: review.sh accuser <brief> | review.sh defender <brief> <findings>}"
-brief="${2:?usage: review.sh accuser <brief> | review.sh defender <brief> <findings>}"
+[ -n "${1:-}" ] && [ -n "${2:-}" ] || { echo "usage: review.sh accuser <brief> | review.sh defender <brief> <findings>" >&2; exit 2; }
+role="$1"
+brief="$2"
 case "$role" in
   accuser) ;;
   defender) findings="${3:?the defender needs the findings file}" ;;

@@ -213,6 +213,15 @@ for c in .objection.json .claude/objection.json; do
     break
   fi
 done
+# The first PR after init: brief.sh used the working copy, and says so.
+if [ "$config_id" = none ]; then
+  for c in .objection.json .claude/objection.json; do
+    if [ -f "$c" ]; then
+      config_id="$c from the working copy (origin/$base has none yet) sha256:$(node -e 'process.stdout.write(require("crypto").createHash("sha256").update(require("fs").readFileSync(process.argv[1])).digest("hex").slice(0, 12))' "$c")"
+      break
+    fi
+  done
+fi
 
 # The round number goes into the record, so the human reading the PR sees
 # how many rounds it took and whether one ran past the cap.

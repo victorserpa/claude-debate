@@ -26,7 +26,8 @@ set -eu
 _n="${GIT_CONFIG_COUNT:-0}"
 export "GIT_CONFIG_KEY_$_n=core.quotePath" "GIT_CONFIG_VALUE_$_n=false" "GIT_CONFIG_COUNT=$((_n + 1))"
 
-record="${1:?usage: stamp.sh <record.md> [base]}"
+[ -n "${1:-}" ] || { echo "usage: stamp.sh <record.md> [base]" >&2; exit 2; }
+record="$1"
 base="${2:-}"
 
 [ -f "$record" ] || { echo "record not found: $record" >&2; exit 1; }
