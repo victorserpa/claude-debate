@@ -172,11 +172,12 @@ low=$(count LOW)
 
 # An answer with no findings table and no "NO FINDINGS" line (empty, a
 # refusal, prose) is not a review: counting its rows gave "passed". A
-# header row, a finding row without one, or the NO FINDINGS line counts.
+# header row, a full finding row without one (severity, kind, file,
+# defect, evidence, proof), or the NO FINDINGS line counts.
 # It fails even under fail-on: none, like an accuser that did not run.
 answered=yes
 grep -qiE '^[[:space:]]*\|[[:space:]]*(#[[:space:]]*\|[[:space:]]*)?severity[[:space:]]*\|' "$accusation" ||
-  grep -qE '^[[:space:]]*\|([^|]*\|)?[[:space:]]*(BLOCKER|HIGH|MEDIUM|LOW)[[:space:]]*\|' "$accusation" ||
+  grep -qE '^[[:space:]]*\|([^|]*\|)?[[:space:]]*(BLOCKER|HIGH|MEDIUM|LOW)[[:space:]]*\|([^|]*\|){4,}' "$accusation" ||
   grep -qiE '^[[:space:]]*NO FINDINGS\.?[[:space:]]*$' "$accusation" || answered=""
 verdict="passed"
 status=0

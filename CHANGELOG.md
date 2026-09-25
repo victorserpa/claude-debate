@@ -5,6 +5,9 @@
 - Each record says which round it was ("Round 2 of 3."), and a round run
   with `--extra-round` says it ran past the cap, so the human reading the
   PR sees it. debate.sh prints the same line.
+- The CI review counts a finding row without a header as an answer only
+  when it has the whole row (severity, kind, file, defect, evidence,
+  proof): a refusal that quotes a short row no longer passes.
 
 ## 0.17.0 (2026-09-24)
 
