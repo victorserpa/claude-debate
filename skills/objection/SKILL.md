@@ -210,7 +210,7 @@ the main session judges, with these rules, not with opinion:
 | defense said | judge does |
 |---|---|
 | REFUTED | opens the citation and checks it covers **exactly** the accused case. It does not: UPHELD. |
-| UPHELD | fixes it, or moves it to "Open" with a reason. |
+| UPHELD | BLOCKER or HIGH: fixes it. MEDIUM or LOW: fixes it only when the fix is small and inside the PR's scope; otherwise moves it to "Open" with a reason (an issue tracks it). |
 | CANNOT VERIFY | BLOCKER or HIGH: treated as UPHELD. **Tie-break by test:** write the test the accuser said would fail. Fails: UPHELD. Passes: REFUTED only with a negative control (below), and the test stays in the repository. |
 
 **The judge never refutes a finding alone.** Refuting requires the
@@ -221,6 +221,12 @@ copy) or, for missing behavior, when the path it claims to cover is
 broken on purpose. A test never shown able to fail proves nothing, and
 the finding stays UPHELD. The judge wrote the code: that is the bias the
 debate exists to cut.
+
+**Do not fix every finding.** Each fix is new code, and a round on it
+finds something in it: a PR whose agent made "every finding, even LOW,
+becomes a fix" its rule went 8 rounds. MEDIUM and LOW ship in "Open" with
+the record; that is what the section is for. Never save a rule that
+turns every finding into a fix.
 
 **Evidence decides disputes, not eloquence.** When accuser and defender
 disagree on a BLOCKER or HIGH and neither side has more than `read`, the
@@ -243,10 +249,15 @@ the accuser to hunt
 **regressions from the fix** first: in practice they are the most common
 round-2 finding.
 
-After the last round the budget allows (2 for `lean`, 3 otherwise),
-what is still open goes into "Open" with its severity: MEDIUM and LOW can
-ship with the record (tracked in an issue), BLOCKER and HIGH cannot, and
-the human decides what happens to them.
+A fix for MEDIUM or LOW findings alone does not start a round: run
+`verify` and record the fix. After the last round the budget allows (2
+for `lean`, 3 otherwise, or `maxRounds`), what is still open goes into
+"Open" with its severity: MEDIUM and LOW can ship with the record
+(tracked in an issue), BLOCKER and HIGH cannot, and the human decides
+what happens to them. `debate.sh` enforces the cap: it refuses a round
+past it (exit 4) and says so. Tell the human; run `--extra-round` only
+when they ask for it. It also refuses to re-run a commit whose record is
+already judged (`--force` to do it anyway).
 
 ## When the diff is a gate, check or validator
 

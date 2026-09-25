@@ -20,6 +20,11 @@
 # rule that the record comes out of the debate, not out of whoever wrote the
 # code, lives in SKILL.md. This is a process guard, not a security boundary.
 set -eu
+# File names as they are (git quotes "src/á.ts" otherwise, and an
+# invariant's paths regex then never matches it). Appended to any git
+# config the environment already passes.
+_n="${GIT_CONFIG_COUNT:-0}"
+export "GIT_CONFIG_KEY_$_n=core.quotePath" "GIT_CONFIG_VALUE_$_n=false" "GIT_CONFIG_COUNT=$((_n + 1))"
 
 record="${1:?usage: stamp.sh <record.md> [base]}"
 base="${2:-}"

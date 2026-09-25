@@ -251,6 +251,7 @@ work anywhere you did not opt in.
 | `strongPaths` | a regex of paths that deserve the strong model (a gate, a validator, billing) |
 | `enforce` | `false` for advisory mode: the hook reports what it would block and lets it through |
 | `$schema` | `init` writes it: editors then complete and check every key against [`objection.schema.json`](skills/objection/objection.schema.json) |
+| `maxRounds` | rounds a branch may have before `debate.sh` refuses another (default 2 under `lean`, 3 otherwise); one more needs `--extra-round`, when the human asks |
 | `smallDiff` | under `lean`, a diff of at most this many changed lines that no invariant or `strongPaths` touches runs no reviewer; the judge reads it alone (default 20, `0` turns it off) |
 
 Requirements: `node`, `git`, `bash` and `perl`, plus the `claude` CLI or

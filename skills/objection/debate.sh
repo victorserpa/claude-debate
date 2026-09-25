@@ -4,6 +4,16 @@
 #
 #   debate.sh [base] [goal] [scope]                    round 1
 #   debate.sh --since <commit> [base] [goal] [scope]   later rounds: the fix only
+#   --extra-round (before the rest)                    one round past the cap,
+#                                                      when the human asked for it
+#   --force                                            re-run a commit whose record
+#                                                      is already judged
+#
+# Rounds are capped: the base config's maxRounds, else 2 under lean and 3
+# otherwise. A round is a commit of this branch (since the base) that has
+# a draft or stamped record; the cap refuses a new one and says what to
+# do. Measured: a PR whose agent fixed every LOW finding went 8 rounds,
+# each one finding something in the previous fix.
 #
 # base: the branch the PR targets. Omitted (or not a branch on origin), it
 # is the config's defaultBase, and the first argument is the goal.
@@ -30,16 +40,27 @@
 # the defender fails, the draft is still written and summarised, and the
 # exit code is the defender's: rerun only the defense, not the round.
 set -eu
+# File names as they are (git quotes "src/á.ts" otherwise, and an
+# invariant's paths regex then never matches it). Appended to any git
+# config the environment already passes.
+_n="${GIT_CONFIG_COUNT:-0}"
+export "GIT_CONFIG_KEY_$_n=core.quotePath" "GIT_CONFIG_VALUE_$_n=false" "GIT_CONFIG_COUNT=$((_n + 1))"
 
 # Git Bash (Windows) rewrites an argument like "origin/main:file" as a
 # path list ("origin\\main;file"); these calls must reach git untouched.
 gitref() { MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' git "$@"; }
 
 since=""
-if [ "${1:-}" = --since ]; then
-  since="${2:?--since needs the commit of the previous round}"
-  shift 2
-fi
+extra=""
+force=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --since) since="${2:?--since needs the commit of the previous round}"; shift 2 ;;
+    --extra-round) extra=yes; shift ;;
+    --force) force=yes; shift ;;
+    *) break ;;
+  esac
+done
 # Physical paths: git reports the toplevel resolved (/private/var on macOS).
 here="$(cd "$(dirname "$0")" && pwd -P)"
 top="$(git rev-parse --show-toplevel)"
@@ -160,6 +181,28 @@ accusation="$dir/accusation-$sha.md"
 findings="$dir/findings-$sha.md"
 defense="$dir/defense-$sha.md"
 record="$dir/record-$sha.md"
+
+# A judged record for this commit is the session's work: a new run would
+# overwrite it and pay for the round again.
+if [ -f "$record" ] && ! grep -q 'TODO(judge)' "$record" && [ -z "$force" ]; then
+  echo "objection: ${sha:0:7} already has a judged record ($record); stamp it, or pass --force to debate it again." >&2
+  exit 1
+fi
+# The round cap: commits of this branch that already had a round.
+max_rounds=$(sed -n 's/^<!-- objection-max-rounds: \([0-9]*\) -->$/\1/p' "$header" | head -n 1)
+[ -n "$max_rounds" ] || { [ "$budget" = lean ] && max_rounds=2 || max_rounds=3; }
+done_rounds=0
+for c in $(git rev-list "origin/$base..HEAD" 2>/dev/null); do
+  [ "$c" = "$sha" ] && continue
+  { [ -f "$dir/record-$c.md" ] || [ -f "$dir/$c.md" ]; } && done_rounds=$((done_rounds + 1))
+done
+if [ "$done_rounds" -ge "$max_rounds" ] && [ -z "$extra" ]; then
+  cat >&2 <<EOF_CAP
+objection: this branch already had $done_rounds round(s), the cap is $max_rounds (maxRounds, or the $budget budget's default).
+Stop fixing and close the record: what is still open goes under "## Open" with its severity. MEDIUM and LOW ship with the record (track them in an issue); a BLOCKER or HIGH that is still open means the human decides. A further round runs only when the human asks for it: debate.sh --extra-round ...
+EOF_CAP
+  exit 4
+fi
 rm -f "$findings" "$defense"
 
 # The base config the rules came from, by content hash.

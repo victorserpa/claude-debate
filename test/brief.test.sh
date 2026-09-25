@@ -185,4 +185,16 @@ out=$(bash "$BRIEF" HEAD~1)
 hasnt "$out" "## Definitions the diff calls"
 cd "$T" || exit 1
 
+# A file name with an accent still matches the invariant's paths.
+U="$T/utf"
+git init -q "$U" && cd "$U" || exit 1
+printf '{"bases":["main"],"invariants":[{"paths":"^src/","rule":"RULE-UTF"}]}\n' >.objection.json
+mkdir -p src && printf 'a\n' >"src/ação.ts"
+git add . && gitc commit -q -m base && git update-ref refs/remotes/origin/main HEAD
+printf 'b\n' >>"src/ação.ts" && git add . && gitc commit -q -m change
+out=$(bash "$BRIEF" origin/main)
+has "$out" "RULE-UTF"
+has "$out" "- src/ação.ts"
+cd "$T" || exit 1
+
 if [ "$failures" = 0 ]; then echo "brief: all cases passed"; else echo "brief: $failures failure(s)"; exit 1; fi

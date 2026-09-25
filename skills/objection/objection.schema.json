@@ -76,6 +76,11 @@
       "type": "integer",
       "minimum": 0
     },
+    "maxRounds": {
+      "description": "Rounds a branch may have before debate.sh refuses another (2 under lean, 3 otherwise). A further one needs --extra-round, when the human asks.",
+      "type": "integer",
+      "minimum": 1
+    },
     "enforce": {
       "description": "false for advisory mode: the local hook reports what it would block and lets it through.",
       "type": "boolean"

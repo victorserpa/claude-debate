@@ -8,9 +8,12 @@
 #
 # The body is the text the PR already has above its old record (or,
 # without a PR, the given summary: OBJECTION_SUMMARY or nothing), then the
-# record stored by stamp.sh for HEAD. Only the part from the first
-# "<!-- objection: sha=" line on is replaced, so the author's description
-# stays. Refuses when HEAD has no stored record: stamp.sh comes first.
+# record stored by stamp.sh for HEAD, then whatever the PR had below the
+# old record. Only the old record is replaced: from the first
+# "<!-- objection: sha=" line to the last "VERDICT:" line after it, so the
+# author's text on both sides stays (a "Closes #12" below the record used
+# to be dropped, and the issue then stayed open). Refuses when HEAD has no
+# stored record: stamp.sh comes first.
 #
 # Env: OBJECTION_GH_BIN (default gh), OBJECTION_SUMMARY.
 set -eu
@@ -51,6 +54,15 @@ body="$dir/body-$sha.md"
     awk '{ lines[NR] = $0 } END { n = NR; while (n > 0 && lines[n] ~ /^[[:space:]]*$/) n--; for (i = 1; i <= n; i++) print lines[i] }'
   [ -z "$(printf '%s' "$current" | awk '/^<!-- objection: sha=/{exit} NF{print; exit}')" ] || printf '\n'
   cat "$record"
+  # Below the old record: the lines after its last VERDICT line.
+  after=$(printf '%s\n' "$current" | awk '
+    /^<!-- objection: sha=/ && !seen { seen = 1 }
+    { lines[NR] = $0 }
+    seen && /^VERDICT: / { last = NR }
+    END { if (last) for (i = last + 1; i <= NR; i++) print lines[i] }')
+  if [ -n "$(printf '%s' "$after" | tr -d '[:space:]')" ]; then
+    printf '\n%s\n' "$(printf '%s\n' "$after" | awk 'NF { p = 1 } p')"
+  fi
 } >"$body"
 
 if [ -n "$update" ]; then

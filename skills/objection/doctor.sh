@@ -64,7 +64,7 @@ process.stdin.setEncoding("utf8").on("data", (d) => (raw += d)).on("end", () => 
   let c;
   try { c = JSON.parse(raw); } catch (e) { fail(`not valid JSON (${e.message}): brief.sh reads no rules from it`); console.log(out.join("\n")); return; }
   if (!c || typeof c !== "object" || Array.isArray(c)) { fail("not a JSON object"); console.log(out.join("\n")); return; }
-  const known = ["$schema", "bases", "defaultBase", "verify", "budget", "invariants", "reviewers", "models", "strongPaths", "smallDiff", "enforce", "precedents"];
+  const known = ["$schema", "bases", "defaultBase", "verify", "budget", "invariants", "reviewers", "models", "strongPaths", "smallDiff", "maxRounds", "enforce", "precedents"];
   for (const k of Object.keys(c)) if (!known.includes(k)) warn(`unknown key "${k}": ignored (a typo? known: ${known.slice(1).join(", ")})`);
   const regex = (where, v) => { try { new RegExp(v); } catch (e) { fail(`${where}: invalid regex ${JSON.stringify(v)}: that rule is never checked`); } };
   const strs = (v) => Array.isArray(v) && v.every((x) => typeof x === "string" && x.length);
@@ -97,6 +97,7 @@ process.stdin.setEncoding("utf8").on("data", (d) => (raw += d)).on("end", () => 
     }
   }
   if (c.smallDiff !== undefined && !(Number.isInteger(c.smallDiff) && c.smallDiff >= 0)) fail("smallDiff must be a whole number, 0 or more: 20 is used");
+  if (c.maxRounds !== undefined && !(Number.isInteger(c.maxRounds) && c.maxRounds >= 1)) fail("maxRounds must be a whole number, 1 or more: the budget default is used");
   if (c.enforce !== undefined && typeof c.enforce !== "boolean") fail("enforce must be true or false");
   if (c.enforce === false) warn("enforce is false: advisory mode, the local hook blocks nothing");
   if (c.precedents !== undefined && typeof c.precedents !== "boolean") fail("precedents must be true or false");

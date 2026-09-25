@@ -44,6 +44,11 @@
 #      OBJECTION_EXCERPT_LINES (lines each side of a cited line, default 40),
 #      OBJECTION_EXCERPT_MAX (total excerpt lines, default 1500).
 set -eu
+# File names as they are (git quotes "src/á.ts" otherwise, and an
+# invariant's paths regex then never matches it). Appended to any git
+# config the environment already passes.
+_n="${GIT_CONFIG_COUNT:-0}"
+export "GIT_CONFIG_KEY_$_n=core.quotePath" "GIT_CONFIG_VALUE_$_n=false" "GIT_CONFIG_COUNT=$((_n + 1))"
 
 # Git Bash (Windows) rewrites an argument like "origin/main:file" as a
 # path list ("origin\\main;file"); these calls must reach git untouched.

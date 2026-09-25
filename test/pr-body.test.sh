@@ -53,6 +53,13 @@ has "$edited" "# Debate: new"
 hasnt "$edited" "# Debate: old"
 hasnt "$edited" "sha=0000000"
 [ "$(grep -c 'objection: sha=' "$edited")" = 1 ] || fail "more than one record in the body"
+# Text the author put below the old record stays below the new one.
+printf 'Adds coupons.\n\n<!-- objection: sha=0000000 base=origin/main -->\n# Debate: old\nOPEN: BLOCKER=0 HIGH=0\nVERDICT: APPROVED\n\n## Screenshots\n![after](x.png)\n\nCloses #12.\n' >"$T/body"
+bash "$PB" --update >/dev/null || fail "--update with text below the record failed"
+has "$edited" "## Screenshots"
+has "$edited" "Closes #12."
+hasnt "$edited" "# Debate: old"
+awk '/Debate: new/ { n = NR } /Closes #12/ { c = NR } END { exit !(n && c > n) }' "$edited" || fail "the text below the record did not stay below it"
 
 # An empty PR body takes the summary; a typo in the flag is refused; a
 # subdirectory finds the same record.
