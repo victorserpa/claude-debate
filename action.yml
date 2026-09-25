@@ -35,6 +35,9 @@ inputs:
   claude-version:
     description: "The @anthropic-ai/claude-code version installed for the review: pinned, since a new CLI can change the flags review.sh passes."
     default: "2.1.278"
+  comment:
+    description: "true also posts the review's findings as one PR comment, edited in place on every push. The job needs pull-requests: write."
+    default: "false"
   record:
     description: "false skips the record check and runs only the review."
     default: "true"
@@ -59,6 +62,7 @@ runs:
         OBJECTION_MODEL: ${{ inputs.model }}
         OBJECTION_EFFORT: ${{ inputs.effort }}
         OBJECTION_FAIL_ON: ${{ inputs.fail-on }}
+        OBJECTION_COMMENT: ${{ inputs.comment }}
         CLAUDE_VERSION: ${{ inputs.claude-version }}
       run: |
         if [ "$OBJECTION_RUNNER" = gemini ]; then

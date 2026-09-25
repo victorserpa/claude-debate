@@ -334,6 +334,11 @@ change the flags the reviewer is run with.
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
+`comment: true` also puts the findings on the PR as one comment, edited
+in place on every push rather than piling up (the job needs
+`pull-requests: write`). A comment that cannot be posted is a warning;
+the check's verdict does not change.
+
 No Anthropic account? `runner: gemini` runs the same accuser through the
 Gemini CLI (pinned with `gemini-version`), with a Gemini API key, which
 has a free tier. `gemini-model` picks the model; empty uses the CLI's

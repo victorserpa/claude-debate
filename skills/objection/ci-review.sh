@@ -23,6 +23,8 @@
 #      GITHUB_SERVER_URL, GITHUB_TOKEN (to fetch), GITHUB_STEP_SUMMARY,
 #      OBJECTION_FAIL_ON (blocker, high or none; default blocker),
 #      OBJECTION_MODEL / OBJECTION_EFFORT (default sonnet, medium),
+#      OBJECTION_COMMENT (true: the summary as one PR comment, kept up
+#      to date), OBJECTION_GH_BIN (default gh),
 #      OBJECTION_CI_REMOTE (the URL to fetch from; tests use a local one).
 set -eu
 
@@ -73,6 +75,27 @@ got=$(git rev-parse refs/objection/pr)
 git update-ref --no-deref HEAD "$head"
 
 export OBJECTION_MODEL="${OBJECTION_MODEL:-sonnet}" OBJECTION_EFFORT="${OBJECTION_EFFORT:-medium}"
+# With OBJECTION_COMMENT=true, the summary also goes to the PR as one
+# comment, edited in place on every push instead of piling up. It needs
+# pull-requests: write. A comment that cannot be posted is a warning, not
+# a failed check: the verdict is the check's, the comment only shows it.
+comment() {
+  [ "${OBJECTION_COMMENT:-false}" = true ] || return 0
+  local gh_bin="${OBJECTION_GH_BIN:-gh}" marker="<!-- objection-review -->" id
+  printf '%s\n%s\n\n<sub>objection %s, in CI. Updated on every push.</sub>\n' "$marker" "$1" "$(cat "$here/VERSION" 2>/dev/null || echo "")" |
+    node -e 'let s = ""; process.stdin.on("data", (d) => (s += d)).on("end", () => {
+      // GitHub takes 65536 characters; the cut says so.
+      if (s.length > 60000) s = s.slice(0, 60000) + "\n\n(cut: the full findings are in the job summary)";
+      process.stdout.write(JSON.stringify({ body: s }));
+    });' >"$work/comment.json"
+  id=$(GH_TOKEN="${GITHUB_TOKEN:-}" "$gh_bin" api --paginate "repos/$GITHUB_REPOSITORY/issues/$number/comments" \
+    -q ".[] | select(.body | startswith(\"$marker\")) | .id" 2>/dev/null | head -n 1) || id=""
+  if [ -n "$id" ]; then
+    GH_TOKEN="${GITHUB_TOKEN:-}" "$gh_bin" api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" --input "$work/comment.json" >/dev/null 2>&1
+  else
+    GH_TOKEN="${GITHUB_TOKEN:-}" "$gh_bin" api -X POST "repos/$GITHUB_REPOSITORY/issues/$number/comments" --input "$work/comment.json" >/dev/null 2>&1
+  fi || echo "::warning::objection review: the PR comment could not be posted (does the job have pull-requests: write?)" >&2
+}
 summarise() {
   printf '%s\n' "$1"
   [ -z "${GITHUB_STEP_SUMMARY:-}" ] || printf '%s\n' "$1" >>"$GITHUB_STEP_SUMMARY"
@@ -137,5 +160,6 @@ summary=$(
   cat "$accusation"
 )
 summarise "$summary"
+comment "$summary"
 finished=yes
 exit "$status"

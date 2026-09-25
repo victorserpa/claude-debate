@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- The Action's review takes `comment: true`: the findings go on the PR as
+  one comment, found by a marker and edited on every push, instead of
+  only in the job summary nobody opens. A comment that cannot be posted
+  (no `pull-requests: write`) is a warning, never a changed verdict.
+  This repository's `review (gemini)` job uses it.
+
 - The brief carries the definitions the added lines call, read from the
   commit (at most 8, 12 lines each, 80 in all; a name defined in more
   than 3 places is left out). A reviewer that saw only the diff could not
