@@ -37,6 +37,7 @@ maintainer, never a side effect of a PR.
 | `skills/objection/precedents.mjs` | keeps `.objection/precedents.md` (confirmed defects, capped) |
 | `skills/objection/gate/core.mjs` | the gate logic, tool-neutral |
 | `skills/objection/gate/hook.mjs` | pre-tool hook adapter (Claude Code, Codex, Gemini CLI, Cursor) |
+| `skills/objection/gate/hook.sh` | what the hosts run: `hook.mjs`, failing closed when node cannot run |
 | `skills/objection/gate/check-pr.mjs` | the GitHub check (`action.yml`) |
 | `agents/` | Claude Code subagents; body must equal `skills/objection/roles/` |
 | `.claude-plugin/`, `hooks/hooks.json` | Claude Code plugin and marketplace |

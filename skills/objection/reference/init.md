@@ -68,16 +68,19 @@ Then install a gate, and tell the user which one you installed:
    inside the repository:
    - Claude Code: nothing to do if installed as the plugin (the hook ships
      with it). Otherwise a `PreToolUse` hook on `Bash|mcp__.*` running
-     `node <SKILL_DIR>/gate/hook.mjs`.
+     `sh <SKILL_DIR>/gate/hook.sh`. `hook.sh` runs `hook.mjs` and, when
+     node cannot start or crashes, blocks a PR command instead of letting
+     it through (on Windows, Cursor, Codex and Gemini call
+     `node <SKILL_DIR>/gate/hook.mjs` directly).
    - Cursor: `.cursor/hooks.json`, `beforeShellExecution` and
-     `beforeMCPExecution` running `node <SKILL_DIR>/gate/hook.mjs --host cursor`.
+     `beforeMCPExecution` running `sh <SKILL_DIR>/gate/hook.sh --host cursor`.
    - Codex CLI: `.codex/hooks.json`, `PreToolUse` running
-     `node <SKILL_DIR>/gate/hook.mjs --host codex`. Codex runs a new hook
+     `sh <SKILL_DIR>/gate/hook.sh --host codex`. Codex runs a new hook
      only after the user trusts it in its interactive UI, and skips it
      silently until then: tell the user to open Codex in the repository
      once and trust it.
    - Gemini CLI: `.gemini/settings.json`, `BeforeTool` running
-     `node <SKILL_DIR>/gate/hook.mjs --host gemini`. Gemini loads project
+     `sh <SKILL_DIR>/gate/hook.sh --host gemini`. Gemini loads project
      hooks only in a trusted folder and skips them silently otherwise: tell
      the user to trust the repository in Gemini once.
 2. **GitHub check**, which works whatever tool (or person) opens the PR:

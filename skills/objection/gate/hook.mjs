@@ -69,7 +69,16 @@ const call = command
   ? { kind: "shell", command, cwd }
   : { kind: "tool", tool: input.tool_name || "", cwd };
 
-const result = gate(call);
+// A crash exits 1, which every host reads as "go ahead": a check that
+// could not finish blocks what looks PR-related, like unreadable input.
+let result;
+try {
+  result = gate(call);
+} catch (e) {
+  if (/\bgh\b|pull_request|auto_merge/.test(raw))
+    deny(`the gate failed while checking this command (${(e && e.message) || e}).`, true);
+  process.exit(0);
+}
 if (result.blocked) deny(result.reason, result.hint);
 // Advisory mode: allowed, and both the agent (stderr) and the user hear why
 // it would have been blocked.

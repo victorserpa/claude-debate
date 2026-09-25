@@ -65,6 +65,12 @@ while [ $# -gt 0 ]; do
     *) break ;;
   esac
 done
+# node on PATH may still not run: a version manager's shim exits 126 when
+# .tool-versions or .nvmrc pins a version that is not installed.
+if ! node_err=$(node -e 0 2>&1); then
+  echo "objection: node does not run in this repository ($(printf '%s' "$node_err" | head -n 1)). Install the version it pins, or put a node that runs first on PATH." >&2
+  exit 2
+fi
 # Physical paths: git reports the toplevel resolved (/private/var on macOS).
 here="$(cd "$(dirname "$0")" && pwd -P)"
 top="$(git rev-parse --show-toplevel)"

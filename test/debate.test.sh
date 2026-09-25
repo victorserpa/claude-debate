@@ -433,6 +433,11 @@ printf '{"bases":["main"],"smallDiff":0}\n' >.objection.json && printf '2\n' >>a
 reset; bash "$DEBATE" main >/dev/null 2>&1
 grep -q "config .objection.json from the working copy (origin/main has none yet) sha256:" "$(git rev-parse --git-common-dir)/objection/record-$(git rev-parse HEAD).md" ||
   fail "the first PR's record does not name the working copy's config"
+# A node that does not run (a version manager's shim): said, not a silent 126.
+mkdir -p "$T/badnode" && printf '#!/bin/sh\necho "No version is set for command node" >&2\nexit 126\n' >"$T/badnode/node" && chmod +x "$T/badnode/node"
+rc=0; PATH="$T/badnode:$PATH" bash "$DEBATE" main >/dev/null 2>"$T/node-err" || rc=$?
+[ "$rc" = 2 ] || fail "a node that does not run did not exit 2 (got $rc)"
+grep -q "node does not run in this repository (No version is set" "$T/node-err" || fail "debate.sh does not say node does not run"
 # A diff over the large threshold is refused before any reviewer runs;
 # --large reviews it anyway.
 reset

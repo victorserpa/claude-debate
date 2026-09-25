@@ -34,6 +34,12 @@ for t in git node perl; do
   command -v "$t" >/dev/null 2>&1 && ok "$t: $(command -v "$t")" || bad "$t not found: objection needs it"
 done
 command -v node >/dev/null 2>&1 || { echo "cannot go on without node."; exit 1; }
+# On PATH is not enough: a version manager's shim (asdf, mise, nvm) exits
+# 126 when .tool-versions or .nvmrc pins a version that is not installed.
+if ! node_err=$(node -e 0 2>&1); then
+  bad "node is on PATH but does not run in this repository: $(printf '%s' "$node_err" | head -n 1) (install the version it pins, or put a node that runs first on PATH)"
+  echo "cannot go on without node."; exit 1
+fi
 clis=""
 for c in claude codex gemini; do
   v="OBJECTION_$(printf '%s' "$c" | tr '[:lower:]' '[:upper:]')"
@@ -149,12 +155,18 @@ base="${base_named:-${v_base:-$base}}"
 
 # local gate: the hook files each agent reads.
 hooks=""
-grep -qs 'gate/hook.mjs' .claude/settings.json && hooks="$hooks claude"
-grep -qs 'gate/hook.mjs' .cursor/hooks.json && hooks="$hooks cursor"
-grep -qs 'gate/hook.mjs' .codex/hooks.json && hooks="$hooks codex"
-grep -qs 'gate/hook.mjs' .gemini/settings.json && hooks="$hooks gemini"
+grep -qsE 'gate/hook\.(mjs|sh)' .claude/settings.json && hooks="$hooks claude"
+grep -qsE 'gate/hook\.(mjs|sh)' .cursor/hooks.json && hooks="$hooks cursor"
+grep -qsE 'gate/hook\.(mjs|sh)' .codex/hooks.json && hooks="$hooks codex"
+grep -qsE 'gate/hook\.(mjs|sh)' .gemini/settings.json && hooks="$hooks gemini"
 if [ -n "$hooks" ]; then
   ok "local gate hooks:$hooks"
+  case "$(uname -s)" in
+    MINGW* | MSYS* | CYGWIN*) ;;
+    *) for f in .claude/settings.json .cursor/hooks.json .codex/hooks.json .gemini/settings.json; do
+         grep -qs 'gate/hook\.mjs' "$f" && warn "$f calls hook.mjs with node directly: a node that cannot start lets a PR command through; call gate/hook.sh (init.sh writes it), which blocks then"
+       done ;;
+  esac
   case "$hooks" in *codex*) warn "codex: the hook runs only once trusted (open codex here once and trust it); an untrusted hook is skipped silently" ;; esac
   case "$hooks" in *gemini*) warn "gemini: project hooks run only in a trusted folder; an untrusted one skips them silently" ;; esac
 else

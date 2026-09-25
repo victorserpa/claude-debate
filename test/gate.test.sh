@@ -685,4 +685,28 @@ check 2 "$T/neutral" Bash 'gh pr create --fill'
 printf '%s\n# x\nexample: VERDICT: APPROVED\nVERDICT: APPROVED\nVERDICT: REJECTED\n' "$stamp" >"$T/ok/.git/objection/$OK_SHA.md"
 check 2 $O Bash 'gh pr create --fill --base develop'
 
+# hook.sh: a node that cannot start (a version manager's shim exits 126
+# when .tool-versions pins a version that is not installed) blocks a PR
+# command in an opted-in repository, and nothing else.
+HOOKSH="$ROOT/skills/objection/gate/hook.sh"
+mkdir -p "$T/badnode" && printf '#!/bin/sh\necho "No version is set for command node" >&2\nexit 126\n' >"$T/badnode/node" && chmod +x "$T/badnode/node"
+shrun() { # expected cwd command [host]
+  local rc
+  (cd "$2" && printf '{"cwd":"%s","tool_name":"Bash","tool_input":{"command":"%s"}}' "$2" "$3" |
+    PATH="$T/badnode:$PATH" sh "$HOOKSH" ${4:+--host "$4"} >"$T/sh.out" 2>"$T/sh.err")
+  rc=$?
+  [ "$rc" = "$1" ] || { echo "FAIL hook.sh (expected $1, got $rc): $3 in $2"; failures=$((failures + 1)); }
+}
+shrun 2 "$O" "gh pr merge 5 --squash"
+grep -q "the gate did not run (node exited 126)" "$T/sh.err" || { echo "FAIL: hook.sh does not say node did not run"; failures=$((failures + 1)); }
+shrun 0 "$O" "ls -la"
+shrun 0 "$F" "gh pr merge 5 --squash"
+shrun 2 "$O" "gh pr create --fill" cursor
+grep -q '"permission":"deny"' "$T/sh.out" || { echo "FAIL: hook.sh sent Cursor no deny"; failures=$((failures + 1)); }
+# With a node that runs, hook.sh is hook.mjs: same exit, same output.
+(cd "$O" && printf '{"cwd":"%s","tool_name":"Bash","tool_input":{"command":"gh pr create --fill --base develop"}}' "$O" | sh "$HOOKSH" >/dev/null 2>&1)
+[ "$?" = 2 ] || { echo "FAIL: hook.sh did not pass hook.mjs's block through"; failures=$((failures + 1)); }
+(cd "$F" && printf '{"cwd":"%s","tool_name":"Bash","tool_input":{"command":"gh pr create --fill"}}' "$F" | sh "$HOOKSH" >/dev/null 2>&1)
+[ "$?" = 0 ] || { echo "FAIL: hook.sh blocked outside an opted-in repository"; failures=$((failures + 1)); }
+
 if [ "$failures" = 0 ]; then echo "gate: all cases passed"; else echo "gate: $failures failure(s)"; exit 1; fi

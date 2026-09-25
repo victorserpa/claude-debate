@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/skills/objection/gate/hook.mjs\"",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/skills/objection/gate/hook.sh\"",
             "timeout": 30
           }
         ]

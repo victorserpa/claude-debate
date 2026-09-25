@@ -1,5 +1,39 @@
 # Changelog
 
+## Unreleased
+
+- **The gate fails closed when node cannot run.** Every host reads a hook
+  that fails to run as "go ahead": a `node` that does not start (a
+  version manager's shim exits 126 when `.tool-versions` or `.nvmrc` pins
+  a version that is not installed; reproduced on a real repository) or a
+  crash in the gate let `gh pr merge` through. The hosts now run
+  `gate/hook.sh`, which blocks a PR command then, in a repository that
+  opted in; `hook.mjs` blocks one when its check throws. Run live through
+  `hook.sh` on Claude Code and Cursor (blocked without a record, allowed
+  with one); Codex and Gemini ask to trust a changed hook, so not yet
+  there. On Windows, Cursor, Codex and Gemini keep calling node. `doctor`
+  says when node does not run in the repository, and when a hook file
+  still calls `hook.mjs` directly; `debate.sh` says so instead of a
+  silent exit 126.
+- **The defense reads the files a finding names.** Paths with `[ ]`,
+  `( )` or `@` (`app/[locale]/layout.tsx`, `@types/user.ts`) were never
+  excerpted, so on Next.js and TypeScript code the defender answered
+  blind; a file named without a line now comes from its top. On a
+  4600-line Next.js PR the one HIGH, about a type in a file the brief had
+  cut, went from UPHELD (the defender could not see the file) to REFUTED
+  with the right citation.
+- **`debate.sh` refuses a diff over 800 changed lines** (exit 5) before
+  spending: the brief keeps the first 3000 lines and reviewers guess about
+  the rest. `--large` reviews it anyway; `OBJECTION_LARGE_DIFF` moves the
+  threshold.
+- `usage.sh --summary`: cost per month, and the median, mean and max per
+  PR. objection's own 26 PRs: median $0.15.
+- Open findings closed: the carry-over's failed-diff test now fails on
+  Linux too (it emulates BSD `xargs`); `fetch.sh` skips a case that
+  downloads nothing and still exits 1; the check-pr test servers die with
+  the suite, even on `kill -9`; the PR body folds only when Judge comes
+  after Accusation.
+
 ## 0.18.0 (2026-09-25)
 
 - **Real bugs, replayed.** `eval/real/` lists nine regressions from

@@ -5,15 +5,20 @@ Two layers. Use both where you can.
 
 **1. Local hook**: blocks the agent's PR command before it runs.
 One script, [`gate/hook.mjs`](../skills/objection/gate/hook.mjs), speaks
-each host's hook format; templates live in
+each host's hook format, and the hosts run it through
+[`gate/hook.sh`](../skills/objection/gate/hook.sh): every host reads a
+hook that fails to run as "go ahead", so a `node` that does not start (a
+version manager's shim exits 126 when `.tool-versions` pins a version
+that is not installed) or crashes let `gh pr merge` through. `hook.sh`
+blocks a PR command then, in a repository that opted in. Templates live in
 [`skills/objection/templates/`](../skills/objection/templates).
 
 | host | hook | status |
 |---|---|---|
-| Claude Code | `PreToolUse` (ships with the plugin) | used daily |
-| Cursor | `beforeShellExecution` + `beforeMCPExecution` | run live with the `cursor-agent` CLI: blocked `gh pr create` without a record (gh never ran), allowed it with one. The hook does not inherit the agent's shell `PATH`: put `node` where the hook's environment finds it |
-| Codex CLI | `PreToolUse` in `.codex/hooks.json` | run live with `codex exec` (0.156): blocked `gh pr create` without a record, allowed it with one. Codex runs a new hook only after you trust it (it asks in its interactive UI); until then it skips it without a word, so open Codex in the repository once after `init` |
-| Gemini CLI | `BeforeTool` in `.gemini/settings.json` | run live with `gemini -p` (0.61, API key): blocked `gh pr create` without a record, allowed it with one. Gemini loads project hooks only in a trusted folder; untrusted, it skips them without a word, so trust the repository once after `init` |
+| Claude Code | `PreToolUse` (ships with the plugin) | used daily; `hook.sh` run live with `claude -p`: blocked `gh pr create` without a record, allowed it with one |
+| Cursor | `beforeShellExecution` + `beforeMCPExecution` | run live with the `cursor-agent` CLI, through `hook.sh` too: blocked `gh pr create` without a record (gh never ran), allowed it with one. The hook does not inherit the agent's shell `PATH`: put `node` where the hook's environment finds it |
+| Codex CLI | `PreToolUse` in `.codex/hooks.json` | run live with `codex exec` (0.156) calling `hook.mjs`: blocked `gh pr create` without a record, allowed it with one (`hook.sh` not yet run live there: Codex asks to trust a changed hook). Codex runs a new hook only after you trust it (it asks in its interactive UI); until then it skips it without a word, so open Codex in the repository once after `init` |
+| Gemini CLI | `BeforeTool` in `.gemini/settings.json` | run live with `gemini -p` (0.61, API key) calling `hook.mjs`: blocked `gh pr create` without a record, allowed it with one (`hook.sh` not yet run live there: Gemini treats a changed project hook as untrusted). Gemini loads project hooks only in a trusted folder; untrusted, it skips them without a word, so trust the repository once after `init` |
 | GitHub Copilot | hook format not confirmed | use the GitHub check |
 
 Reports from people running it in those tools are welcome.

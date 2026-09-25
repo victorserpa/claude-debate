@@ -122,7 +122,15 @@ template() {
   case "$skill_dir" in
     /*) sed -e "s#\\\$CLAUDE_PROJECT_DIR/<SKILL_DIR>#$skill_dir#g" -e "s#<SKILL_DIR>#$skill_dir#g" "$here/templates/$1" ;;
     *) sed "s#<SKILL_DIR>#$skill_dir#g" "$here/templates/$1" ;;
-  esac
+  esac | {
+    # hook.sh fails closed when node cannot run; on Windows, where Cursor,
+    # Codex and Gemini may run hooks without a POSIX sh, they call node.
+    case "$(uname -s)/$1" in
+      MINGW*/claude/* | MSYS*/claude/* | CYGWIN*/claude/*) cat ;;
+      MINGW* | MSYS* | CYGWIN*) sed 's#sh \([^ ]*\)/gate/hook\.sh#node \1/gate/hook.mjs#' ;;
+      *) cat ;;
+    esac
+  }
 }
 
 put .objection.json "$config"

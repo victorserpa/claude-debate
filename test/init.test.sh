@@ -52,7 +52,12 @@ repo go ssh://git@git.example.com/me/app.git
 printf 'module x\n' >go.mod
 bash "$INIT" --host cursor >"$T/out" 2>&1 || fail "init failed for Cursor ($(cat "$T/out"))"
 has .objection.json '"go test ./..."'
-has .cursor/hooks.json "$ROOT/skills/objection/gate/hook.mjs --host cursor"
+# hook.sh fails closed when node cannot run; Windows keeps node for Cursor,
+# Codex and Gemini, which may lack a POSIX sh there.
+case "$(uname -s)" in
+  MINGW* | MSYS* | CYGWIN*) has .cursor/hooks.json "node $ROOT/skills/objection/gate/hook.mjs --host cursor" ;;
+  *) has .cursor/hooks.json "sh $ROOT/skills/objection/gate/hook.sh --host cursor" ;;
+esac
 hasnt .cursor/hooks.json "<SKILL_DIR>"
 has "$T/out" "there is no CI gate"
 
@@ -60,7 +65,7 @@ has "$T/out" "there is no CI gate"
 # absolute path, not one glued to $CLAUDE_PROJECT_DIR.
 repo cc git@github.com:me/cc.git
 bash "$INIT" --host claude >"$T/out" 2>&1 || fail "init failed for claude ($(cat "$T/out"))"
-has .claude/settings.json 'node \"'"$ROOT/skills/objection/gate/hook.mjs"'\"'
+has .claude/settings.json 'sh \"'"$ROOT/skills/objection/gate/hook.sh"'\"'
 hasnt .claude/settings.json 'CLAUDE_PROJECT_DIR'
 
 # An existing hook file is never overwritten: the snippet is printed.
