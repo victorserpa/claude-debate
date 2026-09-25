@@ -10,7 +10,6 @@ Maintained by precedents.mjs; edit by hand only to delete a line.
 - [2x, 2026-09-24, ab823c2] skills/objection/gate/: a value the gate cannot read was skipped silently instead of failing closed
 - [2x, 2026-09-24, 80722b1] skills/objection/: two instructions an agent reads together contradict each other (write a test, never change files)
 - [2x, 2026-09-24, 471e520] skills/objection/: a paid external call whose failure or odd output discards the answer instead of showing it
-- [1x, 2026-09-24, 102d9d2] skills/objection/gate/: a flag whose value the parser does not know is read as the target
 - [1x, 2026-09-24, a9d6f78] skills/objection/gate/: an input the platform may truncate is trusted as whole
 - [1x, 2026-09-24, a9d6f78] skills/objection/: a new automatic fallback turns a documented fall-back exit into a hard failure
 - [1x, 2026-09-24, 5fe2c5d] skills/objection/: bash 3.2 exits 0 from a set -u error when an EXIT trap is set, so a script meant to fail closed passes
@@ -34,3 +33,4 @@ Maintained by precedents.mjs; edit by hand only to delete a line.
 - [1x, 2026-09-25, 18e6144] skills/objection/gate/: a fallback for when the checker cannot run resolves the target from the process directory instead of the input the checker reads
 - [2x, 2026-09-25, 1df5e13] skills/objection/gate/: a retry loop whose step comes from the environment never ends, or floods the API, when the step is zero or negative
 - [1x, 2026-09-25, 931ac27] skills/objection/gate/: a wait added for one race also delays the plain failure it was not meant for
+- [1x, 2026-09-25, d911705] eval/: a scorer's match pattern holds words any finding on the file would use, so a miss scores as a catch
