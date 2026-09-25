@@ -53,7 +53,20 @@ body="$dir/body-$sha.md"
   printf '%s\n' "$current" | awk '/^<!-- objection: sha=/{exit} {print}' |
     awk '{ lines[NR] = $0 } END { n = NR; while (n > 0 && lines[n] ~ /^[[:space:]]*$/) n--; for (i = 1; i <= n; i++) print lines[i] }'
   [ -z "$(printf '%s' "$current" | awk '/^<!-- objection: sha=/{exit} NF{print; exit}')" ] || printf '\n'
-  cat "$record"
+  # The accusation and the defense fold under <details>: a reader of the
+  # PR wants the rulings and what is open, and a long table pushed them
+  # off the screen. The section lines stay whole lines, which is how the
+  # CI check and the precedent parser find them.
+  if grep -qx '## Accusation' "$record" && grep -qx '## Judge' "$record"; then
+    n=$(awk '/^## Accusation$/ { a = 1; next } /^## / { a = 0 } a && /^[[:space:]]*\|[[:space:]]*[0-9]+[[:space:]]*\|/ { c++ } END { print c + 0 }' "$record")
+    awk -v n="$n" '
+      /^## Accusation$/ && !open { printf "<details>\n<summary>Accusation and defense (%s finding%s)</summary>\n\n", n, (n == 1 ? "" : "s"); open = 1 }
+      /^## Judge$/ && open == 1 { print "</details>\n"; open = 2 }
+      { print }
+    ' "$record"
+  else
+    cat "$record"
+  fi
   # Below the old record: the lines after its last VERDICT line.
   after=$(printf '%s\n' "$current" | awk '
     /^<!-- objection: sha=/ && !seen { seen = 1 }

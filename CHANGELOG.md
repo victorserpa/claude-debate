@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- pr-body.sh folds the accusation and the defense under `<details>`
+  ("Accusation and defense (N findings)"), so the PR shows the rulings,
+  what is open and the verdict first. The section lines stay whole, and
+  the CI check reads a folded body (test/pr-body.test.sh runs it).
 - Each record says which round it was ("Round 2 of 3."), and a round run
   with `--extra-round` says it ran past the cap, so the human reading the
   PR sees it. debate.sh prints the same line.

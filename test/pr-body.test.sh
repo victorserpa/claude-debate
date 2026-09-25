@@ -71,4 +71,15 @@ top_out=$(bash "$PB")
 mkdir -p sub && sub_out=$(cd sub && bash "$PB") || fail "pr-body failed from a subdirectory"
 [ "$sub_out" = "$top_out" ] || fail "a subdirectory wrote another body ($sub_out)"
 
+# A full record: the accusation and the defense fold under <details>, the
+# rulings stay in view, and the CI check still reads the body.
+rm -f "$T/body"
+printf '<!-- objection: sha=%s base=origin/main -->\n# Debate: full\n\n## Accusation\n\n| # | severity | kind | file:line | defect | evidence | proof |\n|---|---|---|---|---|---|---|\n| 1 | HIGH | BUG | a:1 | x | read | p |\n| 2 | LOW | BUG | a:2 | y | read | p |\n\n## Defense\n\n| # | verdict | evidence | kind | sentence |\n|---|---|---|---|---|\n| 1 | UPHELD | a:1 | read | s |\n\n## Judge\n\n1. fixed.\n2. open.\n\n## Open\n\n- 2 (LOW)\n\nOPEN: BLOCKER=0 HIGH=0\nVERDICT: APPROVED\n' "$(git rev-parse HEAD)" >".git/objection/$(git rev-parse HEAD).md"
+out=$(OBJECTION_SUMMARY="Summary." bash "$PB") && [ -s "$out" ] || { fail "full-record body failed"; out=/dev/null; }
+has "$out" "<summary>Accusation and defense (2 findings)</summary>"
+awk '/^<details>$/{d=NR} /^## Accusation$/{a=NR} /^## Defense$/{f=NR} /^<\/details>$/{e=NR} /^## Judge$/{j=NR} END { exit !(d < a && a < f && f < e && e < j) }' "$out" ||
+  fail "the fold is not around the accusation and the defense only"
+node -e 'require("fs").writeFileSync(process.argv[1], JSON.stringify({pull_request:{number:1,head:{sha:process.argv[2]},base:{ref:"main"},body:require("fs").readFileSync(process.argv[3],"utf8")},repository:{full_name:"o/r"}}))' "$T/event.json" "$(git rev-parse HEAD)" "$out"
+GITHUB_EVENT_PATH="$T/event.json" OBJECTION_FILES="src/a.ts" node "$ROOT/skills/objection/gate/check-pr.mjs" >/dev/null 2>&1 || fail "the CI check refused a folded body"
+
 [ "$failures" -eq 0 ] && echo "pr-body: all cases passed" || { echo "pr-body: $failures failure(s)"; exit 1; }
