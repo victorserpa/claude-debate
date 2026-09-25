@@ -160,8 +160,12 @@ check 0 $N Bash "cd $O && gh pr create --base develop --title \"reads cd x; y\""
 check 0 $O Bash "gh pr create --base develop --title 'cd a; b'"
 # ...and the same title on a repository with no record still blocks.
 check 2 $N Bash 'gh pr create --base develop --title "fix: reads quoted cd targets; ok"'
-# A cd inside a quoted $( ) runs: still read as a cd.
+# A cd inside a quoted $( ) or backtick runs: it still blocks.
 check 2 $O Bash "echo \"\$(cd $N && gh pr create --base develop)\""
+check 2 $O Bash 'echo "`cd '"$N"' && gh pr create --base develop`"'
+# A quoted fake cd next to a real one: the real one decides, both ways.
+check 2 $T Bash "cd $N && gh pr create --base develop --title \"cd $O; x\""
+check 0 $T Bash "cd $O && gh pr create --base develop --title \"cd $N; x\""
 # A record debated against develop does not release a PR to master
 # (defaultBase in the config is master).
 check 2 $O Bash 'gh pr create --fill'

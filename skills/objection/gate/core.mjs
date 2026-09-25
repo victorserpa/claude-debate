@@ -629,7 +629,8 @@ export function gate(input) {
     // The `cd` matches of re in s whose keyword is outside quoted text. A
     // title or body like "reads quoted cd targets; ok" is not a cd, and
     // counting it blocked an innocent `gh pr create` (the counts below did
-    // not agree). A `$(...)` inside double quotes runs, so it counts.
+    // not agree). A `$(...)` or a backtick inside double quotes runs, so
+    // it counts.
     function cdsOutsideQuotes(s, re) {
       const quoted = new Uint8Array(s.length);
       let q = "";
@@ -640,6 +641,7 @@ export function gate(input) {
         if (q === '"') {
           if (ch === '"') { quoted[p] = 1; q = ""; continue; }
           if (ch === "$" && s[p + 1] === "(") { p = substEnd(s, p + 1) - 1; continue; }
+          if (ch === "`") { const e = s.indexOf("`", p + 1); p = e === -1 ? s.length : e; continue; }
           quoted[p] = 1;
           continue;
         }
