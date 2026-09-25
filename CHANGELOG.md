@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Each record says which round it was ("Round 2 of 3."), and a round run
+  with `--extra-round` says it ran past the cap, so the human reading the
+  PR sees it. debate.sh prints the same line.
+
 ## 0.17.0 (2026-09-24)
 
 **A security pass, and a round cap the script enforces.** Upgrade from

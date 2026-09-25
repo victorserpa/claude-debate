@@ -256,7 +256,8 @@ for `lean`, 3 otherwise, or `maxRounds`), what is still open goes into
 (tracked in an issue), BLOCKER and HIGH cannot, and the human decides
 what happens to them. `debate.sh` enforces the cap: it refuses a round
 past it (exit 4) and says so. Tell the human; run `--extra-round` only
-when they ask for it. It also refuses to re-run a commit whose record is
+when they ask for it; the record then says it ran past the cap, where
+the human reading the PR sees it. It also refuses to re-run a commit whose record is
 already judged (`--force` to do it anyway).
 
 ## When the diff is a gate, check or validator

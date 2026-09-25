@@ -181,7 +181,7 @@ const s = http.createServer((q, r) => {
   r.setHeader("content-type", "application/json");
   r.end(fs.readFileSync(process.argv[2]));
 }).listen(0, "127.0.0.1", () => fs.writeFileSync(process.argv[3], String(s.address().port)));
-setTimeout(() => process.exit(0), 20000);
+setTimeout(() => process.exit(0), 120000);
 ' "$T/api.log" "$T/mr.json" "$T/port" &
 srv=$!
 for _ in $(seq 50); do [ -s "$T/port" ] && break; sleep 0.1; done
@@ -222,7 +222,7 @@ const s = http.createServer((q, r) => {
   r.setHeader("content-type", "application/json");
   r.end(fs.readFileSync(process.argv[1]));
 }).listen(0, "127.0.0.1", () => fs.writeFileSync(process.argv[2], String(s.address().port)));
-setTimeout(() => process.exit(0), 20000);
+setTimeout(() => process.exit(0), 120000);
 ' "$T/files.json" "$T/ghport" &
 ghsrv=$!
 for _ in $(seq 50); do [ -s "$T/ghport" ] && break; sleep 0.1; done

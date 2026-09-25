@@ -214,8 +214,14 @@ for c in .objection.json .claude/objection.json; do
   fi
 done
 
+# The round number goes into the record, so the human reading the PR sees
+# how many rounds it took and whether one ran past the cap.
+round=$((done_rounds + 1))
+round_line="Round $round of $max_rounds."
+[ "$round" -le "$max_rounds" ] || round_line="Round $round, past the cap of $max_rounds (--extra-round: only when the human asked for it)."
 draft_head() {
   printf '# Debate: %s @ %s\n\n' "$(git rev-parse --abbrev-ref HEAD)" "${sha:0:7}"
+  printf '%s\n\n' "$round_line"
 }
 draft_tail() {
   printf '\n## Judge\n\n'
@@ -435,6 +441,7 @@ echo "objection: $(git rev-parse --abbrev-ref HEAD) @ ${sha:0:7}, budget $budget
 [ -z "$defaulted" ] || echo "$base_note"
 echo "model: $tier_model, effort $tier_effort ($tier_reason); defender $defender_model, effort $defender_effort"
 echo "accusers: $accusers"
+echo "$round_line"
 echo "findings: $(count BLOCKER) BLOCKER, $(count HIGH) HIGH, $(count MEDIUM) MEDIUM, $(count LOW) LOW"
 # An empty answer, a refusal or prose counts as zero rows: say so, since
 # "0 findings" would read as a clean review.
