@@ -82,9 +82,9 @@ export OBJECTION_MODEL="${OBJECTION_MODEL:-sonnet}" OBJECTION_EFFORT="${OBJECTIO
 comment() {
   [ "${OBJECTION_COMMENT:-false}" = true ] || return 0
   local gh_bin="${OBJECTION_GH_BIN:-gh}" marker="<!-- objection-review -->" repo="${GITHUB_REPOSITORY:-}" ids id
-  [ -n "$repo" ] || { echo "::warning::objection review: no GITHUB_REPOSITORY, so no PR comment" >&2; return 0; }
+  [ -n "$repo" ] && [ -n "${number:-}" ] || { echo "::warning::objection review: no repository or PR number, so no PR comment" >&2; return 0; }
   printf '%s\n%s\n\n<sub>objection %s, in CI. Updated on every push.</sub>\n' "$marker" "$1" "$(cat "$here/VERSION" 2>/dev/null || echo "")" |
-    node -e 'let s = ""; process.stdin.on("data", (d) => (s += d)).on("end", () => {
+    node -e 'let s = ""; process.stdin.setEncoding("utf8").on("data", (d) => (s += d)).on("end", () => {
       // An @name in model output would ping that user: a zero-width space
       // after the @ keeps the text and drops the ping.
       s = s.replace(/@(?=[A-Za-z0-9_-])/g, "@\u200b");

@@ -10,7 +10,6 @@ Maintained by precedents.mjs; edit by hand only to delete a line.
 - [2x, 2026-09-24, ab823c2] skills/objection/gate/: a value the gate cannot read was skipped silently instead of failing closed
 - [2x, 2026-09-24, 80722b1] skills/objection/: two instructions an agent reads together contradict each other (write a test, never change files)
 - [2x, 2026-09-24, 471e520] skills/objection/: a paid external call whose failure or odd output discards the answer instead of showing it
-- [1x, 2026-09-24, 471e520] test/: an assertion behind a guard or only a negative grep passes when nothing was checked
 - [1x, 2026-09-24, 7cff2bf] skills/objection/: a marker matched anywhere in free text refuses content that only quotes it
 - [1x, 2026-09-24, 7cff2bf] skills/objection/: an argument that does not parse as one thing is silently reused as another
 - [1x, 2026-09-24, 7cff2bf] skills/objection/gate/: a helper process spawned per item inside the hook, uncached, spends the hook's time budget
@@ -34,3 +33,4 @@ Maintained by precedents.mjs; edit by hand only to delete a line.
 - [1x, 2026-09-24, 354347c] skills/objection/: a checker validates the working copy when the tool it checks for reads the base branch's copy
 - [1x, 2026-09-24, 354347c] skills/objection/: a name search across the repository picks up unrelated locals and test helpers with the same name
 - [1x, 2026-09-25, fa3c74f] skills/objection/: a pipeline's status is its last command's, so a failed lookup reads as found nothing and the fallback runs
+- [1x, 2026-09-25, 1e1b0c0] skills/objection/: stdin read as string chunks splits a multibyte character at a 64 KiB boundary

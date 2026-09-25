@@ -68,7 +68,7 @@ fi
 # `paths` regex is reported, never dropped silently.
 rules=$(printf '%s' "$config" | FILES="$files" node -e '
 let raw = "";
-process.stdin.on("data", (c) => (raw += c)).on("end", () => {
+process.stdin.setEncoding("utf8").on("data", (c) => (raw += c)).on("end", () => {
   let cfg = {};
   try { cfg = JSON.parse(raw || "{}"); } catch { process.stdout.write("(the config is not valid JSON: no rules could be read)\n@@SPLIT@@\n@@SPLIT@@\nyes\n@@SPLIT@@\nlean\n@@SPLIT@@\n@@SPLIT@@\nsonnet medium default\n"); return; }
   const files = process.env.FILES.split("\n").filter(Boolean);
@@ -167,7 +167,7 @@ changed=$(git diff --numstat "$diff_base"...HEAD "${X[@]}" |
 definitions=$(printf '%s\n' "$diff" | node -e '
 const { execFileSync } = require("child_process");
 let diff = "";
-process.stdin.on("data", (d) => (diff += d)).on("end", () => {
+process.stdin.setEncoding("utf8").on("data", (d) => (diff += d)).on("end", () => {
   const added = diff.split("\n").filter((l) => l.startsWith("+") && !l.startsWith("+++")).map((l) => l.slice(1));
   const addedText = new Set(added.map((l) => l.trim()).filter(Boolean));
   const skip = new Set("if for while switch catch return function typeof await new super this require import export async def fn func print console log len int str map filter forEach push then catch assert expect describe it test Error Promise Date Number String Object Array Boolean Math JSON Set Map Symbol RegExp URL".split(" "));

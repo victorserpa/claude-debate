@@ -57,7 +57,7 @@ validate() { # text label -> prints its lines, counts FAILs; sets v_base
   local report problems
   report=$(printf '%s' "$1" | node -e '
 let raw = "";
-process.stdin.on("data", (d) => (raw += d)).on("end", () => {
+process.stdin.setEncoding("utf8").on("data", (d) => (raw += d)).on("end", () => {
   const out = [];
   const fail = (m) => out.push("FAIL\t" + m);
   const warn = (m) => out.push("warn\t" + m);
@@ -120,7 +120,7 @@ for c in .objection.json .claude/objection.json; do
   [ -f "$c" ] && { cfg_text=$(cat "$c"); cfg_file="$c"; break; }
 done
 # The base is named by the config itself: the working copy's, else main.
-base=$(printf '%s' "$cfg_text" | node -e 'let r="";process.stdin.on("data",(d)=>(r+=d)).on("end",()=>{try{const c=JSON.parse(r);console.log(c.defaultBase||(c.bases||[])[0]||"")}catch{console.log("")}})')
+base=$(printf '%s' "$cfg_text" | node -e 'let r="";process.stdin.setEncoding("utf8").on("data",(d)=>(r+=d)).on("end",()=>{try{const c=JSON.parse(r);console.log(c.defaultBase||(c.bases||[])[0]||"")}catch{console.log("")}})')
 [ -n "$base" ] || base=main
 on_base=""
 base_file=""

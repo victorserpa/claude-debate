@@ -139,6 +139,10 @@ grep -q -- "-X POST" "$T/gh-calls" && fail "a new comment was posted although on
 printf '| BLOCKER | BUG | src/a.ts:3 | ask @octocat | read | p |\n' >"$T/answer"
 OBJECTION_COMMENT=true OBJECTION_GH_BIN="$T/gh" GITHUB_REPOSITORY=o/r run
 node -e 'const b = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).body; if (b.includes("@octocat") || !b.includes("@\u200boctocat")) process.exit(1)' "$T/gh-body" || fail "an @mention would ping"
+# Text past node's 64 KiB stdin chunk keeps its accents (setEncoding).
+node -e 'process.stdout.write("| LOW | BUG | src/a.ts:3 | " + "é".repeat(40000) + " | read | p |\n")' >"$T/answer"
+OBJECTION_COMMENT=true OBJECTION_GH_BIN="$T/gh" GITHUB_REPOSITORY=o/r run
+node -e 'const b = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).body; if (b.includes("\ufffd")) process.exit(1)' "$T/gh-body" || fail "a character split across stdin chunks was corrupted"
 # A comment that cannot even be written leaves the verdict alone.
 answer
 OBJECTION_COMMENT=true OBJECTION_GH_BIN="$T/gh" GITHUB_REPOSITORY= run || fail "no repository name failed a clean review"
