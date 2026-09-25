@@ -32,5 +32,5 @@ Maintained by precedents.mjs; edit by hand only to delete a line.
 - [1x, 2026-09-25, 862bef3] skills/objection/: stdin read as string chunks splits a multibyte character at a 64 KiB boundary
 - [1x, 2026-09-25, 1474094] test/: a regression test only fails on one platform's tool behavior, so CI on another platform passes it with the fix removed
 - [1x, 2026-09-25, 18e6144] skills/objection/gate/: a fallback for when the checker cannot run resolves the target from the process directory instead of the input the checker reads
-- [1x, 2026-09-25, 931ac27] skills/objection/gate/: a retry loop whose step comes from the environment never ends, or floods the API, when the step is zero or negative
+- [2x, 2026-09-25, 1df5e13] skills/objection/gate/: a retry loop whose step comes from the environment never ends, or floods the API, when the step is zero or negative
 - [1x, 2026-09-25, 931ac27] skills/objection/gate/: a wait added for one race also delays the plain failure it was not meant for
