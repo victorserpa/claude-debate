@@ -50,7 +50,11 @@ reviewers.
 /plugin install objection@objection
 ```
 
-Then, in a repository, ask your agent for `/objection init` (other agents:
+To see what it finds before setting anything up, ask for `/objection try`
+on a branch: one review of that branch against the default one, judged in
+your session, and nothing written outside `.git/`.
+
+To make it a step, in a repository ask your agent for `/objection init` (other agents:
 [Install](docs/install.md)). It reads what it can (bases, your test and type
 checks, your forge) and asks nothing else. To try it without blocking
 anyone, say `/objection init --advisory`. Run it on the default branch

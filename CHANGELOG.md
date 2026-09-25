@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- **`/objection try`**: one review of a branch with no setup. `debate.sh`
+  needs no config (lean budget, `origin/HEAD` as the base, everything
+  under `.git/objection/`), which is how it ran on three other
+  repositories for this release; the skill now says so, and the README
+  offers it before `init`.
+- **The record check no longer fails on its own push.** A push runs the
+  check at once, while the body still holds the previous record
+  (`pr-body.sh --update` can only follow the push); that failure stayed on
+  the head beside the passing run of the edit, and the merge showed
+  BLOCKED. On GitHub the check now reads the PR again for up to
+  `OBJECTION_BODY_WAIT` seconds (60) and counts the body once its record
+  is for this head, unless a newer push moved the head.
 - **The gate fails closed when node cannot run.** Every host reads a hook
   that fails to run as "go ahead": a `node` that does not start (a
   version manager's shim exits 126 when `.tool-versions` or `.nvmrc` pins

@@ -249,4 +249,38 @@ ghrun 0 '[{"filename":"docs/b.md","previous_filename":"docs/a.md"}]' 1 "$DOCREC"
 ghrun 1 "$RENAMED" 2 "$(record $HEAD origin/main nothing APPROVED)"
 kill $ghsrv 2>/dev/null; wait $ghsrv 2>/dev/null
 
+# Right after a push the event still carries the old body: the check reads
+# the PR again and counts the body once its record is for this head. The
+# server answers per URL, so a wrong path gets nothing useful.
+node -e '
+const http = require("http");
+const fs = require("fs");
+const s = http.createServer((q, r) => {
+  r.setHeader("content-type", "application/json");
+  if (q.url === "/repos/o/r/pulls/1") return r.end(fs.readFileSync(process.argv[1]));
+  if (q.url.startsWith("/repos/o/r/pulls/1/files")) return r.end("[{\"filename\":\"src/a.ts\"}]");
+  r.statusCode = 404; r.end("{}");
+}).listen(0, "127.0.0.1", () => fs.writeFileSync(process.argv[2], String(s.address().port)));
+setTimeout(() => process.exit(0), 120000);
+if (process.env.SUITE_PID) setInterval(() => { try { process.kill(+process.env.SUITE_PID, 0); } catch { process.exit(0); } }, 500).unref();
+' "$T/pr.json" "$T/prport" &
+ghsrv=$!
+for _ in $(seq 50); do [ -s "$T/prport" ] && break; sleep 0.1; done
+OLD=$(printf 'b%.0s' $(seq 40))
+waitrun() { # expected api-head api-body
+  node -e 'require("fs").writeFileSync(process.argv[1], JSON.stringify({number:1,head:{sha:process.argv[2]},body:process.argv[3]}))' "$T/pr.json" "$2" "$3"
+  node -e 'require("fs").writeFileSync(process.argv[1], JSON.stringify({pull_request:{number:1,head:{sha:process.argv[2]},base:{ref:"main"},body:process.argv[3],changed_files:1},repository:{full_name:"o/r"}}))' "$T/event.json" "$HEAD" "$(record $OLD origin/main nothing APPROVED)"
+  GITHUB_EVENT_PATH="$T/event.json" GITHUB_API_URL="http://127.0.0.1:$(cat "$T/prport")" GITHUB_TOKEN=t OBJECTION_BODY_WAIT=1 OBJECTION_BODY_STEP=0.2 node "$CHECK" >/dev/null 2>&1
+  local rc=$?
+  [ "$rc" = "$1" ] || { echo "FAIL body re-read (expected $1, got $rc): api head ${2:0:7}"; failures=$((failures + 1)); }
+}
+waitrun 0 "$HEAD" "$(record $HEAD origin/main nothing APPROVED)"
+# Still the old record: fails once the wait is over.
+waitrun 1 "$HEAD" "$(record $OLD origin/main nothing APPROVED)"
+# A newer push: this run does not take a body meant for another head.
+waitrun 1 "$OLD" "$(record $HEAD origin/main nothing APPROVED)"
+# The re-read body is checked like any other: REJECTED still fails.
+waitrun 1 "$HEAD" "$(record $HEAD origin/main nothing REJECTED)"
+kill $ghsrv 2>/dev/null; wait $ghsrv 2>/dev/null
+
 if [ "$failures" = 0 ]; then echo "check-pr: all cases passed"; else echo "check-pr: $failures failure(s)"; exit 1; fi

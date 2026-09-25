@@ -93,8 +93,37 @@ if (gitlab) {
 
 // The LAST stamp in the body wins: an older record left above a newer one
 // must not count.
+const stampsOf = (text) => [...text.replace(/\r\n?/g, "\n").matchAll(/^<!-- objection: sha=([0-9a-f]{40}) base=(\S+) -->$/gm)];
+// A push runs this check at once, while the body still holds the previous
+// record: pr-body.sh --update can only follow the push. That run failed and
+// its failure stayed on the head next to the passing run of the edit. So
+// on GitHub, a record for another SHA is re-read from the API for up to
+// OBJECTION_BODY_WAIT seconds (60), and the body counts once its record is
+// for this head, while the PR's head is still this one.
+if (!gitlab && process.env.GITHUB_TOKEN && stampsOf(body).at(-1)?.[1] !== head) {
+  const api = process.env.GITHUB_API_URL || "https://api.github.com";
+  const wait = Number(process.env.OBJECTION_BODY_WAIT ?? 60);
+  const step = Number(process.env.OBJECTION_BODY_STEP ?? 10);
+  for (let t = 0; t < wait; t += step) {
+    await new Promise((r) => setTimeout(r, step * 1000));
+    let now;
+    try {
+      const res = await fetch(`${api}/repos/${event.repository.full_name}/pulls/${pr.number}`, {
+        headers: { authorization: `Bearer ${process.env.GITHUB_TOKEN}`, accept: "application/vnd.github+json" },
+      });
+      if (res.ok) now = await res.json();
+    } catch {}
+    if (!now) continue;
+    // A newer push: its own run checks it.
+    if (now.head?.sha !== head) break;
+    if (stampsOf(now.body || "").at(-1)?.[1] === head) {
+      body = now.body || "";
+      break;
+    }
+  }
+}
 body = body.replace(/\r\n?/g, "\n");
-const stamps = [...body.matchAll(/^<!-- objection: sha=([0-9a-f]{40}) base=(\S+) -->$/gm)];
+const stamps = stampsOf(body);
 if (stamps.length === 0)
   fail(`no /objection record in the PR body. Run /objection on ${head.slice(0, 7)} and paste the stored record (including its first line) into the body.`);
 const stamp = stamps.at(-1);

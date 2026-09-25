@@ -1,6 +1,6 @@
 ---
 name: objection
-description: Adversarial review before opening or merging a pull request. Accusers review the diff, a defender tries to refute each finding with evidence from the code, and the main session judges and stores a record for the exact commit. With a gate installed, PR create, ready and merge are blocked until the record is APPROVED. Use when a branch is ready for a PR, when the gate blocks, with "init" to opt a repository in, or with "doctor" to check the setup.
+description: Adversarial review before opening or merging a pull request. Accusers review the diff, a defender tries to refute each finding with evidence from the code, and the main session judges and stores a record for the exact commit. With a gate installed, PR create, ready and merge are blocked until the record is APPROVED. Use when a branch is ready for a PR, when the gate blocks, with "try" for one review of a branch without any setup, with "init" to opt a repository in, or with "doctor" to check the setup.
 license: MIT
 ---
 
@@ -23,6 +23,11 @@ a record), `pr-body.sh` (puts it in the PR body), `init.sh`, `doctor.sh`,
 
 ## init and doctor
 
+- The user wants one review without opting in ("just review this
+  branch", `/objection try`): run section 1's `debate.sh` as it is. With
+  no config it uses the `lean` budget and `origin/HEAD` as the base, and
+  writes only under `.git/objection/`. Judge the draft (section 2) and
+  show the rulings; no stamp, no gate, no files in the repository.
 - No `.objection.json` (or `.claude/objection.json`) at the repository
   root, or the user asked for `init`: read `reference/init.md` and follow
   it. Nothing else here is needed until then.
