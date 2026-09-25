@@ -43,6 +43,21 @@ out=$(bash "$OI") || fail "nothing open failed"
 printf '%s' "$out" | grep -q "nothing open" || fail "nothing open was not said ($out)"
 [ -e "$T/created" ] && fail "an issue was created with nothing open"
 
+# Other ways to say nothing: no issue. A "none" line among items is not.
+for n in "Nothing open." "(none)" "n/a" "None, all fixed in this PR."; do
+  rec "$n"
+  bash "$OI" >/dev/null || fail "Open [$n] failed"
+  [ -e "$T/created" ] && { fail "Open [$n] created an issue"; rm -f "$T/created"; }
+done
+rec "- 1 (LOW): x
+
+none
+
+- 2 (LOW): y"
+bash "$OI" >/dev/null || fail "items around a none line failed"
+[ -e "$T/created" ] || fail "a none line among items dropped them"
+rm -f "$T/created"
+
 # Open items: one issue with them, the branch, the commit, the PR, the marker.
 rec "- 2 (MEDIUM): the retry is unbounded.
 - 4 (LOW): a quoted cd target is missed."
@@ -92,7 +107,7 @@ rec "- 1 (LOW): x"
 git checkout -q --detach
 out=$(bash "$OI" --dry-run)
 printf '%s' "$out" | head -n 1 | grep -qx "Open findings from commit ${sha:0:7}" || fail "a detached HEAD gave the title [$(printf '%s' "$out" | head -n 1)]"
-git checkout -q feat
+git checkout -q -
 
 # --dry-run prints and creates nothing.
 rm -f "$T/created"
