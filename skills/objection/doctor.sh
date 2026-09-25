@@ -25,6 +25,9 @@ bad() { printf 'FAIL  %s\n' "$*"; fails=$((fails + 1)); }
 
 here="$(cd "$(dirname "$0")" && pwd)"
 gh_bin="${OBJECTION_GH_BIN:-gh}"
+# "origin/main:.objection.json" must reach git whole: Git Bash on Windows
+# would rewrite it as a path list (same wrapper as brief.sh).
+gitref() { MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' git "$@"; }
 
 # tools
 for t in git node perl; do
@@ -123,7 +126,7 @@ on_base=""
 base_file=""
 if git rev-parse --verify -q "refs/remotes/origin/$base" >/dev/null; then
   for c in .objection.json .claude/objection.json; do
-    on_base=$(git show "origin/$base:$c" 2>/dev/null) && [ -n "$on_base" ] && { base_file="$c"; break; }
+    on_base=$(gitref show "origin/$base:$c" 2>/dev/null) && [ -n "$on_base" ] && { base_file="$c"; break; }
     on_base=""
   done
 fi
