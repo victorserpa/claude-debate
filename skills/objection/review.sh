@@ -216,20 +216,32 @@ process.stdout.write(lines.join("\n"));
 if [ "$runner" = gemini ]; then
   # Chosen explicitly (a reviewers entry with agent "gemini", or
   # OBJECTION_RUNNER=gemini), never picked automatically. The role replaces
-  # Gemini's system prompt (GEMINI_SYSTEM_MD); plan mode is read-only, the
-  # empty directory is the whole workspace, no extensions load, and
-  # --skip-trust keeps any project config (and its hooks) out. Verified
-  # live with Gemini CLI 0.61: zero tool calls, the answer in .response.
+  # Gemini's system prompt (GEMINI_SYSTEM_MD), the workspace is the empty
+  # directory, no extensions load. Plan mode alone is not enough: it lets
+  # a non-interactive run call exit_plan_mode, which switches to YOLO and
+  # a shell. So an admin policy (the top tier, above YOLO) denies every
+  # tool, MCP ones included. Verified live with Gemini CLI 0.61: list,
+  # read, shell and exit_plan_mode were all denied. A policy file Gemini
+  # cannot load only prints an error and runs without it, so that error,
+  # or any tool that did run, fails the review. --skip-trust trusts the
+  # empty directory; it has nothing to load.
+  printf '[[rule]]\ntoolName = "*"\ndecision = "deny"\npriority = 999\n\n[[rule]]\ntoolName = "*"\nmcpName = "*"\ndecision = "deny"\npriority = 999\n' >"$work/deny.toml"
   GEMINI_SYSTEM_MD="$role_file" run_limited "${OBJECTION_TIMEOUT:-900}" "$gemini_bin" \
-    -p "$prompt" -o json --approval-mode plan -e none --skip-trust \
+    -p "$prompt" -o json --approval-mode plan -e none --skip-trust --admin-policy "$work/deny.toml" \
     ${OBJECTION_GEMINI_MODEL:+-m "$OBJECTION_GEMINI_MODEL"} \
     <"$input" >"$out" 2>"$work/err" || failed
+  if grep -qi 'policy file error' "$work/err"; then
+    echo "objection: Gemini did not load the policy that denies its tools; the review is not trusted." >&2
+    failed
+  fi
   node -e '
 const fs = require("fs");
 const [, out, role, log, branch, head, label] = process.argv;
 let j;
 try { j = JSON.parse(fs.readFileSync(out, "utf8")); } catch { process.exit(1); }
 if (j.error || typeof j.response !== "string" || !j.response.trim()) process.exit(1);
+const ran = (j.stats && j.stats.tools && j.stats.tools.totalSuccess) || 0;
+if (ran > 0) { process.stderr.write(`objection: ${ran} Gemini tool call(s) ran despite the deny policy; the review is not trusted.\n`); process.exit(1); }
 let inTok = 0, outTok = 0;
 for (const m of Object.values((j.stats && j.stats.models) || {})) {
   const t = m.tokens || {};

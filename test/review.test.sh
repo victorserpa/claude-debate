@@ -176,6 +176,9 @@ cat >"$T/gemini" <<'EOF2'
 printf '%s\n' "$@" >"$FAKE_DIR/gemini-args"
 printf '%s\n' "$GEMINI_SYSTEM_MD" >"$FAKE_DIR/gemini-system"
 cat >"$FAKE_DIR/gemini-stdin"
+prev=""; for a in "$@"; do [ "$prev" = --admin-policy ] && cp "$a" "$FAKE_DIR/gemini-policy"; prev="$a"; done
+[ -n "${GEMINI_POLICY_ERR:-}" ] && echo "[ADMIN] Policy file error in deny.toml:" >&2
+[ -n "${GEMINI_TOOL_RAN:-}" ] && { printf '{"response":"| LOW | BUG | a.ts:1 | x | read | p |","stats":{"models":{},"tools":{"totalCalls":1,"totalSuccess":1}}}\n'; exit 0; }
 [ -n "${GEMINI_FAIL:-}" ] && { echo '{"error":{"message":"quota"}}'; exit 1; }
 [ -n "${GEMINI_ANSWER:-}" ] && { node -e 'process.stdout.write(JSON.stringify({response: process.env.GEMINI_ANSWER, stats: {models: {}}}))'; exit 0; }
 printf '{"response":"| HIGH | BUG | a.ts:1 | gemini finding | read | p |","stats":{"models":{"gemini-x":{"tokens":{"prompt":4000,"candidates":100,"thoughts":50}}}}}\n'
@@ -185,6 +188,12 @@ out=$(OBJECTION_RUNNER=gemini OBJECTION_GEMINI="$T/gemini" bash "$REVIEW" accuse
 [ "$out" = "| HIGH | BUG | a.ts:1 | gemini finding | read | p |" ] || { echo "FAIL: gemini answer not printed ($out)"; failures=$((failures + 1)); }
 for a in "--approval-mode" "plan" "-o" "json" "-e" "none" "--skip-trust"; do grep -qxF -- "$a" "$T/gemini-args" || { echo "FAIL: gemini lacks $a"; failures=$((failures + 1)); }; done
 has "$T/gemini-system" "$ROOT/skills/objection/roles/accuser.md"
+# Every tool denied by an admin policy; a policy not loaded, or a tool
+# that ran anyway, fails the review.
+has "$T/gemini-policy" 'toolName = "*"'
+has "$T/gemini-policy" 'decision = "deny"'
+GEMINI_POLICY_ERR=1 OBJECTION_RUNNER=gemini OBJECTION_GEMINI="$T/gemini" bash "$REVIEW" accuser "$T/brief.md" >/dev/null 2>&1 && { echo "FAIL: a policy Gemini could not load passed"; failures=$((failures + 1)); }
+GEMINI_TOOL_RAN=1 OBJECTION_RUNNER=gemini OBJECTION_GEMINI="$T/gemini" bash "$REVIEW" accuser "$T/brief.md" >/dev/null 2>&1 && { echo "FAIL: a Gemini tool call passed"; failures=$((failures + 1)); }
 has "$T/gemini-stdin" "the diff"
 has "$T/err" "accuser used 4000 input + 150 output tokens (gemini)"
 tail -n 1 "$(git -C "$R" rev-parse --git-common-dir | sed "s|^\.git|$R/.git|")/objection/usage.log" | grep -q "gemini:default" || { echo "FAIL: gemini run not logged"; failures=$((failures + 1)); }
