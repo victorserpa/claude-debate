@@ -100,12 +100,15 @@ const stampsOf = (text) => [...text.replace(/\r\n?/g, "\n").matchAll(/^<!-- obje
 // on GitHub, a record for another SHA is re-read from the API for up to
 // OBJECTION_BODY_WAIT seconds (60), and the body counts once its record is
 // for this head, while the PR's head is still this one.
-if (!gitlab && process.env.GITHUB_TOKEN && stampsOf(body).at(-1)?.[1] !== head) {
+// A body with no record at all is not waited for: it is not a push race.
+const eventStamp = stampsOf(body).at(-1)?.[1];
+if (!gitlab && process.env.GITHUB_TOKEN && event.repository && eventStamp && eventStamp !== head) {
   const api = process.env.GITHUB_API_URL || "https://api.github.com";
-  const wait = Number(process.env.OBJECTION_BODY_WAIT ?? 60);
-  const step = Number(process.env.OBJECTION_BODY_STEP ?? 10);
-  for (let t = 0; t < wait; t += step) {
-    await new Promise((r) => setTimeout(r, step * 1000));
+  const wait = Math.min(Math.max(Number(process.env.OBJECTION_BODY_WAIT ?? 60) || 0, 0), 600);
+  const step = Math.max(Number(process.env.OBJECTION_BODY_STEP ?? 10) || 10, 0.1);
+  // Read at once, then every step until the wait is over.
+  for (let t = 0; t <= wait; t += step) {
+    if (t > 0) await new Promise((r) => setTimeout(r, step * 1000));
     let now;
     try {
       const res = await fetch(`${api}/repos/${event.repository.full_name}/pulls/${pr.number}`, {

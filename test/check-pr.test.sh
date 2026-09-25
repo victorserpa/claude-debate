@@ -281,6 +281,18 @@ waitrun 1 "$HEAD" "$(record $OLD origin/main nothing APPROVED)"
 waitrun 1 "$OLD" "$(record $HEAD origin/main nothing APPROVED)"
 # The re-read body is checked like any other: REJECTED still fails.
 waitrun 1 "$HEAD" "$(record $HEAD origin/main nothing REJECTED)"
+# A body with no record is not a push race: it fails at once, not after
+# the wait (the wait here is long enough to tell).
+node -e 'require("fs").writeFileSync(process.argv[1], JSON.stringify({pull_request:{number:1,head:{sha:process.argv[2]},base:{ref:"main"},body:"no record here",changed_files:1},repository:{full_name:"o/r"}}))' "$T/event.json" "$HEAD"
+t0=$(date +%s)
+GITHUB_EVENT_PATH="$T/event.json" GITHUB_API_URL="http://127.0.0.1:$(cat "$T/prport")" GITHUB_TOKEN=t OBJECTION_BODY_WAIT=20 OBJECTION_BODY_STEP=5 node "$CHECK" >/dev/null 2>&1 && { echo "FAIL: a body with no record passed"; failures=$((failures + 1)); }
+[ $(($(date +%s) - t0)) -lt 5 ] || { echo "FAIL: a body with no record waited for the re-read"; failures=$((failures + 1)); }
+# A step of 0 is not an endless loop.
+node -e 'require("fs").writeFileSync(process.argv[1], JSON.stringify({number:1,head:{sha:process.argv[2]},body:""}))' "$T/pr.json" "$HEAD"
+node -e 'require("fs").writeFileSync(process.argv[1], JSON.stringify({pull_request:{number:1,head:{sha:process.argv[2]},base:{ref:"main"},body:process.argv[3],changed_files:1},repository:{full_name:"o/r"}}))' "$T/event.json" "$HEAD" "$(record $OLD origin/main nothing APPROVED)"
+t0=$(date +%s)
+GITHUB_EVENT_PATH="$T/event.json" GITHUB_API_URL="http://127.0.0.1:$(cat "$T/prport")" GITHUB_TOKEN=t OBJECTION_BODY_WAIT=1 OBJECTION_BODY_STEP=0 node "$CHECK" >/dev/null 2>&1
+[ $(($(date +%s) - t0)) -lt 15 ] || { echo "FAIL: OBJECTION_BODY_STEP=0 did not end"; failures=$((failures + 1)); }
 kill $ghsrv 2>/dev/null; wait $ghsrv 2>/dev/null
 
 if [ "$failures" = 0 ]; then echo "check-pr: all cases passed"; else echo "check-pr: $failures failure(s)"; exit 1; fi
