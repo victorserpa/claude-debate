@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.16.0 (2026-09-25)
+
+**Easier to set up, sees past the diff, speaks up on the PR.**
 
 - The Action's review takes `comment: true`: the findings go on the PR as
   one comment, found by a marker and edited on every push, instead of
@@ -31,6 +33,11 @@
   `init` writes `"$schema"`, so VS Code and others complete and check
   `.objection.json`. A test keeps the schema and doctor.sh on the same
   keys.
+
+- Every node step that reads stdin decodes it as UTF-8 (setEncoding).
+  Chunks concatenated as strings split a multibyte character at a
+  64 KiB boundary. This repository's review (gemini) job found it on
+  its own PR.
 
 ## 0.15.0 (2026-09-24)
 
