@@ -5,6 +5,8 @@
 #   bash eval/run.sh                      claude, the review.sh defaults
 #   OBJECTION_RUNNER=gemini bash eval/run.sh
 #   OBJECTION_MODEL=opus bash eval/run.sh [fixture...]
+#   EVAL_BASELINE=1 bash eval/run.sh      the same model with a plain "review
+#                                         this diff" prompt and the raw diff
 #   EVAL_DEFENSE=1 bash eval/run.sh       also runs the defender on each
 #                                         false alarm and each catch
 #
@@ -43,7 +45,17 @@ for name in "${names[@]}"; do
   ) || { printf '%-18s setup failed\n' "$name"; continue; }
   goal=$(node -e 'console.log(require(process.argv[1]).goal || "not stated")' "$f/expect.json")
   brief=$(cd "$r" && bash "$skill/brief.sh" origin/main "$goal" 2>/dev/null) || { printf '%-18s brief failed\n' "$name"; continue; }
-  (cd "$r" && bash "$skill/review.sh" accuser "$brief" >"$T/$name.out" 2>"$T/$name.err")
+  roles=""
+  if [ -n "${EVAL_BASELINE:-}" ]; then
+    # The baseline: the same model and isolation, but a one-paragraph
+    # "review this diff" prompt and the raw diff, with no brief (no line
+    # numbers, definitions, invariants or precedents) and no role. What
+    # objection adds is the difference between the two runs.
+    brief="$T/$name.raw"
+    { printf 'Goal: %s\n\n```diff\n' "$goal"; (cd "$r" && git diff origin/main...HEAD); printf '```\n'; } >"$brief"
+    roles="$here/baseline"
+  fi
+  (cd "$r" && OBJECTION_ROLES_DIR="${roles:-${OBJECTION_ROLES_DIR:-$skill/roles}}" bash "$skill/review.sh" accuser "$brief" >"$T/$name.out" 2>"$T/$name.err")
   rc=$?
   cost=$(sed -n 's/.*(\(\$[0-9.]*\)).*/\1/p; s/.*output tokens (\([a-z]*\))$/\1/p' "$T/$name.err" | tail -n 1)
   verdict=$(node -e '
@@ -52,7 +64,10 @@ for name in "${names[@]}"; do
     const e = JSON.parse(fs.readFileSync(exp, "utf8"));
     if (rc !== "0") { console.log("ERROR"); process.exit(); }
     const rank = { BLOCKER: 3, HIGH: 2, MEDIUM: 1, LOW: 0 };
-    const rows = fs.readFileSync(out, "utf8").split("\n").filter((l) => /^\s*\|/.test(l)).map((l) => {
+    // A row with or without its outer pipes ("BLOCKER | BUG | a.js:1 | ...").
+    const rows = fs.readFileSync(out, "utf8").split("\n")
+      .map((l) => (/^\s*\**(BLOCKER|HIGH|MEDIUM|LOW)\**\s*\|/i.test(l) ? "| " + l : l))
+      .filter((l) => /^\s*\|/.test(l)).map((l) => {
       const cells = l.split("|").map((c) => c.trim());
       const w = (cells[1] || "").replace(/[*_]/g, "").match(/^[A-Za-z]+/);
       return { sev: w ? w[0].toUpperCase() : "", text: l };
@@ -116,5 +131,6 @@ case "${OBJECTION_RUNNER:-claude}" in
   *) who="claude ${OBJECTION_MODEL:-sonnet}, effort ${OBJECTION_EFFORT:-medium}" ;;
 esac
 [ "$total" -gt 0 ] || { echo "no fixture matched: nothing ran." >&2; exit 2; }
+[ -z "${EVAL_BASELINE:-}" ] || who="$who, BASELINE (plain prompt, raw diff)"
 echo "runner: $who; $pass of $total as expected"
 [ "$pass" = "$total" ]

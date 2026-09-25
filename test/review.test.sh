@@ -225,6 +225,15 @@ BLOCKER | a.ts:6'
 out=$(GEMINI_ANSWER="$mixed" OBJECTION_RUNNER=gemini OBJECTION_GEMINI="$T/gemini" bash "$REVIEW" accuser "$T/brief.md" 2>/dev/null)
 printf '%s\n' "$out" | grep -qxF '| BLOCKER | a.ts:6 |' || { echo "FAIL: a bare row under a piped delimiter kept no pipes ($out)"; failures=$((failures + 1)); }
 printf '%s\n' "$out" | grep -qxF 'Findings for module a | b:' || { echo "FAIL: prose above the header was rewritten ($out)"; failures=$((failures + 1)); }
+# Rows with no header and no pipes around them still count as rows.
+lone='Found one:
+
+BLOCKER | BUG | a.ts:6 | pickle.loads on a cookie | read | p
+
+LOW-hanging fruit | not a row'
+out=$(GEMINI_ANSWER="$lone" OBJECTION_RUNNER=gemini OBJECTION_GEMINI="$T/gemini" bash "$REVIEW" accuser "$T/brief.md" 2>/dev/null)
+printf '%s\n' "$out" | grep -qxF '| BLOCKER | BUG | a.ts:6 | pickle.loads on a cookie | read | p |' || { echo "FAIL: a lone pipe-less BLOCKER row was not given its pipes ($out)"; failures=$((failures + 1)); }
+printf '%s\n' "$out" | grep -qxF 'LOW-hanging fruit | not a row' || { echo "FAIL: prose starting with a severity-like word was rewritten ($out)"; failures=$((failures + 1)); }
 # Never picked on its own: without claude and codex, exit 3 even with gemini.
 OBJECTION_CLAUDE=/nonexistent/claude OBJECTION_CODEX=/nonexistent/codex OBJECTION_GEMINI="$T/gemini" bash "$REVIEW" accuser "$T/brief.md" >/dev/null 2>&1
 [ $? = 3 ] || { echo "FAIL: gemini was picked without being asked for"; failures=$((failures + 1)); }

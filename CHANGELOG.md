@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- **Fixed, fail-open:** a finding row written with no header and no
+  pipes around it (`BLOCKER | BUG | a.ts:6 | ...`) was counted by
+  nothing, so a BLOCKER written that way passed as no finding. review.sh
+  now gives such rows their pipes, as it already did for a table
+  without its outer pipes. Found by the baseline eval below.
+- `EVAL_BASELINE=1 bash eval/run.sh` runs the same model with a plain
+  "review this diff" prompt and the raw diff: what the brief and the
+  roles add is the difference. The eval scorer also reads rows without
+  their outer pipes.
+- The README is a quarter of its length: what objection is, the eval,
+  how to start. Configuration, gates, the record, the eval in full and
+  the limits moved to `docs/`.
 - The carry-over also refuses when the base gained a precedent
   (`.objection/`), and reads file names NUL-separated, so a name with a
   newline is still seen.

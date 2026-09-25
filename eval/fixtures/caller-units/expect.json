@@ -1,0 +1,1 @@
+{"goal": "Keep money in integer cents", "severity": "HIGH", "match": "checkout|caller|100|hundred|twice|double|already in cents|overcharg", "file": "src/price.js", "lines": [2, 3]}

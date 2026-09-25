@@ -215,6 +215,11 @@ for (let d = 1; d < lines.length; d++) {
   for (let k = d - 1; k < end; k++) lines[k] = wrap(lines[k]);
   d = end - 1;
 }
+// A finding row with no header at all ("BLOCKER | BUG | a.ts:6 | ..."):
+// counted by nobody without its pipes, so a BLOCKER written that way
+// passed as no finding (measured on a plain-prompt eval run).
+for (let k = 0; k < lines.length; k++)
+  if (/^\s*\**(BLOCKER|HIGH|MEDIUM|LOW)\**\s*\|/.test(lines[k])) lines[k] = wrap(lines[k]);
 process.stdout.write(lines.join("\n"));
 ' "$work/answer"
 }
