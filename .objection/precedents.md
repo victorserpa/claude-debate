@@ -10,8 +10,6 @@ Maintained by precedents.mjs; edit by hand only to delete a line.
 - [2x, 2026-09-24, ab823c2] skills/objection/gate/: a value the gate cannot read was skipped silently instead of failing closed
 - [2x, 2026-09-24, 80722b1] skills/objection/: two instructions an agent reads together contradict each other (write a test, never change files)
 - [2x, 2026-09-24, 471e520] skills/objection/: a paid external call whose failure or odd output discards the answer instead of showing it
-- [1x, 2026-09-24, 7cff2bf] skills/objection/gate/: a helper process spawned per item inside the hook, uncached, spends the hook's time budget
-- [1x, 2026-09-24, a9d6f78] skills/objection/gate/: a gate that covers one spelling of an action misses its other spellings (another flag, another value form)
 - [1x, 2026-09-24, 102d9d2] skills/objection/gate/: a flag whose value the parser does not know is read as the target
 - [1x, 2026-09-24, a9d6f78] skills/objection/gate/: an input the platform may truncate is trusted as whole
 - [1x, 2026-09-24, a9d6f78] skills/objection/: a new automatic fallback turns a documented fall-back exit into a hard failure
@@ -34,3 +32,5 @@ Maintained by precedents.mjs; edit by hand only to delete a line.
 - [1x, 2026-09-25, 862bef3] skills/objection/: stdin read as string chunks splits a multibyte character at a 64 KiB boundary
 - [1x, 2026-09-25, 1474094] test/: a regression test only fails on one platform's tool behavior, so CI on another platform passes it with the fix removed
 - [1x, 2026-09-25, 18e6144] skills/objection/gate/: a fallback for when the checker cannot run resolves the target from the process directory instead of the input the checker reads
+- [1x, 2026-09-25, 931ac27] skills/objection/gate/: a retry loop whose step comes from the environment never ends, or floods the API, when the step is zero or negative
+- [1x, 2026-09-25, 931ac27] skills/objection/gate/: a wait added for one race also delays the plain failure it was not meant for
