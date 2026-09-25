@@ -102,10 +102,12 @@ const stampsOf = (text) => [...text.replace(/\r\n?/g, "\n").matchAll(/^<!-- obje
 // for this head, while the PR's head is still this one.
 // A body with no record at all is not waited for: it is not a push race.
 const eventStamp = stampsOf(body).at(-1)?.[1];
-if (!gitlab && process.env.GITHUB_TOKEN && event.repository && eventStamp && eventStamp !== head) {
+if (!gitlab && process.env.GITHUB_TOKEN && event.repository && eventStamp && eventStamp !== head && process.env.OBJECTION_BODY_WAIT !== "0") {
   const api = process.env.GITHUB_API_URL || "https://api.github.com";
   const wait = Math.min(Math.max(Number(process.env.OBJECTION_BODY_WAIT ?? 60) || 0, 0), 600);
-  const step = Math.max(Number(process.env.OBJECTION_BODY_STEP ?? 10) || 10, 0.1);
+  // Zero, negative or not a number: the default, not a flood of reads.
+  const asked = Number(process.env.OBJECTION_BODY_STEP ?? 10);
+  const step = asked > 0 ? Math.max(asked, 0.1) : 10;
   // Read at once, then every step until the wait is over.
   for (let t = 0; t <= wait; t += step) {
     if (t > 0) await new Promise((r) => setTimeout(r, step * 1000));
