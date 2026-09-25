@@ -76,7 +76,7 @@ owner check its GET has, a Go `err` shadowed by `:=` that marks a failed
 charge paid, a ban check on a user fetched without `await`, and more,
 including a comment telling the reviewer the change is approved.
 
-All 40 cases, five runs each, on two model families (0.20):
+All 40 cases, five runs each, on two model families, measured on 0.20.0 ([raw output](eval/results/2026-09-25.md)):
 
 | | planted bugs (23 × 5) | false alarms (8 clean × 5) | real bugs (9 × 5) | caught, planted and real |
 |---|---|---|---|---|
