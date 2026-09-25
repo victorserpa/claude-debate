@@ -10,7 +10,6 @@ Maintained by precedents.mjs; edit by hand only to delete a line.
 - [2x, 2026-09-24, ab823c2] skills/objection/gate/: a value the gate cannot read was skipped silently instead of failing closed
 - [2x, 2026-09-24, 80722b1] skills/objection/: two instructions an agent reads together contradict each other (write a test, never change files)
 - [2x, 2026-09-24, 471e520] skills/objection/: a paid external call whose failure or odd output discards the answer instead of showing it
-- [1x, 2026-09-24, 7cff2bf] skills/objection/: a marker matched anywhere in free text refuses content that only quotes it
 - [1x, 2026-09-24, 7cff2bf] skills/objection/: an argument that does not parse as one thing is silently reused as another
 - [1x, 2026-09-24, 7cff2bf] skills/objection/gate/: a helper process spawned per item inside the hook, uncached, spends the hook's time budget
 - [1x, 2026-09-24, a9d6f78] skills/objection/gate/: a gate that covers one spelling of an action misses its other spellings (another flag, another value form)
@@ -32,5 +31,6 @@ Maintained by precedents.mjs; edit by hand only to delete a line.
 - [1x, 2026-09-24, 119f23a] skills/objection/gate/: narrowing what counts as a finding, to stop asking for one ruling too many, lets a real finding ship unruled
 - [1x, 2026-09-24, 354347c] skills/objection/: a checker validates the working copy when the tool it checks for reads the base branch's copy
 - [1x, 2026-09-24, 354347c] skills/objection/: a name search across the repository picks up unrelated locals and test helpers with the same name
-- [1x, 2026-09-25, fa3c74f] skills/objection/: a pipeline's status is its last command's, so a failed lookup reads as found nothing and the fallback runs
+- [2x, 2026-09-25, f0ac915] skills/objection/: a pipeline's status is its last command's, so a failed lookup reads as found nothing and the fallback runs
 - [1x, 2026-09-25, 862bef3] skills/objection/: stdin read as string chunks splits a multibyte character at a 64 KiB boundary
+- [1x, 2026-09-25, 1474094] test/: a regression test only fails on one platform's tool behavior, so CI on another platform passes it with the fix removed
