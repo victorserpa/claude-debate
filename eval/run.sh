@@ -25,6 +25,11 @@ set -u
 here="$(cd "$(dirname "$0")" && pwd)"
 skill="$here/../skills/objection"
 fixtures="${EVAL_FIXTURES:-$here/fixtures}"
+# Made here and made absolute before the cd below: a missing or relative
+# EVAL_KEEP lost every answer.
+if [ -n "${EVAL_KEEP:-}" ]; then
+  mkdir -p "$EVAL_KEEP" && EVAL_KEEP=$(cd "$EVAL_KEEP" && pwd) || { echo "EVAL_KEEP: cannot use $EVAL_KEEP" >&2; exit 1; }
+fi
 cd "$fixtures" || exit 1
 names=("$@")
 [ ${#names[@]} -gt 0 ] || names=(*)

@@ -36,7 +36,12 @@ for d in $cds "$cwd" "${CLAUDE_PROJECT_DIR:-}" "${CURSOR_PROJECT_DIR:-}" "${GEMI
 done
 IFS=$IFS_old
 [ -n "$optin" ] || exit 0
-msg="[objection] Blocked: the gate did not run (node exited $rc), so it cannot check this command. Make node run in this repository (a .tool-versions or .nvmrc may pin a version that is not installed), then retry."
+case "$rc" in
+  127) why="node is not on the hook's PATH (install Node.js 18 or later, or put it where the host's hooks look)" ;;
+  126) why="node was found but could not start (a version manager's shim, such as asdf, mise, volta, nvm or fnm, with no version for this directory, or a file without exec permission)" ;;
+  *) why="node exited $rc while checking (a Node.js older than 18, or a crash; \`node -v\` and \`bash <skill>/doctor.sh\` show which)" ;;
+esac
+msg="[objection] Blocked: the gate could not check this command: $why. Fix node, then retry."
 case " $* " in
   *" cursor "*) printf '{"continue":true,"permission":"deny","userMessage":"%s","agentMessage":"%s"}' "$msg" "$msg" ;;
 esac

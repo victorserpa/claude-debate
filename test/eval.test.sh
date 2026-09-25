@@ -68,6 +68,9 @@ case "$line" in *CAUGHT*) ;; *) fail "EVAL_FIXTURES was not used ($line)" ;; esa
 mkdir -p "$T/saved" && printf '| HIGH | BUG | src/export.js:11 | x | read | p |\n' >"$T/saved/missing-cleanup.out"
 line=$(EVAL_RESCORE="$T/saved" OBJECTION_CLAUDE=/nonexistent bash "$ROOT/eval/run.sh" missing-cleanup 2>/dev/null | awk '$1 == "missing-cleanup"')
 case "$line" in *CAUGHT*) ;; *) fail "EVAL_RESCORE did not score the saved answer ($line)" ;; esac
+# EVAL_KEEP: a directory that does not exist yet, given as a relative path.
+(cd "$T" && EVAL_FIXTURES="$X" EVAL_KEEP=kept/new FAKE_ROW="| HIGH | BUG | src/a.js:1 | x | read | p |" bash "$ROOT/eval/run.sh" one >/dev/null 2>&1)
+[ -s "$T/kept/new/one.out" ] || fail "EVAL_KEEP did not keep the answer in a new, relative directory"
 # No fixture ran: not a pass.
 bash "$ROOT/eval/run.sh" nosuch >/dev/null 2>&1
 [ $? = 2 ] || fail "an empty run did not exit 2"

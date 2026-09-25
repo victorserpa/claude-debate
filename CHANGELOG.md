@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+- **Whatever breaks node, the message says which.** When the gate cannot
+  run, `hook.sh` now tells node not on the hook's PATH (127) from a node
+  that would not start (126: a version manager's shim, asdf, mise, volta,
+  nvm or fnm, with no version for the directory) from one that failed
+  while checking (a Node.js older than 18, or a crash). All three block a
+  PR command in an opted-in repository, as in 0.19.0.
+- **Node.js versions, measured.** The local scripts and every suite but
+  the CI check's pass on Node.js 16 and 20; the CI check needs 18
+  (`fetch`) and now says so instead of failing on a ReferenceError.
+  `doctor` warns below 18. The install page says node is needed in a
+  Python or Go repository too, installed any way.
+- `EVAL_KEEP` creates its directory and takes a relative path: the 0.19
+  replay lost every saved answer to a directory that did not exist.
+- Real bugs replayed on 0.19 with the defense (one run): 7 of 9 at the
+  expected severity, the other two caught one level lower; the defender,
+  now given more of the cited code, refuted none of the catches.
+
 ## 0.19.0 (2026-09-25)
 
 - **`open-issue.sh`**: one issue for what a stamped record left open (the

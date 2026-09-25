@@ -37,6 +37,11 @@ function fail(msg) {
 
 let event = null;
 let pr = null;
+// fetch arrived in Node.js 18; without it every API call below would read
+// as a ReferenceError instead of saying what is wrong.
+if (typeof fetch !== "function") {
+  fail(`this check needs Node.js 18 or later (found ${process.version}).`);
+}
 let mr = null;
 let head;
 let base;

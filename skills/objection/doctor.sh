@@ -37,9 +37,13 @@ command -v node >/dev/null 2>&1 || { echo "cannot go on without node."; exit 1; 
 # On PATH is not enough: a version manager's shim (asdf, mise, nvm) exits
 # 126 when .tool-versions or .nvmrc pins a version that is not installed.
 if ! node_err=$(node -e 0 2>&1); then
-  bad "node is on PATH but does not run in this repository: $(printf '%s' "$node_err" | head -n 1) (install the version it pins, or put a node that runs first on PATH)"
+  bad "node is on PATH but does not run in this repository: $(printf '%s' "$node_err" | head -n 1) (a version manager such as asdf, mise, volta, nvm or fnm may pin a version that is not installed; install it, or put a node that runs first on PATH)"
   echo "cannot go on without node."; exit 1
 fi
+# Tested on 16 and 20 locally; the CI check needs 18 (fetch). 16 is past
+# its end of life.
+node_major=$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)
+[ "$node_major" -ge 18 ] 2>/dev/null || warn "node $(node -v 2>/dev/null) is older than 18: the local scripts run on 16, but the CI check (check-pr.mjs) needs 18 or later"
 clis=""
 for c in claude codex gemini; do
   v="OBJECTION_$(printf '%s' "$c" | tr '[:lower:]' '[:upper:]')"

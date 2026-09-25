@@ -698,8 +698,20 @@ shrun() { # expected cwd command [host]
   [ "$rc" = "$1" ] || { echo "FAIL hook.sh (expected $1, got $rc): $3 in $2"; failures=$((failures + 1)); }
 }
 shrun 2 "$O" "gh pr merge 5 --squash"
-grep -q "the gate did not run (node exited 126)" "$T/sh.err" || { echo "FAIL: hook.sh does not say node did not run"; failures=$((failures + 1)); }
+grep -q "node was found but could not start" "$T/sh.err" || { echo "FAIL: hook.sh does not say node did not start"; failures=$((failures + 1)); }
 shrun 0 "$O" "ls -la"
+# Each way node fails says what to fix: not found (127), found but not
+# started (126), started and failed (a crash, or a Node.js too old).
+for code in 127 1; do
+  mkdir -p "$T/node$code" && printf '#!/bin/sh\nexit %s\n' "$code" >"$T/node$code/node" && chmod +x "$T/node$code/node"
+  (cd "$O" && printf '{"cwd":"%s","tool_name":"Bash","tool_input":{"command":"gh pr merge 5"}}' "$O" |
+    PATH="$T/node$code:$PATH" sh "$HOOKSH" >/dev/null 2>"$T/sh.err")
+  [ "$?" = 2 ] || { echo "FAIL: hook.sh did not block when node exited $code"; failures=$((failures + 1)); }
+  case "$code" in
+    127) grep -q "node is not on the hook's PATH" "$T/sh.err" || { echo "FAIL: hook.sh does not say node is missing"; failures=$((failures + 1)); } ;;
+    1) grep -q "node exited 1 while checking" "$T/sh.err" || { echo "FAIL: hook.sh does not say node failed"; failures=$((failures + 1)); } ;;
+  esac
+done
 # The host may start the hook outside the project: the payload's cwd, and
 # a `cd` in the command, still find the opted-in repository.
 shrun_at() { # expected run-dir payload-cwd command

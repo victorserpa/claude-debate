@@ -60,7 +60,7 @@ work anywhere you did not opt in.
 | `maxRounds` | rounds a branch may have before `debate.sh` refuses another (default 2 under `lean`, 3 otherwise); one more needs `--extra-round`, when the human asks |
 | `smallDiff` | under `lean`, a diff of at most this many changed lines that no invariant or `strongPaths` touches runs no reviewer; the judge reads it alone (default 20, `0` turns it off) |
 
-Requirements: `node`, `git`, `bash` and `perl`, plus the `claude` CLI or
+Requirements: `node` (Node.js 18 or later, installed any way: the system package, the official installer, nvm, volta, fnm, asdf or mise; needed in a Python or Go repository too, since objection's own scripts are node and bash), `git`, `bash` and `perl`, plus the `claude` CLI or
 the `codex` CLI to run the reviewers cheaply, and `gh` or `glab` for the
 local gate. Linux and macOS have the first four; on Windows, Git for
 Windows brings `bash` and `perl` (Git Bash, which Claude Code needs

@@ -68,7 +68,7 @@ done
 # node on PATH may still not run: a version manager's shim exits 126 when
 # .tool-versions or .nvmrc pins a version that is not installed.
 if ! node_err=$(node -e 0 2>&1); then
-  echo "objection: node does not run in this repository ($(printf '%s' "$node_err" | head -n 1)). Install the version it pins, or put a node that runs first on PATH." >&2
+  echo "objection: node does not run in this repository ($(printf '%s' "$node_err" | head -n 1)). If a version manager (asdf, mise, volta, nvm, fnm) pins a version here, install it; otherwise install Node.js 18 or later, or put one that runs first on PATH." >&2
   exit 2
 fi
 # Physical paths: git reports the toplevel resolved (/private/var on macOS).
