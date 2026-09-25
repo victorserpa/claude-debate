@@ -1,0 +1,37 @@
+# Optional. Copy to .github/workflows/objection-review.yml to have an
+# accuser review every PR in CI, with a key the agent never sees; make
+# "review" a required check too if its verdict should block.
+#
+# Its own workflow, on purpose: it does not run on "edited" (a title or
+# body edit changes no code, and each run is paid). A skipped run in the
+# record workflow would count as the latest result for the commit and
+# hide a failed review.
+#
+# pull_request_target runs this file from the base branch; the action
+# never checks out or runs the PR's code. A fork's PR fails the review
+# unless review-forks is true, so strangers cannot spend the key.
+name: objection-review
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+permissions:
+  contents: read
+  pull-requests: read # write, with comment: true
+# A new push cancels the review of the previous one.
+concurrency:
+  group: objection-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: victorserpa/objection@v1
+        with:
+          record: "false"
+          review: "true"
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Or, with a Gemini key (it has a free tier):
+          # runner: gemini
+          # gemini-api-key: ${{ secrets.GEMINI_API_KEY }}
+          # comment: true keeps the findings in one PR comment
+          # (needs pull-requests: write above).

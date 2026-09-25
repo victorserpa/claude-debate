@@ -393,6 +393,10 @@ echo "objection: $(git rev-parse --abbrev-ref HEAD) @ ${sha:0:7}, budget $budget
 echo "model: $tier_model, effort $tier_effort ($tier_reason); defender $defender_model, effort $defender_effort"
 echo "accusers: $accusers"
 echo "findings: $(count BLOCKER) BLOCKER, $(count HIGH) HIGH, $(count MEDIUM) MEDIUM, $(count LOW) LOW"
+# An empty answer, a refusal or prose counts as zero rows: say so, since
+# "0 findings" would read as a clean review.
+grep -qiE '^[[:space:]]*\|[[:space:]]*(#[[:space:]]*\|[[:space:]]*)?severity[[:space:]]*\|' "$accusation" || grep -q 'NO FINDINGS' "$accusation" ||
+  echo "warning: the accusation has no findings table and no NO FINDINGS line: read it before judging; it may not be a review."
 echo "defender: $defended"
 echo "draft record: $record"
 echo "next: judge each finding (SKILL.md step 3), replace the TODO(judge) lines, then stamp.sh."

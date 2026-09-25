@@ -3,7 +3,10 @@
 // its body carries an APPROVED /objection record for the PR's current head
 // SHA and base. It does not care which agent (or human) opened the PR, so
 // it covers every tool that has no local hook. Make it a required status
-// check in branch protection and nothing merges without a debate.
+// check in branch protection. It checks that a record is there and
+// consistent, not who wrote it: an author can paste one by hand. The
+// review input (an accuser run in CI, with a key the agent never sees) is
+// what an author cannot fake.
 //
 // A new push changes the head SHA, so the check fails again until the
 // debate runs on the new commit and the body is updated with the new
@@ -84,10 +87,13 @@ if (gitlab) {
   head = pr.head.sha;
   base = pr.base.ref;
   body = pr.body || "";
+  // GitHub keeps a body edited in the browser with CRLF line ends: without
+  // the normalization below, every "## Accusation" line read as missing.
 }
 
 // The LAST stamp in the body wins: an older record left above a newer one
 // must not count.
+body = body.replace(/\r\n?/g, "\n");
 const stamps = [...body.matchAll(/^<!-- objection: sha=([0-9a-f]{40}) base=(\S+) -->$/gm)];
 if (stamps.length === 0)
   fail(`no /objection record in the PR body. Run /objection on ${head.slice(0, 7)} and paste the stored record (including its first line) into the body.`);
@@ -107,7 +113,7 @@ async function changedFiles() {
     // this MR, against the debated head.
     const from = process.env.CI_MERGE_REQUEST_DIFF_BASE_SHA || `origin/${base}`;
     try {
-      return execFileSync("git", ["diff", "--name-only", `${from}...${head}`], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 })
+      return execFileSync("git", ["diff", "--no-renames", "--name-only", `${from}...${head}`], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 })
         .split("\n")
         .filter(Boolean);
     } catch {
@@ -126,7 +132,8 @@ async function changedFiles() {
     });
     if (!res.ok) fail(`could not list the PR files (HTTP ${res.status}).`);
     const batch = await res.json();
-    files.push(...batch.map((f) => f.filename));
+    // A rename is listed under its new name only: its old one counts too.
+    files.push(...batch.flatMap((f) => (f.previous_filename ? [f.filename, f.previous_filename] : [f.filename])));
     if (batch.length < 100) break;
   }
   return files;
@@ -147,7 +154,9 @@ const NEVER_DOCS =
   /(^|\/)(\.(claude|cursor|codex|gemini|github|agents|objection)\/|(AGENTS|CLAUDE|GEMINI)\.md$|\.objection\.json$)|^(agents|skills)\//;
 const docsOnly =
   files.length > 0 &&
-  files.every((f) => !NEVER_DOCS.test(f) && (/\.md$/.test(f) || /^docs\//.test(f)));
+  // By extension only: docs/conf.py is code. Renamed files count under
+  // both names (changedFiles), so src/auth.js -> src/auth.md is not docs.
+  files.every((f) => !NEVER_DOCS.test(f) && /\.(md|mdx|rst|txt|adoc)$/i.test(f));
 
 const lines = record.split("\n");
 if (!docsOnly) {

@@ -1,0 +1,35 @@
+# The Action's own independent accuser, through the Gemini CLI: a second
+# model family on every PR here, and a live run of runner: gemini and
+# comment: true. Not a required check: a finding here is a claim to check.
+#
+# Its own workflow, so a title or body edit starts no run: a skipped run
+# is the latest result for the commit and would read as a pass. Skipped on
+# Dependabot PRs (no access to the key); a fork's PR fails the review
+# (review-forks is off) instead of spending the key.
+name: review
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+permissions:
+  contents: read
+concurrency:
+  group: review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  review:
+    name: review (gemini)
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    # Write access for the one findings comment it keeps up to date.
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1, main (the base), not the PR
+      - uses: ./
+        with:
+          record: "false"
+          review: "true"
+          runner: gemini
+          gemini-api-key: ${{ secrets.GEMINI_API_KEY }}
+          comment: "true"

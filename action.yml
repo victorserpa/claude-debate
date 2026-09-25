@@ -38,6 +38,9 @@ inputs:
   comment:
     description: "true also posts the review's findings as one PR comment, edited in place on every push. The job needs pull-requests: write."
     default: "false"
+  review-forks:
+    description: "true also reviews PRs from forks, spending this repository's key on every push a stranger makes. Off by default: a fork's PR then fails the review, to be reviewed by hand."
+    default: "false"
   record:
     description: "false skips the record check and runs only the review."
     default: "true"
@@ -63,6 +66,7 @@ runs:
         OBJECTION_EFFORT: ${{ inputs.effort }}
         OBJECTION_FAIL_ON: ${{ inputs.fail-on }}
         OBJECTION_COMMENT: ${{ inputs.comment }}
+        OBJECTION_REVIEW_FORKS: ${{ inputs.review-forks }}
         CLAUDE_VERSION: ${{ inputs.claude-version }}
       run: |
         if [ "$OBJECTION_RUNNER" = gemini ]; then

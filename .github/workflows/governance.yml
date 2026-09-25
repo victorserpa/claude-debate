@@ -150,29 +150,3 @@ jobs:
           echo "dependabot_only=$only"
       - uses: ./
         if: steps.who.outputs.dependabot_only != 'true'
-  # The Action's own independent accuser, through the Gemini CLI: a second
-  # model family on every PR, and a live run of the runner: gemini path.
-  # Not a required check: a finding here is a claim to check, not a gate.
-  # Skipped on body and title edits (nothing new to review), on
-  # Dependabot PRs (no access to the key) and on PRs from forks:
-  # pull_request_target would hand a stranger's pushes the key's credits.
-  review:
-    name: review (gemini)
-    if: >-
-      github.event.action != 'edited' &&
-      github.event.pull_request.user.login != 'dependabot[bot]' &&
-      github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
-    # Write access for the one findings comment it keeps up to date.
-    permissions:
-      contents: read
-      pull-requests: write
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1, main (the base), not the PR
-      - uses: ./
-        with:
-          record: "false"
-          review: "true"
-          runner: gemini
-          gemini-api-key: ${{ secrets.GEMINI_API_KEY }}
-          comment: "true"

@@ -151,7 +151,8 @@ echo "next:"
 [ "$host" = codex ] && echo "- Codex: open codex in this repository once and trust the objection hook; until then Codex skips it silently."
 [ -z "$advisory" ] || echo "- advisory: nothing blocks; the hook says what it would block. Remove \"enforce\": false to enforce; for the CI check copy templates/github/objection.yml (or the GitLab one)."
 [ -n "$advisory" ] || case "$forge" in
-  github) echo "- GitHub: make the \"record\" check required in a ruleset on $default (Settings > Rules)." ;;
+  github) echo "- GitHub: make the \"record\" check required in a ruleset on $default (Settings > Rules)."
+    echo "- optional: an accuser in CI with its own key, templates/github/objection-review.yml (Claude or a free-tier Gemini key)." ;;
   gitlab) echo "- GitLab: include .gitlab/objection.gitlab-ci.yml from .gitlab-ci.yml and turn on \"Pipelines must succeed\"." ;;
   *) echo "- no GitHub or GitLab origin: there is no CI gate, the debate is advice there." ;;
 esac

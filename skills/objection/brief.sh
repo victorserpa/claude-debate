@@ -49,6 +49,10 @@ out="$dest/brief-$sha.md"
 
 # Same noise filter as the review diff in SKILL.md.
 X=(-- . ':!*.lock' ':!*lock.json' ':!*lock.yaml' ':!*.snap' ':!*.min.*' ':!dist/**' ':!build/**' ':!**/generated/**')
+# OBJECTION_BRIEF_STRICT=1 (the CI review, a barrier): only lockfiles stay
+# out. Build output is what a JavaScript Action ships (dist/index.js), so
+# a PR that touched only dist/ used to pass with no reviewer.
+[ "${OBJECTION_BRIEF_STRICT:-}" = 1 ] && X=(-- . ':!*.lock' ':!*lock.json' ':!*lock.yaml')
 files=$(git diff --name-only "$diff_base"...HEAD "${X[@]}")
 [ -n "$files" ] || { echo "nothing to review between $diff_base and HEAD." >&2; exit 1; }
 

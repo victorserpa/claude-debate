@@ -78,6 +78,13 @@ check 0 $F Bash 'gh pr create --fill'
 check 0 $F Bash 'gh pr merge 5 --auto'
 check 0 $F mcp__github__create_pull_request ''
 
+# Opt-in is decided where gh runs: a session outside any repository still
+# gates `cd <opted-in repo> && gh ...`, and an opted-in session does not
+# gate gh in a repository that never opted in.
+check 2 "$T" Bash "cd $N && gh pr merge 5"
+check 2 "$T" Bash "cd $N && gh pr create --fill"
+check 0 $N Bash "cd $F && gh pr create --fill"
+
 # Advisory mode ("enforce": false): what would block is allowed, with the
 # reason on stderr; an invalid config still blocks (fail closed).
 A="$T/adv"
@@ -305,6 +312,18 @@ stampcheck() { # expected base record
     echo "FAIL stamp (expected $1, got $rc): base=$2 record=$3"; failures=$((failures + 1))
   fi
 }
+# Documentation by extension, renames under both names: a code file
+# renamed to .md, or code under docs/, needs the full record.
+R2="$T/stamp-docs"
+git init -q "$R2" && optin "$R2" && mkdir -p "$R2/src" && printf 'code\n' >"$R2/src/auth.js" &&
+  gitc -C "$R2" add . && gitc -C "$R2" commit -q -m base && git -C "$R2" update-ref refs/remotes/origin/develop HEAD
+git -C "$R2" mv src/auth.js src/auth.md && gitc -C "$R2" commit -q -m rename
+(cd "$R2" && bash "$STAMP" "$T/min.md" origin/develop >/dev/null 2>&1) && { echo "FAIL: a code file renamed to .md stamped as docs"; failures=$((failures + 1)); }
+git -C "$R2" reset -q --hard origin/develop && mkdir -p "$R2/docs" && printf 'x = 1\n' >"$R2/docs/conf.py" &&
+  gitc -C "$R2" add . && gitc -C "$R2" commit -q -m conf
+(cd "$R2" && bash "$STAMP" "$T/min.md" origin/develop >/dev/null 2>&1) && { echo "FAIL: docs/conf.py stamped as docs"; failures=$((failures + 1)); }
+git -C "$R2" reset -q --hard origin/develop && printf '# guide\n' >"$R2/guide.md" && gitc -C "$R2" add . && gitc -C "$R2" commit -q -m guide
+(cd "$R2" && bash "$STAMP" "$T/min.md" origin/develop >/dev/null 2>&1) || { echo "FAIL: a real docs change did not stamp as docs"; failures=$((failures + 1)); }
 # Arbitrary base (HEAD~1) would fall into the docs exemption.
 stampcheck 1 HEAD~1 "$T/min.md"
 stampcheck 1 origin/develop "$T/min.md"
@@ -387,6 +406,10 @@ check 2 $N Bash 'gh pr --repo="o/r" merge 5'
 # ...and with a record, the right target and repo reach gh pr view.
 export STUB_SHA=$OK_SHA
 STUB_WANT="5 -R o/r" check 0 $O Bash 'gh -R"o/r" pr merge 5'
+# GH_REPO picks the repository like -R: the PR checked is the one merged.
+STUB_WANT="5 -R o/other" check 0 $O Bash 'GH_REPO=o/other gh pr merge 5'
+STUB_WANT="5" check 2 $O Bash 'GH_REPO=o/other gh pr merge 5'
+check 2 $O Bash 'GH_REPO="$R" gh pr merge 5'
 STUB_WANT="5 -R o/r" check 0 $O Bash 'gh --repo="o/r" pr merge 5 --squash'
 # -m and -r are --merge and --rebase, not flags that take a value.
 STUB_WANT="338" check 0 $O Bash 'gh pr merge -m 338'

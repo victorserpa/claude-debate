@@ -62,7 +62,7 @@ esac
 git rev-parse --verify -q "$base" >/dev/null ||
   { echo "unknown base: $base (run git fetch origin)." >&2; exit 1; }
 
-files=$(git diff --name-only "$base"...HEAD)
+files=$(git diff --no-renames --name-only "$base"...HEAD)
 [ -n "$files" ] || { echo "nothing to debate between $base and HEAD." >&2; exit 1; }
 
 # A docs-only diff skips accusation and defense (see SKILL.md) but still
@@ -80,7 +80,9 @@ while IFS= read -r f; do
       AGENTS.md | CLAUDE.md | GEMINI.md | .objection.json | \
       */AGENTS.md | */CLAUDE.md | */GEMINI.md | */.objection.json | \
       agents/* | skills/*) docs_only=no ;;
-    *.md | docs/*) ;;
+    # Documentation by its extension only: a file under docs/ can be code
+    # (docs/conf.py, a site config) and ran as such.
+    *.md | *.mdx | *.rst | *.txt | *.adoc) ;;
     *) docs_only=no ;;
   esac
 done <<<"$files"

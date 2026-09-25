@@ -45,12 +45,28 @@ event=$(node -e '
   const e = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
   const p = e.pull_request || {};
   if (!p.number || !p.base || !p.head) process.exit(1);
-  console.log([p.number, p.base.ref, p.head.sha, String(p.title || "not stated").replace(/\s+/g, " ")].join("\n"));
+  // A fork: the head repository is not the base repository.
+  const fork = !!(p.head.repo && p.base.repo && p.head.repo.full_name !== p.base.repo.full_name);
+  console.log([p.number, p.base.ref, p.head.sha, String(p.title || "not stated").replace(/\s+/g, " "), fork ? "fork" : "same"].join("\n"));
 ' "$GITHUB_EVENT_PATH") || { echo "objection review: the event is not a pull request." >&2; exit 1; }
 number=$(printf '%s\n' "$event" | sed -n 1p)
 base=$(printf '%s\n' "$event" | sed -n 2p)
 head=$(printf '%s\n' "$event" | sed -n 3p)
 title=$(printf '%s\n' "$event" | sed -n 4p)
+origin_kind=$(printf '%s\n' "$event" | sed -n 5p)
+
+# A fork's PR is reviewed only when the repository asks for it
+# (review-forks: true): pull_request_target would hand every stranger's
+# push this repository's key. It fails rather than passes, since nothing
+# reviewed the code: a maintainer reviews it by hand, or turns it on.
+if [ "$origin_kind" = fork ] && [ "${OBJECTION_REVIEW_FORKS:-false}" != true ]; then
+  msg="## objection review: failed: not run on a fork's PR
+
+PR #$number comes from a fork. The review runs on forks only with review-forks: true, since every push would spend this repository's key. Review the change by hand, or turn it on."
+  printf '%s\n' "$msg"
+  [ -z "${GITHUB_STEP_SUMMARY:-}" ] || printf '%s\n' "$msg" >>"$GITHUB_STEP_SUMMARY"
+  exit 1
+fi
 
 remote="${OBJECTION_CI_REMOTE:-${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY:?}.git}"
 auth=()
@@ -82,6 +98,11 @@ export OBJECTION_MODEL="${OBJECTION_MODEL:-sonnet}" OBJECTION_EFFORT="${OBJECTIO
 comment() {
   [ "${OBJECTION_COMMENT:-false}" = true ] || return 0
   local gh_bin="${OBJECTION_GH_BIN:-gh}" marker="<!-- objection-review -->" repo="${GITHUB_REPOSITORY:-}" ids id
+  # Only this job's own comments are edited: a token with write access can
+  # edit anyone's, and a marker is easy to copy. OBJECTION_COMMENT_AUTHOR
+  # names the account when the token is not GitHub's (a PAT, an app).
+  local author="${OBJECTION_COMMENT_AUTHOR:-github-actions[bot]}"
+  printf '%s' "$author" | grep -qE '^[A-Za-z0-9][A-Za-z0-9-]*(\[bot\])?$' || { echo "::warning::objection review: comment author $author is not a GitHub login" >&2; return 0; }
   [ -n "$repo" ] && [ -n "${number:-}" ] || { echo "::warning::objection review: no repository or PR number, so no PR comment" >&2; return 0; }
   printf '%s\n%s\n\n<sub>objection %s, in CI. Updated on every push.</sub>\n' "$marker" "$1" "$(cat "$here/VERSION" 2>/dev/null || echo "")" |
     node -e 'let s = ""; process.stdin.setEncoding("utf8").on("data", (d) => (s += d)).on("end", () => {
@@ -93,10 +114,10 @@ comment() {
       process.stdout.write(JSON.stringify({ body: s }));
     });' >"$work/comment.json" || { echo "::warning::objection review: the PR comment could not be written" >&2; return 0; }
   # A listing that fails posts nothing: a blind POST would stack a second
-  # comment. The bot's own marked comments come first; any marked comment
-  # this token cannot edit is skipped for the next one, then a new one.
+  # comment. A marked comment this token cannot edit is skipped for the
+  # next one, then a new one is posted.
   ids=$(GH_TOKEN="${GITHUB_TOKEN:-}" "$gh_bin" api --paginate "repos/$repo/issues/$number/comments" \
-    -q "[.[] | select(.body | startswith(\"$marker\"))] | sort_by(.user.login != \"github-actions[bot]\") | .[].id" 2>/dev/null) ||
+    -q "[.[] | select((.body | startswith(\"$marker\")) and .user.login == \"$author\")] | .[].id" 2>/dev/null) ||
     { echo "::warning::objection review: the PR's comments could not be listed, so no comment was posted or edited" >&2; return 0; }
   for id in $ids; do
     GH_TOKEN="${GITHUB_TOKEN:-}" "$gh_bin" api -X PATCH "repos/$repo/issues/comments/$id" --input "$work/comment.json" >/dev/null 2>&1 && return 0
@@ -110,7 +131,7 @@ summarise() {
 }
 accusation="$work/accusation.md"
 rc=0
-if ! brief=$(bash "$here/brief.sh" "origin/$base" "$title" "not stated" "origin/$base" 2>"$work/brief.err"); then
+if ! brief=$(OBJECTION_BRIEF_STRICT=1 bash "$here/brief.sh" "origin/$base" "$title" "not stated" "origin/$base" 2>"$work/brief.err"); then
   cat "$work/brief.err" >&2
   # Every changed file is noise the config excludes: nothing to accuse.
   if grep -q '^nothing to review' "$work/brief.err"; then
@@ -126,7 +147,11 @@ $(head -n 5 "$work/brief.err")"
   finished=yes
   exit 1
 fi
-bash "$here/review.sh" accuser "$brief" >"$accusation" || rc=$?
+# The reviewer gets only its own runner's key: not the GitHub token, not
+# the other runner's key.
+other_key=GEMINI_API_KEY
+[ "$runner" = gemini ] && other_key=ANTHROPIC_API_KEY
+env -u GITHUB_TOKEN -u GH_TOKEN -u "$other_key" bash "$here/review.sh" accuser "$brief" >"$accusation" || rc=$?
 
 # Same row rule as debate.sh: a table row whose first cell starts with the word.
 count() {
@@ -144,10 +169,20 @@ high=$(count HIGH)
 medium=$(count MEDIUM)
 low=$(count LOW)
 
+# An answer with no findings table and no "NO FINDINGS" line (empty, a
+# refusal, prose) is not a review: counting its rows gave "passed".
+answered=yes
+grep -qiE '^[[:space:]]*\|[[:space:]]*(#[[:space:]]*\|[[:space:]]*)?severity[[:space:]]*\|' "$accusation" || grep -qx 'NO FINDINGS' "$accusation" || answered=""
 verdict="passed"
 status=0
 if [ "$rc" != 0 ]; then
   verdict="failed: the accuser did not run (exit $rc)"
+  status=1
+elif [ -z "$answered" ]; then
+  verdict="failed: the accuser's answer has no findings table"
+  status=1
+elif [ "$fail_on" != none ] && grep -q '^TRUNCATED: the diff has' "$brief"; then
+  verdict="failed: the diff is too large for one review, so part of it was not read (split the PR, or fail-on: none)"
   status=1
 elif [ "$fail_on" = blocker ] && [ "$blocker" -gt 0 ]; then
   verdict="failed: $blocker BLOCKER"
@@ -165,7 +200,9 @@ summary=$(
     "$number" "${head:0:7}" "$base" "$accuser" "$fail_on"
   printf 'Findings: %s BLOCKER, %s HIGH, %s MEDIUM, %s LOW. One reviewer, no defense and no judge: a finding here is a claim to check, not a verdict.\n\n' \
     "$blocker" "$high" "$medium" "$low"
-  cat "$accusation"
+  # Model text, shown to people: an unclosed "<!--" would hide the rest of
+  # the comment, and an image would make GitHub fetch a URL of its choice.
+  sed 's/<!--/\&lt;!--/g; s/!\[/!\\[/g' "$accusation"
 )
 summarise "$summary"
 # Never the verdict: whatever fails in comment() is a warning.

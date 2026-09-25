@@ -11,7 +11,7 @@
 // is free-form.
 
 export function missingRulings(text) {
-  const lines = text.split("\n");
+  const lines = text.replace(/\r\n?/g, "\n").split("\n");
   const section = (name) => {
     const out = [];
     let inside = false;

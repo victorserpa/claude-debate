@@ -17,12 +17,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: victorserpa/objection@v1
-        # Optional: an accuser run here, with a key the agent never sees.
-        # with:
-        #   review: true
-        #   anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
-        #   # comment: true posts the findings as one PR comment, kept up to
-        #   # date (add pull-requests: write to the permissions above)
-        #   # or, with a Gemini key (free tier) instead:
-        #   # runner: gemini
-        #   # gemini-api-key: ${{ secrets.GEMINI_API_KEY }}
+        # The independent accuser in CI lives in its own workflow:
+        # templates/github/objection-review.yml.

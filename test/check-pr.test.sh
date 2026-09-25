@@ -34,6 +34,13 @@ run 0 "$CODE" "Summary above.
 
 $(record $HEAD origin/main nothing APPROVED)"
 run 1 "$CODE" "no record here"
+# A body edited in the browser comes back with CRLF line ends.
+run 0 "$CODE" "$(record $HEAD origin/main nothing APPROVED | sed 's/$/\r/')"
+# Documentation is decided by extension: a file under docs/ can be code.
+DOCREC="$(printf '<!-- objection: sha=%s base=origin/main -->\nVERDICT: APPROVED\n' "$HEAD")"
+run 0 "docs/guide.md" "$DOCREC"
+run 1 "docs/conf.py" "$DOCREC"
+run 1 "docs/.vitepress/config.mts" "$DOCREC"
 run 1 "$CODE" "$(record $OLD origin/main nothing APPROVED)"
 run 1 "$CODE" "$(record $HEAD origin/develop nothing APPROVED)"
 run 1 "$CODE" "$(record $HEAD origin/main nothing APPROVED REJECTED)"

