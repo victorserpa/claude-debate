@@ -38,8 +38,8 @@ refuting.
 
 **A defect the base code already had** (the removed lines behave the
 same way, and the change does not make it reach more cases) is not this
-change's: say UPHELD, propose LOW, and cite the removed line that shows
-it. If the accuser called it a REGRESSION, that part is REFUTED.
+change's: say UPHELD, propose LOW, cite the removed line that shows it,
+and say in your sentence that it is not a regression.
 
 **Run in isolation (no tools)?** Then everything you can read is on
 stdin: judge from it, skip the instructions about opening files or running

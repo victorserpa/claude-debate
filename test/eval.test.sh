@@ -44,6 +44,13 @@ def='| # | verdict | evidence | kind | sentence |
 | 1 | REFUTED | src/format.js:1 | read | the old code did the same |'
 line=$(EVAL_DEFENSE=1 FAKE_DEFENSE="$def" FAKE_ROW="| HIGH | BUG | src/format.js:1 | x | read | p |" bash "$ROOT/eval/run.sh" clean 2>/dev/null | awk '$1 == "clean"')
 case "$line" in *"defense: 1 refuted, 0 upheld, 0 cannot verify"*) ;; *) fail "the defense on a false alarm was not reported ($line)" ;; esac
+# A catch goes to the defender too (review.sh passes the role with
+# --system-prompt-file, which is what the stub keys on).
+up='| # | verdict | evidence | kind | sentence |
+|---|---|---|---|---|
+| 1 | UPHELD | src/export.js:11 | read | nothing cleans it up |'
+line=$(EVAL_DEFENSE=1 FAKE_DEFENSE="$up" FAKE_ROW="$(printf "$row" 11 'x' 'p')" bash "$ROOT/eval/run.sh" missing-cleanup 2>/dev/null | awk '$1 == "missing-cleanup"')
+case "$line" in *"defense: 0 refuted, 1 upheld, 0 cannot verify"*) ;; *) fail "the defense on a catch was not reported ($line)" ;; esac
 line=$(EVAL_DEFENSE=1 FAKE_DEFENSE="$def" FAKE_ROW="NO FINDINGS" bash "$ROOT/eval/run.sh" clean 2>/dev/null | awk '$1 == "clean"')
 case "$line" in *defense:*) fail "the defender ran on a clean pass ($line)" ;; esac
 # No fixture ran: not a pass.
