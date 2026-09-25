@@ -108,7 +108,10 @@ cat >"$T/gh" <<'STUB'
 #!/bin/bash
 printf '%s\n' "$*" >>"$FAKE_DIR/gh-calls"
 prev=""; for a in "$@"; do [ "$prev" = --input ] && cp "$a" "$FAKE_DIR/gh-body"; prev="$a"; done
-case "$*" in *--paginate*) printf '%s' "${FAKE_GH_EXISTING:-}" ;; esac
+case "$*" in
+  *--paginate*) [ -n "${FAKE_GH_LIST_FAIL:-}" ] && exit 1; printf '%s' "${FAKE_GH_EXISTING:-}"; exit 0 ;;
+  *PATCH*"comments/${FAKE_GH_FOREIGN:-none}"*) exit 1 ;;
+esac
 [ -n "${FAKE_GH_FAIL:-}" ] && exit 1
 exit 0
 STUB
@@ -122,6 +125,23 @@ rm -f "$T/gh-calls"
 FAKE_GH_EXISTING=42 OBJECTION_COMMENT=true OBJECTION_GH_BIN="$T/gh" GITHUB_REPOSITORY=o/r run
 grep -q -- "-X PATCH repos/o/r/issues/comments/42" "$T/gh-calls" || fail "the existing comment was not edited"
 grep -q -- "-X POST" "$T/gh-calls" && fail "a second comment was posted"
+# A listing that fails posts nothing; a marked comment this token cannot
+# edit is skipped for the next one; an @name does not ping.
+rm -f "$T/gh-calls"
+FAKE_GH_LIST_FAIL=1 OBJECTION_COMMENT=true OBJECTION_GH_BIN="$T/gh" GITHUB_REPOSITORY=o/r run
+grep -qE -- "-X (POST|PATCH)" "$T/gh-calls" && fail "a comment was written after the listing failed"
+has "$T/err" "could not be listed"
+rm -f "$T/gh-calls"
+FAKE_GH_EXISTING="7
+42" FAKE_GH_FOREIGN=7 OBJECTION_COMMENT=true OBJECTION_GH_BIN="$T/gh" GITHUB_REPOSITORY=o/r run
+grep -q -- "-X PATCH repos/o/r/issues/comments/42" "$T/gh-calls" || fail "the editable comment was not used after a foreign one"
+grep -q -- "-X POST" "$T/gh-calls" && fail "a new comment was posted although one could be edited"
+printf '| BLOCKER | BUG | src/a.ts:3 | ask @octocat | read | p |\n' >"$T/answer"
+OBJECTION_COMMENT=true OBJECTION_GH_BIN="$T/gh" GITHUB_REPOSITORY=o/r run
+node -e 'const b = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).body; if (b.includes("@octocat") || !b.includes("@\u200boctocat")) process.exit(1)' "$T/gh-body" || fail "an @mention would ping"
+# A comment that cannot even be written leaves the verdict alone.
+answer
+OBJECTION_COMMENT=true OBJECTION_GH_BIN="$T/gh" GITHUB_REPOSITORY= run || fail "no repository name failed a clean review"
 answer
 FAKE_GH_FAIL=1 OBJECTION_COMMENT=true OBJECTION_GH_BIN="$T/gh" GITHUB_REPOSITORY=o/r run || fail "a failed comment failed a clean review"
 has "$T/err" "the PR comment could not be posted"

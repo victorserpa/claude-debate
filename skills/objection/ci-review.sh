@@ -81,20 +81,28 @@ export OBJECTION_MODEL="${OBJECTION_MODEL:-sonnet}" OBJECTION_EFFORT="${OBJECTIO
 # a failed check: the verdict is the check's, the comment only shows it.
 comment() {
   [ "${OBJECTION_COMMENT:-false}" = true ] || return 0
-  local gh_bin="${OBJECTION_GH_BIN:-gh}" marker="<!-- objection-review -->" id
+  local gh_bin="${OBJECTION_GH_BIN:-gh}" marker="<!-- objection-review -->" repo="${GITHUB_REPOSITORY:-}" ids id
+  [ -n "$repo" ] || { echo "::warning::objection review: no GITHUB_REPOSITORY, so no PR comment" >&2; return 0; }
   printf '%s\n%s\n\n<sub>objection %s, in CI. Updated on every push.</sub>\n' "$marker" "$1" "$(cat "$here/VERSION" 2>/dev/null || echo "")" |
     node -e 'let s = ""; process.stdin.on("data", (d) => (s += d)).on("end", () => {
+      // An @name in model output would ping that user: a zero-width space
+      // after the @ keeps the text and drops the ping.
+      s = s.replace(/@(?=[A-Za-z0-9_-])/g, "@\u200b");
       // GitHub takes 65536 characters; the cut says so.
       if (s.length > 60000) s = s.slice(0, 60000) + "\n\n(cut: the full findings are in the job summary)";
       process.stdout.write(JSON.stringify({ body: s }));
-    });' >"$work/comment.json"
-  id=$(GH_TOKEN="${GITHUB_TOKEN:-}" "$gh_bin" api --paginate "repos/$GITHUB_REPOSITORY/issues/$number/comments" \
-    -q ".[] | select(.body | startswith(\"$marker\")) | .id" 2>/dev/null | head -n 1) || id=""
-  if [ -n "$id" ]; then
-    GH_TOKEN="${GITHUB_TOKEN:-}" "$gh_bin" api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" --input "$work/comment.json" >/dev/null 2>&1
-  else
-    GH_TOKEN="${GITHUB_TOKEN:-}" "$gh_bin" api -X POST "repos/$GITHUB_REPOSITORY/issues/$number/comments" --input "$work/comment.json" >/dev/null 2>&1
-  fi || echo "::warning::objection review: the PR comment could not be posted (does the job have pull-requests: write?)" >&2
+    });' >"$work/comment.json" || { echo "::warning::objection review: the PR comment could not be written" >&2; return 0; }
+  # A listing that fails posts nothing: a blind POST would stack a second
+  # comment. The bot's own marked comments come first; any marked comment
+  # this token cannot edit is skipped for the next one, then a new one.
+  ids=$(GH_TOKEN="${GITHUB_TOKEN:-}" "$gh_bin" api --paginate "repos/$repo/issues/$number/comments" \
+    -q "[.[] | select(.body | startswith(\"$marker\"))] | sort_by(.user.login != \"github-actions[bot]\") | .[].id" 2>/dev/null) ||
+    { echo "::warning::objection review: the PR's comments could not be listed, so no comment was posted or edited" >&2; return 0; }
+  for id in $ids; do
+    GH_TOKEN="${GITHUB_TOKEN:-}" "$gh_bin" api -X PATCH "repos/$repo/issues/comments/$id" --input "$work/comment.json" >/dev/null 2>&1 && return 0
+  done
+  GH_TOKEN="${GITHUB_TOKEN:-}" "$gh_bin" api -X POST "repos/$repo/issues/$number/comments" --input "$work/comment.json" >/dev/null 2>&1 ||
+    echo "::warning::objection review: the PR comment could not be posted (does the job have pull-requests: write?)" >&2
 }
 summarise() {
   printf '%s\n' "$1"
@@ -160,6 +168,7 @@ summary=$(
   cat "$accusation"
 )
 summarise "$summary"
-comment "$summary"
+# Never the verdict: whatever fails in comment() is a warning.
+comment "$summary" || echo "::warning::objection review: the PR comment failed" >&2
 finished=yes
 exit "$status"
