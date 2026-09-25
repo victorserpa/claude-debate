@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.19.0 (2026-09-25)
 
 - **`open-issue.sh`**: one issue for what a stamped record left open (the
   Open section, the branch, the commit and the PR), once per commit;
