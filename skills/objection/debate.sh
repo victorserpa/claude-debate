@@ -234,7 +234,7 @@ draft_head() {
 }
 draft_tail() {
   printf '\n## Judge\n\n'
-  printf 'TODO(judge): rule on every finding with the rules of SKILL.md "Judge".\n'
+  printf 'TODO(judge): rule on every finding with the rules of the Judge section of SKILL.md.\n'
   printf '\n## Open\n\n'
   printf 'TODO(judge): what stays open, then OPEN: BLOCKER=<n> HIGH=<n>, then the VERDICT line.\n'
 }
@@ -300,8 +300,9 @@ EOF_CHECKS
 # an APPROVED record already judged exactly this diff (same patch-id,
 # against the same base) and the commits the base gained touch none of
 # the changed files, no reviewer runs: the old record is carried over and
-# the judge confirms it. A base commit in any changed file, a failed
-# invariant check, --since or --force: the full round runs.
+# the judge confirms it. A base commit in any changed file (either name
+# of a rename) or in the objection config, a failed invariant check,
+# --since, --force or OBJECTION_NO_CARRY=1: the full round runs.
 carried=""
 if [ -z "$since" ] && [ -z "$force" ] && [ -z "$check_rows" ] && [ -z "${OBJECTION_NO_CARRY:-}" ]; then
   new_mb=$(git merge-base "origin/$base" HEAD 2>/dev/null || true)
@@ -317,7 +318,12 @@ if [ -z "$since" ] && [ -z "$force" ] && [ -z "$check_rows" ] && [ -z "${OBJECTI
       old_mb=$(git merge-base "origin/$base" "$old" 2>/dev/null) || continue
       git merge-base --is-ancestor "$old_mb" "$new_mb" 2>/dev/null || continue
       [ "$(git diff "$old_mb" "$old" | git patch-id --stable | cut -d' ' -f1)" = "$new_pid" ] || continue
-      touched=$(git diff --name-only "$new_mb" HEAD | tr '\n' '\0' | xargs -0 git log --format=%h "$old_mb..$new_mb" -- 2>/dev/null | head -n 1)
+      # Both names of a rename, and the objection config: a base commit
+      # that adds an invariant for these files changes the review too. A
+      # git that fails here is not "nothing touched".
+      changed_files=$(git diff --no-renames --name-only "$new_mb" HEAD) || continue
+      touched=$(printf '%s\n.objection.json\n.claude/objection.json\n' "$changed_files" | tr '\n' '\0' |
+        xargs -0 git log --format=%h "$old_mb..$new_mb" --) || continue
       [ -z "$touched" ] || continue
       carried="$old"
       break
@@ -507,5 +513,5 @@ grep -qiE '^[[:space:]]*\|[[:space:]]*(#[[:space:]]*\|[[:space:]]*)?severity[[:s
   echo "warning: the accusation has no findings table and no NO FINDINGS line: read it before judging; it may not be a review."
 echo "defender: $defended"
 echo "draft record: $record"
-echo "next: judge each finding (SKILL.md "Judge"), replace the TODO(judge) lines, then stamp.sh."
+echo "next: judge each finding (the Judge section of SKILL.md), replace the TODO(judge) lines, then stamp.sh."
 exit "$rc"

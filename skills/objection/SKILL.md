@@ -69,7 +69,7 @@ It prints a summary and the draft's path: read that one file.
   APPROVED record already judged exactly this diff and the base gained
   nothing in the changed files, no reviewer runs; the draft carries the
   old record with one `TODO(judge)` line. Run `verify`, confirm, delete
-  the line.
+  the line. `OBJECTION_NO_CARRY=1` runs the full round instead.
 - **A small diff under `lean`** (at most `smallDiff` changed lines, default
   20, no invariant or `strongPaths` touched) runs no reviewer: the draft
   comes APPROVED with one `TODO(judge)` line. Read the diff and replace

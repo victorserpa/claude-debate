@@ -449,6 +449,22 @@ git checkout -q feat && git rebase -q main 2>/dev/null || { git rebase --abort; 
 reset
 bash "$DEBATE" main >/dev/null 2>&1
 [ -e "$T/ran-accuser" ] || fail "a base commit in a changed file still carried the record over"
+# A pure rename, then the base edits the old name: not carried.
+git checkout -q -b ren main && git mv other.js moved.js && gitc commit -q -m ren
+ren=$(git rev-parse HEAD)
+printf '<!-- objection: sha=%s base=origin/main -->\n# Debate: ren @ x\n\n## Accusation\n\nNO FINDINGS\n\n## Defense\n\nnot run.\n\n## Judge\n\nnothing to rule.\n\n## Open\n\nnothing.\n\nOPEN: BLOCKER=0 HIGH=0\nVERDICT: APPROVED\n' "$ren" >"$cdir/$ren.md"
+git checkout -q main && printf 'z\n' >>other.js && git add . && gitc commit -q -m "base edits the old name" && git update-ref refs/remotes/origin/main HEAD
+git checkout -q ren && git rebase -q main 2>/dev/null || { git rebase --abort; fail "test setup: rename rebase conflicted"; }
+reset; bash "$DEBATE" main >/dev/null 2>&1
+[ -e "$T/ran-accuser" ] || fail "a base edit to a renamed file's old name carried the record over"
+# The base changes the objection config: not carried.
+git checkout -q -b cfg main && printf '3\n' >>a.js && git add . && gitc commit -q -m cfg-feat
+cfg=$(git rev-parse HEAD)
+sed "s/$ren/$cfg/" "$cdir/$ren.md" >"$cdir/$cfg.md"
+git checkout -q main && printf '{"bases":["main"],"smallDiff":0,"budget":"lean"}\n' >.objection.json && git add . && gitc commit -q -m "base config" && git update-ref refs/remotes/origin/main HEAD
+git checkout -q cfg && git rebase -q main 2>/dev/null || { git rebase --abort; fail "test setup: cfg rebase conflicted"; }
+reset; bash "$DEBATE" main >/dev/null 2>&1
+[ -e "$T/ran-accuser" ] || fail "a base config change carried the record over"
 cd "$R" || exit 1
 
 cd "$R" || exit 1

@@ -155,8 +155,8 @@ grep -qx '      -15' "$out" || { echo "FAIL: a removed line got a number"; failu
 grep -q '^index [0-9a-f]' "$out" && { echo "FAIL: the brief kept an index line"; failures=$((failures + 1)); }
 grep -qx '+++ b/src/ctx.ts' "$out" && { echo "FAIL: the brief kept a +++ line that repeats the name"; failures=$((failures + 1)); }
 printf 'n\n' >src/new.ts && git add . && gitc commit -q -m new
-out=$(bash "$BRIEF" origin/main)
-grep -qx -- '--- /dev/null' "$out" || { echo "FAIL: a new file lost its /dev/null line"; failures=$((failures + 1)); }
+out_new=$(bash "$BRIEF" origin/main)
+grep -qx -- '--- /dev/null' "$out_new" || { echo "FAIL: a new file lost its /dev/null line"; failures=$((failures + 1)); }
 git reset -q --hard HEAD~1
 grep -qx '   11  11' "$out" && { echo "FAIL: the brief has more than three lines of context"; failures=$((failures + 1)); }
 
