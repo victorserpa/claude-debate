@@ -55,7 +55,7 @@ has .objection.json '"go test ./..."'
 # hook.sh fails closed when node cannot run; Windows keeps node for Cursor,
 # Codex and Gemini, which may lack a POSIX sh there.
 case "$(uname -s)" in
-  MINGW* | MSYS* | CYGWIN*) has .cursor/hooks.json "node $ROOT/skills/objection/gate/hook.mjs --host cursor" ;;
+  MINGW* | MSYS* | CYGWIN*) has .cursor/hooks.json "node \\\"$ROOT/skills/objection/gate/hook.mjs\\\" --host cursor" ;;
   *) has .cursor/hooks.json "sh \\\"$ROOT/skills/objection/gate/hook.sh\\\" --host cursor" ;;
 esac
 hasnt .cursor/hooks.json "<SKILL_DIR>"
