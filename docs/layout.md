@@ -26,7 +26,7 @@ skills/objection/            the skill, self-contained
   open-issue.sh              one issue for what a record left open
   gate/hook.sh               runs hook.mjs; blocks a PR command when node cannot run
   gate/check-pr.mjs          GitHub check
-  templates/                 hook configs per tool + the GitHub workflow
+  templates/                 hook configs per tool + the GitHub and GitLab CI files
 agents/                      Claude Code subagents (same prompts as roles/)
 .claude-plugin/, hooks/      Claude Code plugin and marketplace
 action.yml                   the GitHub Action

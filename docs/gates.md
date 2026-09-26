@@ -127,6 +127,25 @@ requests, set `OBJECTION_GITLAB_TOKEN` (a project access token with
 `read_api`) as a masked CI variable. Not yet run on gitlab.com: covered
 by tests only.
 
+**GitLab review.** The same accuser as the GitHub review, as a merge
+request job: copy
+[`templates/gitlab/objection-review.gitlab-ci.yml`](../skills/objection/templates/gitlab/objection-review.gitlab-ci.yml)
+to `.gitlab/`, include it, and set `ANTHROPIC_API_KEY` (or
+`GEMINI_API_KEY` with `OBJECTION_RUNNER: gemini`) as a masked variable.
+It fetches the target branch and `refs/merge-requests/<iid>/head` into an
+empty repository with the job token, runs nothing from the merge
+request, and fails on a BLOCKER (`OBJECTION_FAIL_ON` sets the bar). With
+`OBJECTION_COMMENT: "true"` and `OBJECTION_GITLAB_TOKEN` (a project
+access token with the `api` scope), the findings go into one merge
+request note, edited in place on every push; only that token user's own
+note is edited. The reviewer never sees the job token or the note token.
+It is weaker than the GitHub review: a merge request pipeline runs the
+source branch's CI file, and a masked variable reaches it, so a branch
+can drop the job or print the key. Keep the CI file and the variables in
+another project, or use a pipeline execution policy, where that matters.
+Not yet run on gitlab.com: covered by tests against a local stand-in for
+the API.
+
 ## What the local gate blocks
 
 Without an APPROVED, stamped record for the exact SHA and base:

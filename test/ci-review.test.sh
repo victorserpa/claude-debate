@@ -238,4 +238,107 @@ run && fail "a missing base passed"
 printf '{"push":{}}\n' >"$T/event.json"
 run && fail "a non-PR event passed"
 
+# --- GitLab: a merge request job --------------------------------------------
+# The merge request comes from the predefined variables, its head from
+# refs/merge-requests/<iid>/head, and the note goes through the API (a
+# local server stands in for GitLab).
+GB="$T/gitlab.git"
+git init -q --bare "$GB"
+GW="$T/gw"
+git init -q "$GW" && cd "$GW" || exit 1
+printf '{"bases":["main"],"invariants":[{"paths":"^src/","rule":"GL RULE FROM BASE"}]}\n' >.objection.json
+mkdir -p src && seq 1 10 >src/a.ts
+git add . && gitc commit -q -m base && git branch -M main && git push -q "$GB" main
+printf 'y\n' >>src/a.ts && git add . && gitc commit -q -m mr && git push -q "$GB" HEAD:refs/merge-requests/7/head
+ghead=$(git rev-parse HEAD)
+cd "$T" || exit 1
+node -e '
+const http = require("http");
+const fs = require("fs");
+const log = (l) => fs.appendFileSync(process.argv[1], l + "\n");
+const s = http.createServer((q, r) => {
+  let b = "";
+  q.on("data", (d) => (b += d)).on("end", () => {
+    log(`${q.method} ${q.url} ${q.headers["private-token"] || "-"}`);
+    if (q.method !== "GET") fs.writeFileSync(process.argv[2], b);
+    r.setHeader("content-type", "application/json");
+    const st = fs.existsSync(process.argv[4]) ? fs.readFileSync(process.argv[4], "utf8").trim() : "";
+    if (q.headers["private-token"] !== "gl-token") { r.statusCode = 401; return r.end("{}"); }
+    if (q.url === "/api/v4/user") return r.end(JSON.stringify({ username: "objection-bot" }));
+    if (q.method === "GET" && q.url.startsWith("/api/v4/projects/42/merge_requests/7/notes")) {
+      if (st === "list-fail") { r.statusCode = 500; return r.end("{}"); }
+      const m = "<!-- objection-review -->\nold";
+      const notes = st === "existing" ? [{ id: 5, body: m, author: { username: "someone" }, system: false }, { id: 9, body: m, author: { username: "objection-bot" }, system: false }] : [];
+      return r.end(JSON.stringify(notes));
+    }
+    if (q.method === "PUT" && q.url === "/api/v4/projects/42/merge_requests/7/notes/9") return r.end("{}");
+    if (q.method === "POST" && q.url === "/api/v4/projects/42/merge_requests/7/notes") return r.end("{}");
+    r.statusCode = 404; r.end("{}");
+  });
+}).listen(0, "127.0.0.1", () => fs.writeFileSync(process.argv[3], String(s.address().port)));
+setTimeout(() => process.exit(0), 120000);
+if (process.env.SUITE_PID) setInterval(() => { try { process.kill(+process.env.SUITE_PID, 0); } catch { process.exit(0); } }, 500).unref();
+' "$T/gl.log" "$T/gl-body" "$T/gl-port" "$T/gl-state" &
+glsrv=$!
+for _ in $(seq 50); do [ -s "$T/gl-port" ] && break; sleep 0.1; done
+glapi="http://127.0.0.1:$(cat "$T/gl-port")/api/v4"
+glrun() {
+  rm -f "$T/stdin" "$T/args" "$T/gl.log" "$T/gl-body"
+  env -u GITHUB_EVENT_PATH -u GITHUB_STEP_SUMMARY GITLAB_CI=true CI_MERGE_REQUEST_IID=7 CI_MERGE_REQUEST_TITLE="Add
+y" \
+    CI_MERGE_REQUEST_TARGET_BRANCH_NAME=main CI_COMMIT_SHA="${GL_HEAD:-$ghead}" \
+    CI_MERGE_REQUEST_SOURCE_PROJECT_ID="${GL_SOURCE:-42}" CI_MERGE_REQUEST_PROJECT_ID=42 CI_PROJECT_ID=42 \
+    CI_API_V4_URL="$glapi" CI_JOB_TOKEN=job-secret OBJECTION_CI_REMOTE="$GB" bash "$CI" >"$T/out" 2>"$T/err"
+}
+answer
+glrun || fail "a clean GitLab review failed ($(cat "$T/err"))"
+has "$T/out" "objection review: passed"
+has "$T/out" "MR !7 @ ${ghead:0:7} against main"
+has "$T/stdin" "GL RULE FROM BASE (guards"
+has "$T/stdin" "Goal: Add y"
+has "$T/stdin" "+y"
+# The reviewer sees neither the job token nor the note token.
+grep -q "job-secret" "$T/env" && fail "the reviewer got CI_JOB_TOKEN"
+OBJECTION_GITLAB_TOKEN=gl-token glrun
+grep -q "gl-token" "$T/env" && fail "the reviewer got OBJECTION_GITLAB_TOKEN"
+# No comment without comment: true.
+[ -s "$T/gl.log" ] && fail "a note was posted without OBJECTION_COMMENT"
+answer BLOCKER
+glrun && fail "a GitLab BLOCKER passed"
+has "$T/out" "failed: 1 BLOCKER"
+# A fork's merge request is not reviewed unless asked.
+answer
+GL_SOURCE=99 glrun && fail "a fork's merge request passed"
+has "$T/out" "MR !7 comes from a fork"
+GL_SOURCE=99 OBJECTION_REVIEW_FORKS=true glrun || fail "review-forks did not review the fork"
+# A head the variables do not name fails.
+GL_HEAD=0000000000000000000000000000000000000000 glrun && fail "a stale GitLab head passed"
+has "$T/err" "refs/merge-requests/7/head is at ${ghead:0:7}"
+# Not a merge request pipeline.
+env -u GITHUB_EVENT_PATH GITLAB_CI=true bash "$CI" >"$T/out" 2>"$T/err" && fail "a branch pipeline passed"
+has "$T/err" "only runs in merge request pipelines"
+# The note: posted, then edited in place (only the token user's own).
+answer BLOCKER
+: >"$T/gl-state"
+OBJECTION_COMMENT=true OBJECTION_GITLAB_TOKEN=gl-token glrun && fail "a BLOCKER passed with a note"
+grep -q "^POST /api/v4/projects/42/merge_requests/7/notes gl-token" "$T/gl.log" || fail "no note was posted ($(cat "$T/gl.log"))"
+node -e 'const b = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).body; if (!b.startsWith("<!-- objection-review -->") || !b.includes("1 BLOCKER")) process.exit(1)' "$T/gl-body" || fail "the note body is wrong"
+echo existing >"$T/gl-state"
+OBJECTION_COMMENT=true OBJECTION_GITLAB_TOKEN=gl-token glrun
+grep -q "^PUT /api/v4/projects/42/merge_requests/7/notes/9 " "$T/gl.log" || fail "the bot's note was not edited ($(cat "$T/gl.log"))"
+grep -q "notes/5" "$T/gl.log" && fail "someone else's marked note was edited"
+grep -q "^POST" "$T/gl.log" && fail "a second note was posted"
+# A listing that fails writes nothing; a missing token or a failure never
+# changes the verdict.
+echo list-fail >"$T/gl-state"
+answer
+OBJECTION_COMMENT=true OBJECTION_GITLAB_TOKEN=gl-token glrun || fail "a failed note listing failed a clean review"
+grep -qE "^(POST|PUT)" "$T/gl.log" && fail "a note was written after the listing failed"
+has "$T/err" "notes could not be listed"
+OBJECTION_COMMENT=true glrun || fail "a missing note token failed a clean review"
+has "$T/err" "OBJECTION_GITLAB_TOKEN is not set"
+OBJECTION_COMMENT=true OBJECTION_GITLAB_TOKEN=wrong glrun || fail "a refused note token failed a clean review"
+has "$T/err" "token owner could not be read"
+{ kill "$glsrv" && wait "$glsrv"; } 2>/dev/null
+
 [ "$failures" -eq 0 ] && echo "ci-review: all cases passed" || { echo "ci-review: $failures failure(s)"; exit 1; }

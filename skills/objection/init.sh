@@ -162,7 +162,8 @@ echo "next:"
 [ -n "$advisory" ] || case "$forge" in
   github) echo "- GitHub: make the \"record\" check required in a ruleset on $default (Settings > Rules)."
     echo "- optional: an accuser in CI with its own key, templates/github/objection-review.yml (Claude or a free-tier Gemini key)." ;;
-  gitlab) echo "- GitLab: include .gitlab/objection.gitlab-ci.yml from .gitlab-ci.yml and turn on \"Pipelines must succeed\"." ;;
+  gitlab) echo "- GitLab: include .gitlab/objection.gitlab-ci.yml from .gitlab-ci.yml and turn on \"Pipelines must succeed\"."
+    echo "- optional: an accuser in CI with its own key, templates/gitlab/objection-review.gitlab-ci.yml (Claude or a free-tier Gemini key)." ;;
   *) echo "- no GitHub or GitLab origin: there is no CI gate, the debate is advice there." ;;
 esac
 echo "- invariants (optional): the few rules that must never break, each with the paths it guards."

@@ -1,0 +1,61 @@
+# Optional. An accuser reviews every merge request in CI, with a key set
+# as a CI/CD variable, and fails the job on its findings (a BLOCKER by
+# default). Include it from .gitlab-ci.yml next to the record check:
+#
+#   include:
+#     - local: .gitlab/objection.gitlab-ci.yml
+#     - local: .gitlab/objection-review.gitlab-ci.yml
+#
+# Settings > CI/CD > Variables, masked:
+#   ANTHROPIC_API_KEY        for the claude runner (default), or
+#   GEMINI_API_KEY           with OBJECTION_RUNNER: gemini (free tier)
+#   OBJECTION_GITLAB_TOKEN   only with OBJECTION_COMMENT: "true": a project
+#                            access token with the api scope and Reporter
+#                            role, which posts the findings as one merge
+#                            request note, edited on every push (the job
+#                            token cannot write notes)
+#
+# The merge request's code is data here: ci-review.sh fetches the target
+# branch and the merge request head into an empty repository and never
+# checks out or runs them. The rules come from the target branch.
+#
+# Threat model, weaker than on GitHub: a merge request pipeline runs the
+# source branch's CI file, and a masked variable reaches every such
+# pipeline. An agent that can push a branch can therefore drop this job or
+# edit it to print the key. It is a barrier only when the CI file comes
+# from another project (Settings > CI/CD > CI/CD configuration file) or a
+# pipeline execution policy, and the variables live there too.
+objection-review:
+  stage: test
+  image: node:22
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  # A new push cancels the review of the previous one (with "Auto-cancel
+  # redundant pipelines" on).
+  interruptible: true
+  variables:
+    OBJECTION_RUNNER: claude
+    # claude: the model and effort; gemini: OBJECTION_GEMINI_MODEL, empty
+    # for the Gemini CLI's default.
+    OBJECTION_MODEL: sonnet
+    OBJECTION_EFFORT: medium
+    OBJECTION_GEMINI_MODEL: ""
+    # blocker, high (BLOCKER or HIGH) or none (report only).
+    OBJECTION_FAIL_ON: blocker
+    OBJECTION_COMMENT: "false"
+    # "true" also reviews merge requests from forks, spending this
+    # project's key on a stranger's push.
+    OBJECTION_REVIEW_FORKS: "false"
+    # Pinned: a new CLI can change the flags review.sh passes.
+    CLAUDE_VERSION: "2.1.278"
+    GEMINI_VERSION: "0.61.0"
+  script:
+    # Pin a release tag instead of v1 if you prefer fixed versions.
+    - git clone --quiet --depth 1 --branch v1 https://github.com/victorserpa/objection.git /tmp/objection
+    - |
+      if [ "$OBJECTION_RUNNER" = gemini ]; then
+        npm install -g --silent "@google/gemini-cli@$GEMINI_VERSION"
+      else
+        npm install -g --silent "@anthropic-ai/claude-code@$CLAUDE_VERSION"
+      fi
+    - bash /tmp/objection/skills/objection/ci-review.sh

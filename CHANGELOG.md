@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- **GitLab review**, like the GitHub one: `ci-review.sh` runs in a merge
+  request job (`templates/gitlab/objection-review.gitlab-ci.yml`), reads
+  the merge request from GitLab's predefined variables, fetches
+  `refs/merge-requests/<iid>/head` without running it, and with
+  `OBJECTION_COMMENT` keeps the findings in one merge request note
+  (`OBJECTION_GITLAB_TOKEN`, api scope). Tested against a local stand-in
+  for the API, not yet on gitlab.com.
+- **Monorepo: one config per package.** `<dir>/.objection.json` adds
+  `verify`, `invariants`, `reviewers` and `strongPaths` for the changed
+  files under `<dir>/`, on top of the root config. Its `paths` are
+  relative to the package and its commands run from it; it is read from
+  the base like the root config, named by hash in the record, and
+  checked by `doctor.sh`.
 - **The gate no longer blocks a PR whose title says "cd".** A quoted
   argument such as `--title "reads quoted cd targets; ok"` counted as a
   `cd`, the counts disagreed, and the gate blocked with "cannot tell which
