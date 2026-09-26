@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.23.0 (2026-09-26)
 
 - **`defense: true` in the CI review**: a defender answers every
   BLOCKER, HIGH and MEDIUM in one call, and its answer is shown with the
