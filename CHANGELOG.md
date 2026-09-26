@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.22.0 (2026-09-26)
 
 - **A database change always gets a reviewer.** Under `lean`, a diff of
   20 lines or fewer ran no reviewer, so a one-line `NOT NULL` column or a
