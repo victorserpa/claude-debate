@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.21.1 (2026-09-25)
 
 - The README is shorter (245 lines to 154) and shows the GitHub Action's
   workflow up front; the "when it is worth it" section moved to
