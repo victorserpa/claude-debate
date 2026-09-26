@@ -263,8 +263,18 @@ rm -f "$T/ran-defender" "$T/defense-broken"
 defend "1|REFUTED|src/a.ts:3" "2|UPHELD, propose LOW|src/a.ts:3" "3|CANNOT VERIFY|x"
 OBJECTION_DEFENSE=true run && fail "a refuted BLOCKER passed the check: the defense must not change it"
 has "$T/summary" "failed: 1 BLOCKER"
-has "$T/summary" "3 finding(s) answered: 1 refuted, 1 upheld with a lower severity proposed, 0 upheld, 1 cannot verify"
+has "$T/summary" "3 of 3 finding(s) answered: 1 refuted, 1 upheld with a lower severity proposed, 0 upheld, 1 cannot verify"
+has "$T/summary" "read each refutation"
 has "$T/summary" "as advice (it does not change the check)"
+# A proposal at or above the accused severity is not "lower".
+defend "1|UPHELD|src/a.ts:3" "2|UPHELD, propose BLOCKER|src/a.ts:3" "3|UPHELD|x"
+OBJECTION_DEFENSE=true run
+has "$T/summary" "3 of 3 finding(s) answered: 0 refuted, 0 upheld with a lower severity proposed, 3 upheld, 0 cannot verify"
+hasnt "$T/summary" "read each refutation"
+# An answer with no verdict table says nothing, and says so.
+printf 'I think these are fine.\n' >"$T/defense"
+OBJECTION_DEFENSE=true run
+has "$T/summary" "the defender's answer has no verdict table"
 has "$T/summary" "### Defense"
 [ -e "$T/ran-defender" ] || fail "the defender did not run"
 has "$T/stdin-defender" "| 1 | BLOCKER"

@@ -122,9 +122,9 @@ It is a barrier only when the agent cannot get around it: the token the
 agent uses must not be able to bypass the ruleset or push to the base
 branch (where this workflow lives). For a solo admin whose agent uses
 the admin's own `gh` login, GitHub cannot tell the two apart; use a
-fine-grained token without admin rights for the agent. One reviewer with
-no defense can be wrong, and the diff it reads is written by the agent:
-text in the diff can try to talk it out of a finding (the defense, advice only, reads the same diff). It has no tools,
+fine-grained token without admin rights for the agent. One reviewer can
+be wrong (the defense is only advice), and the diff it reads is written
+by the agent: text in the diff can try to talk it out of a finding. It has no tools,
 so the worst case is a missed finding, not an action.
 
 **GitLab CI.** Copy [`templates/gitlab/objection.gitlab-ci.yml`](../skills/objection/templates/gitlab/objection.gitlab-ci.yml),

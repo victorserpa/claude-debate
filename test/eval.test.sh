@@ -57,6 +57,12 @@ low='| # | verdict | evidence | kind | sentence |
 | 1 | UPHELD, propose LOW | src/format.js:1 | read | smaller than said |'
 line=$(EVAL_DEFENSE=1 FAKE_DEFENSE="$low" FAKE_ROW="| HIGH | BUG | src/format.js:1 | x | read | p |" bash "$ROOT/eval/run.sh" clean 2>/dev/null | awk '$1 == "clean"')
 case "$line" in *"defense: 0 refuted, 1 lower proposed, 0 upheld, 0 cannot verify"*) ;; *) fail "a proposed lower severity was not counted apart ($line)" ;; esac
+# A proposal above the accused severity is not "lower".
+up2='| # | verdict | evidence | kind | sentence |
+|---|---|---|---|---|
+| 1 | UPHELD, propose BLOCKER | src/format.js:1 | read | worse than said |'
+line=$(EVAL_DEFENSE=1 FAKE_DEFENSE="$up2" FAKE_ROW="| HIGH | BUG | src/format.js:1 | x | read | p |" bash "$ROOT/eval/run.sh" clean 2>/dev/null | awk '$1 == "clean"')
+case "$line" in *"defense: 0 refuted, 0 lower proposed, 1 upheld, 0 cannot verify"*) ;; *) fail "a higher proposal was counted as lower ($line)" ;; esac
 # EVAL_RESCORE with EVAL_DEFENSE: saved answers go to the defender too.
 mkdir -p "$T/saved" && printf '| HIGH | BUG | src/format.js:1 | x | read | p |\n' >"$T/saved/clean.out"
 line=$(EVAL_RESCORE="$T/saved" EVAL_DEFENSE=1 FAKE_DEFENSE="$def" bash "$ROOT/eval/run.sh" clean 2>/dev/null | awk '$1 == "clean"')

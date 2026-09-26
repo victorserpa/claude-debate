@@ -155,3 +155,12 @@ g3 sql-update-no-where HIGH+      CAUGHT BLOCKER (line)  gemini; defense: 0 refu
 g3 missing-cleanup    MEDIUM+    CAUGHT HIGH (line)     gemini; defense: 0 refuted, 1 upheld, 0 cannot verify
 g3 runner: gemini (its default); 7 of 10 as expected
 ```
+
+## caller-units, the one real bug refuted (gem4), in full
+
+```
+| BLOCKER | BUG | src/price.js:3 | Result is inflated 100x if input prices are already in cents per the "no floating point" goal. | read | If `i.price` is 100 (representing $1.00 as an integer cent), `Math.round(100 * 100)` returns 10,000 ($100.00). |
+| HIGH | INVARIANT | src/price.js:3 | Function returns non-integer values when `i.qty` is a fraction, violating the "integer cents" contract. | read | `orderTotal([{price: 1, qty: 0.123}])` returns `12.3`, which is not an integer. |
+| 1 | REFUTED | src/price.js:1 | read | The original code (removed line 1 comment) documented prices in dollars ("e.g. 12.5"), and the change deliberately converts dollars to cents via `* 100`, so an input in dollars is the contract; the accusation assumes cent input, which the old comment and the goal ("keep money in integer cents") do not establish, though callers are not visible here so this is not confirmed. |
+| 2 | UPHELD | src/price.js:3 | read | `Math.round(i.price * 100) * i.qty` is unrounded after the multiply, so fractional `qty` yields non-integer cents (1 × 0.123 → 12.3); I looked for rounding or qty validation and found none; the base code `i.price * i.qty` also accepted fractional qty, so it is not a regression, propose LOW (quantities are normally integers, and the diff does not widen the cases). |
+```

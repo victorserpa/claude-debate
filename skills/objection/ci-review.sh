@@ -320,16 +320,36 @@ if [ "${OBJECTION_DEFENSE:-false}" = true ] && [ "$rc" = 0 ] && [ -n "$answered"
       defense_line="Defense: the defender did not run (exit $drc)."
       : >"$defense"
     else
+      # A proposal counts as lower only below the accused severity.
       tally=$(awk -F'|' '
+        BEGIN { rank["BLOCKER"] = 3; rank["HIGH"] = 2; rank["MEDIUM"] = 1; rank["LOW"] = 0 }
+        NR == FNR {
+          if ($0 ~ /^[[:space:]]*\|[[:space:]]*[0-9]+[[:space:]]*\|/) {
+            id = $2; gsub(/[^0-9]/, "", id); s = toupper($3); gsub(/[^A-Z]/, "", s); sev[id] = s
+          }
+          next
+        }
         /^[[:space:]]*\|[[:space:]]*[0-9]+[[:space:]]*\|/ {
-          v = toupper($3)
+          id = $2; gsub(/[^0-9]/, "", id)
+          if (!(id in sev) || seen[id]++) next
+          v = toupper($3); n++
+          p = ""
+          if (match(v, /PROPOSE[^A-Z]*(BLOCKER|HIGH|MEDIUM|LOW)/)) { p = substr(v, RSTART, RLENGTH); sub(/.*[^A-Z]/, "", p) }
           if (v ~ /REFUTED/) r++
           else if (v ~ /CANNOT/) c++
-          else if (v ~ /UPHELD/ && v ~ /PROPOSE/) l++
+          else if (v ~ /UPHELD/ && p != "" && rank[p] < rank[sev[id]]) l++
           else if (v ~ /UPHELD/) u++
+          else o++
         }
-        END { printf "%d refuted, %d upheld with a lower severity proposed, %d upheld, %d cannot verify", r, l, u, c }' "$defense")
-      defense_line="Defense, as advice (it does not change the check): $total finding(s) answered: $tally. It refuted one real bug on the eval, so read each refutation before you trust it."
+        END { printf "%d\t%d refuted, %d upheld with a lower severity proposed, %d upheld, %d cannot verify%s", n + 0, r, l, u, c, (o ? ", " o " other" : "") }' "$work/findings" "$defense")
+      answered_n=${tally%%	*}
+      tally=${tally#*	}
+      if [ "$answered_n" = 0 ]; then
+        defense_line="Defense: the defender's answer has no verdict table, so it says nothing about these findings."
+      else
+        defense_line="Defense, as advice (it does not change the check): $answered_n of $total finding(s) answered: $tally."
+        case "$tally" in 0\ refuted,\ 0\ upheld\ with*) ;; *) defense_line="$defense_line On the eval it refuted one real bug: read each refutation or lower severity before you trust it." ;; esac
+      fi
     fi
   else
     defense_line="Defense: no BLOCKER, HIGH or MEDIUM to defend."
