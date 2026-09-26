@@ -184,7 +184,7 @@ is enforced in a repository without its `.objection.json`**, so
 installing the skill never blocks work anywhere else. Needs `node`,
 `git`, `bash`, `perl`, and the `claude` or `codex` CLI for the reviewers.
 
-Every config key (bases, verify, invariants, reviewers, budget, models),
+Every config key (bases, verify, invariants, reviewers, budget, models), one config per package in a monorepo,
 running without GitHub, and uninstalling: [docs/install.md](docs/install.md).
 
 ## Gates
@@ -195,8 +195,9 @@ running without GitHub, and uninstalling: [docs/install.md](docs/install.md).
 2. **GitHub check** (or GitLab job): fails the PR unless its body carries
    that record, whoever opened it.
 3. **Independent review in CI** (optional): an accuser runs on GitHub's
-   runner with a key the agent never sees, on Claude or a free-tier
-   Gemini key, and can post its findings on the PR.
+   runner (or as a GitLab merge request job) with a key the agent never
+   sees, on Claude or a free-tier Gemini key, and can post its findings
+   on the PR or MR.
 
 Setup, the threat model, and every command form the hook catches:
 [docs/gates.md](docs/gates.md).

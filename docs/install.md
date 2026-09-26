@@ -60,6 +60,21 @@ work anywhere you did not opt in.
 | `maxRounds` | rounds a branch may have before `debate.sh` refuses another (default 2 under `lean`, 3 otherwise); one more needs `--extra-round`, when the human asks |
 | `smallDiff` | under `lean`, a diff of at most this many changed lines that no invariant or `strongPaths` touches runs no reviewer; the judge reads it alone (default 20, `0` turns it off) |
 
+**Monorepo: one config per package.** A package can keep its own rules in
+`<dir>/.objection.json`, next to its code. It applies to the changed files
+under `<dir>/` only, on top of the root config (which still opts the
+repository in and sets everything repository-wide). It may set `verify`,
+`invariants`, `reviewers` and `strongPaths`; their `paths` regexes are
+matched against the path inside the package (`^src/` means `<dir>/src/`),
+and their commands run from `<dir>`. Any other key there is ignored, and
+`doctor.sh` says so. Package configs are read from the base branch like
+the root one, so a branch cannot loosen its own package's rules, and a
+package config added on a branch applies once it is merged.
+
+```json
+{ "verify": ["pnpm test"], "invariants": [{ "rule": "prices are integers in cents", "paths": "^src/billing/", "verify": "pnpm test billing" }] }
+```
+
 Requirements: `node` (Node.js 18 or later; the local scripts also run on 16, the CI check does not. Installed any way: the system package, the official installer, nvm, volta, fnm, asdf or mise; needed in a Python or Go repository too, since objection's own scripts are node and bash), `git`, `bash` and `perl`, plus the `claude` CLI or
 the `codex` CLI to run the reviewers cheaply, and `gh` or `glab` for the
 local gate. Linux and macOS have the first four; on Windows, Git for

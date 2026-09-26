@@ -232,6 +232,17 @@ if [ "$config_id" = none ]; then
     fi
   done
 fi
+# A monorepo's package configs the brief read (brief.sh), by content hash
+# too, and their verify commands, which the agent runs like the root ones.
+pkg_ids=$(sed -n 's/^<!-- objection-package: \(.*\) -->$/\1/p' "$header" |
+  awk -F'\t' '{ printf "%s%s/.objection.json sha256:%s", (NR > 1 ? ", " : ""), $1, $2 }')
+[ -z "$pkg_ids" ] || config_id="$config_id; packages $pkg_ids"
+pkg_verify=$(sed -n 's/^<!-- objection-package-verify: \(.*\) -->$/\1/p' "$header")
+say_pkg_verify() {
+  [ -n "$pkg_verify" ] || return 0
+  echo "verify for the packages this diff touches (from the repository root, before the judge):"
+  printf '%s\n' "$pkg_verify" | sed 's/^/  /'
+}
 
 # The round number goes into the record, so the human reading the PR sees
 # how many rounds it took and whether one ran past the cap.
@@ -286,6 +297,7 @@ if [ "$budget" = lean ] && [ "$brief_reason" = default ] && [ "$small" -gt 0 ] &
   [ -z "$defaulted" ] || echo "$base_note"
   echo "reviewers: $skipped"
   echo "draft record: $record"
+  say_pkg_verify
   echo "next: read the diff (git diff $diff_base...HEAD), replace the TODO(judge) line with what you checked, then stamp.sh."
   exit 0
 fi
@@ -339,7 +351,8 @@ if [ -z "$since" ] && [ -z "$force" ] && [ -z "$check_rows" ] && [ -z "${OBJECTI
       old_mb=$(git merge-base "origin/$base" "$old" 2>/dev/null) || continue
       git merge-base --is-ancestor "$old_mb" "$new_mb" 2>/dev/null || continue
       [ "$(git diff "$old_mb" "$old" | git patch-id --stable | cut -d' ' -f1)" = "$new_pid" ] || continue
-      # Both names of a rename, and the objection config and precedents: a
+      # Both names of a rename, and the objection configs (root and
+      # packages) and precedents: a
       # base commit that adds an invariant or a precedent for these files
       # changes the review too. A git that fails here is not "nothing
       # touched".
@@ -347,7 +360,7 @@ if [ -z "$since" ] && [ -z "$force" ] && [ -z "$check_rows" ] && [ -z "${OBJECTI
       # pipefail: a failed git diff sends xargs nothing, and BSD xargs then
       # runs nothing and exits 0, which would read as "nothing touched".
       touched=$(set -o pipefail; { git diff --no-renames --name-only -z "$new_mb" HEAD &&
-        printf '%s\0' .objection.json .claude/objection.json .objection; } |
+        printf '%s\0' .objection.json .claude/objection.json .objection ':(glob)**/.objection.json'; } |
         xargs -0 git log --format=%h "$old_mb..$new_mb" --) || continue
       [ -z "$touched" ] || continue
       carried="$old"
@@ -372,6 +385,7 @@ if [ -n "$carried" ]; then
   echo "$round_line"
   echo "reviewers: skipped (same diff as the APPROVED ${carried:0:7}; the base gained $gained commit(s), none in the changed files)"
   echo "draft record: $record"
+  say_pkg_verify
   echo "next: run verify, confirm the carried-over rulings, delete the TODO(judge) line, then stamp.sh."
   exit 0
 fi
@@ -538,5 +552,6 @@ grep -qiE '^[[:space:]]*\|[[:space:]]*(#[[:space:]]*\|[[:space:]]*)?severity[[:s
   echo "warning: the accusation has no findings table and no NO FINDINGS line: read it before judging; it may not be a review."
 echo "defender: $defended"
 echo "draft record: $record"
+say_pkg_verify
 echo "next: judge each finding (the Judge section of SKILL.md), replace the TODO(judge) lines, then stamp.sh."
 exit "$rc"

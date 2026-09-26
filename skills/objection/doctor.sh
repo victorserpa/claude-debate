@@ -63,9 +63,9 @@ cd "$top" || exit 1
 # origin/<defaultBase> and falls back to the working copy only when the
 # base has none, so that is the copy checked first; a working copy that
 # differs is checked too, as what applies after its merge.
-validate() { # text label -> prints its lines, counts FAILs; sets v_base
+validate() { # text label [package] -> prints its lines, counts FAILs; sets v_base
   local report problems
-  report=$(printf '%s' "$1" | node -e '
+  report=$(printf '%s' "$1" | PKG="${3:-}" node -e '
 let raw = "";
 process.stdin.setEncoding("utf8").on("data", (d) => (raw += d)).on("end", () => {
   const out = [];
@@ -75,15 +75,21 @@ process.stdin.setEncoding("utf8").on("data", (d) => (raw += d)).on("end", () => 
   try { c = JSON.parse(raw); } catch (e) { fail(`not valid JSON (${e.message}): brief.sh reads no rules from it`); console.log(out.join("\n")); return; }
   if (!c || typeof c !== "object" || Array.isArray(c)) { fail("not a JSON object"); console.log(out.join("\n")); return; }
   const known = ["$schema", "bases", "defaultBase", "verify", "budget", "invariants", "reviewers", "models", "strongPaths", "smallDiff", "maxRounds", "enforce", "precedents"];
-  for (const k of Object.keys(c)) if (!known.includes(k)) warn(`unknown key "${k}": ignored (a typo? known: ${known.slice(1).join(", ")})`);
+  // A package config (a monorepo) sets only the rules for its own files.
+  const pkg = process.env.PKG === "1";
+  const own = ["$schema", "verify", "invariants", "reviewers", "strongPaths"];
+  for (const k of Object.keys(c)) {
+    if (pkg && known.includes(k) && !own.includes(k)) { warn(`"${k}" is set only in the root config: ignored in a package`); delete c[k]; }
+    else if (!known.includes(k)) warn(`unknown key "${k}": ignored (a typo? known: ${(pkg ? own : known).slice(1).join(", ")})`);
+  }
   const regex = (where, v) => { try { new RegExp(v); } catch (e) { fail(`${where}: invalid regex ${JSON.stringify(v)}: that rule is never checked`); } };
   const strs = (v) => Array.isArray(v) && v.every((x) => typeof x === "string" && x.length);
-  if (!strs(c.bases) || !c.bases.length) fail("bases must be a list of branch names");
+  if (!pkg && (!strs(c.bases) || !c.bases.length)) fail("bases must be a list of branch names");
   if (c.defaultBase !== undefined && (typeof c.defaultBase !== "string" || (strs(c.bases) && !c.bases.includes(c.defaultBase))))
     fail(`defaultBase ${JSON.stringify(c.defaultBase)} is not one of bases`);
   if (c.verify !== undefined && !strs(c.verify)) fail("verify must be a list of commands");
   if (strs(c.verify) && !c.verify.length) warn("verify is empty: add the cheapest checks (types, tests)");
-  if (c.verify === undefined) warn("no verify: add the cheapest checks (types, tests)");
+  if (c.verify === undefined && !pkg) warn("no verify: add the cheapest checks (types, tests)");
   if (c.budget !== undefined && !["lean", "standard", "thorough"].includes(c.budget)) fail(`budget ${JSON.stringify(c.budget)} is not lean, standard or thorough: lean is used`);
   for (const [key, need] of [["invariants", ["rule", "paths"]], ["reviewers", ["paths"]]]) {
     const extra = key === "invariants" ? ["verify"] : ["agent", "focus"];
@@ -156,6 +162,13 @@ else
   bad "no .objection.json: this repository is not opted in (run /objection init)"
 fi
 base="${base_named:-${v_base:-$base}}"
+
+# A monorepo's package configs (<dir>/.objection.json), as committed here:
+# each adds rules for the files under its directory once it is on the base.
+while IFS= read -r -d '' pc; do
+  case "$pc" in */.objection.json) ;; *) continue ;; esac
+  validate "$(cat "$pc")" "package $pc" 1
+done < <(git ls-files -z -- ':(glob)**/.objection.json' 2>/dev/null)
 
 # local gate: the hook files each agent reads.
 hooks=""

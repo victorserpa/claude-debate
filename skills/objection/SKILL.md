@@ -42,7 +42,9 @@ issue for what stayed open), `init.sh`, `doctor.sh`,
 2. Base: the branch the PR targets, from `bases`. `git fetch origin <base>`.
 3. Run every command in `verify` **as the base branch defines it**
    (`git show origin/<base>:.objection.json`): a change can rewrite its
-   own `verify`. If the base has no config yet, or the branch changes
+   own `verify`. In a monorepo, also the `verify` of each package config
+   (`<dir>/.objection.json`) the diff touches, from `<dir>`: `debate.sh`
+   prints them. If the base has no config yet, or the branch changes
    `verify`, show the commands to the human and run them only with their
    go-ahead. Red: fix it first.
 4. **Documentation only** (every changed file is `.md`, `.mdx`, `.rst` or

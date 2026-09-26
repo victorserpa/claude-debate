@@ -68,46 +68,84 @@ for c in .objection.json .claude/objection.json; do
   config=""
 done
 config_note="from $config_base"
+from_wc=""
 if [ -z "$config" ]; then
   for c in .objection.json .claude/objection.json; do
-    [ -f "$c" ] && { config=$(cat "$c"); config_note="from the working copy ($config_base has none yet)"; break; }
+    [ -f "$c" ] && { config=$(cat "$c"); config_note="from the working copy ($config_base has none yet)"; from_wc=1; break; }
   done
 fi
 
 # Matching invariants and reviewer focus, as two sections. An invalid
 # `paths` regex is reported, never dropped silently.
-rules=$(printf '%s' "$config" | FILES="$files" node -e '
+#
+# A monorepo adds a package config: <dir>/.objection.json, read from the
+# same place as the root one (the base, or the working copy when the base
+# has no root config yet). It applies to the changed files under <dir>/
+# only, on top of the root config: its paths regexes are matched against
+# the path inside the package, and its commands run from <dir>. It may set
+# verify, invariants, reviewers and strongPaths; the rest (bases, budget,
+# models...) belongs to the repository and stays in the root config.
+rules=$(printf '%s' "$config" | FILES="$files" CONFIG_BASE="$config_base" FROM_WC="$from_wc" node -e '
+const { execFileSync } = require("child_process");
 let raw = "";
 process.stdin.setEncoding("utf8").on("data", (c) => (raw += c)).on("end", () => {
   let cfg = {};
   try { cfg = JSON.parse(raw || "{}"); } catch { process.stdout.write("(the config is not valid JSON: no rules could be read)\n@@SPLIT@@\n@@SPLIT@@\nyes\n@@SPLIT@@\nlean\n@@SPLIT@@\n@@SPLIT@@\nsonnet medium default\n"); return; }
   const files = process.env.FILES.split("\n").filter(Boolean);
-  const pick = (list, fmt) => (list || []).map((x) => {
+  // The root config, then one scope per package config the diff touches.
+  const MARK = "/.objection.json";
+  const scopes = [{ dir: "", cfg, files }];
+  const notes = [];
+  const git = (args) => execFileSync("git", args, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], maxBuffer: 256 << 20 });
+  let listed = "";
+  try {
+    listed = process.env.FROM_WC ? git(["ls-files", "-z", "--", ":(glob)**/.objection.json"])
+      : git(["ls-tree", "-r", "-z", "--name-only", process.env.CONFIG_BASE]);
+  } catch { notes.push("- (the package configs could not be listed: only the root config was read)"); }
+  for (const p of listed.split("\0").filter((x) => x.endsWith(MARK)).sort()) {
+    const dir = p.slice(0, -MARK.length);
+    const inside = files.filter((f) => f.startsWith(dir + "/")).map((f) => f.slice(dir.length + 1));
+    if (!inside.length) continue;
+    let pc, text;
+    try {
+      text = process.env.FROM_WC ? require("fs").readFileSync(p, "utf8") : git(["show", `${process.env.CONFIG_BASE}:${p}`]);
+      pc = JSON.parse(text);
+      if (!pc || typeof pc !== "object" || Array.isArray(pc)) throw new Error("not an object");
+    } catch { notes.push(`- INVALID package config ${p} (not a JSON object): its rules were NOT checked`); continue; }
+    const own = ["$schema", "verify", "invariants", "reviewers", "strongPaths"];
+    const extra = Object.keys(pc).filter((k) => !own.includes(k));
+    if (extra.length) notes.push(`- ${p} sets ${extra.join(", ")}, which only the root config sets: ignored there`);
+    scopes.push({ dir, cfg: pc, files: inside, text });
+  }
+  const where = (s, paths) => (s.dir ? `${s.dir}/, ${paths}` : paths);
+  // A package command runs from its directory.
+  const q = (s) => "\x27" + s.replace(/\x27/g, "\x27\\\x27\x27") + "\x27";
+  const from = (s, cmd) => (s.dir ? `cd ${q(s.dir)} && ${cmd}` : cmd);
+  const pick = (key, fmt) => scopes.flatMap((s) => (Array.isArray(s.cfg[key]) ? s.cfg[key] : []).map((x) => {
     let re;
-    try { re = new RegExp(x.paths); } catch { return `- INVALID paths regex ${JSON.stringify(x.paths)}: this rule was NOT checked (${fmt(x)})`; }
-    return files.some((f) => re.test(f)) ? `- ${fmt(x)}` : null;
-  }).filter(Boolean).join("\n");
+    try { re = new RegExp(x.paths); } catch { return `- INVALID paths regex ${JSON.stringify(x.paths)}: this rule was NOT checked (${fmt(x, s)})`; }
+    return s.files.some((f) => re.test(f)) ? `- ${fmt(x, s)}` : null;
+  })).filter(Boolean).join("\n");
   // Sections separated by a marker line (macOS awk cannot split on NUL).
-  process.stdout.write(pick(cfg.invariants, (i) => `${i.rule} (guards ${i.paths})`) + "\n@@SPLIT@@\n");
-  process.stdout.write(pick(cfg.reviewers, (r) => `${r.focus || "(no focus)"} [${r.agent || "reviewer"}, ${r.paths}]`) + "\n@@SPLIT@@\n");
+  process.stdout.write([pick("invariants", (i, s) => `${i.rule} (guards ${where(s, i.paths)})`), ...notes].filter(Boolean).join("\n") + "\n@@SPLIT@@\n");
+  process.stdout.write(pick("reviewers", (r, s) => `${r.focus || "(no focus)"} [${r.agent || "reviewer"}, ${where(s, r.paths)}]`) + "\n@@SPLIT@@\n");
   process.stdout.write((cfg.precedents === false ? "no" : "yes") + "\n@@SPLIT@@\n");
   // lean when absent or unknown: the cheap path is the safe default.
   process.stdout.write((["lean", "standard", "thorough"].includes(cfg.budget) ? cfg.budget : "lean") + "\n@@SPLIT@@\n");
   // Matching reviewers, one "agent<TAB>focus" per line, for debate.sh to
   // run each as its own accuser under standard and thorough.
   const one = (x) => String(x).replace(/\s+/g, " ").replace(/-->/g, "- ->").trim();
-  process.stdout.write((cfg.reviewers || []).filter((r) => {
-    try { return files.some((f) => new RegExp(r.paths).test(f)); } catch { return false; }
-  }).map((r) => `${one(r.agent || "reviewer")}\t${one(r.focus || "(no focus)")}`).join("\n") + "\n@@SPLIT@@\n");
+  const hit = (s, re) => { try { return s.files.some((f) => new RegExp(re).test(f)); } catch { return false; } };
+  const each = (key) => scopes.flatMap((s) => (Array.isArray(s.cfg[key]) ? s.cfg[key] : []).filter((x) => x && hit(s, x.paths)).map((x) => [x, s]));
+  process.stdout.write(each("reviewers").map(([r]) => `${one(r.agent || "reviewer")}\t${one(r.focus || "(no focus)")}`).join("\n") + "\n@@SPLIT@@\n");
   // Model tier. Measured on one brief with a known HIGH: sonnet at effort
   // medium found it for $0.05; opus at default effort for $0.33. The strong
   // model is kept for what an invariant or strongPaths names, and thorough.
-  const matches = (re) => { try { return files.some((f) => new RegExp(re).test(f)); } catch { return false; } };
   const m = cfg.models || {};
   const word = (x, d) => (/^[A-Za-z0-9._-]+$/.test(String(x || "")) ? String(x) : d);
   const budget = ["lean", "standard", "thorough"].includes(cfg.budget) ? cfg.budget : "lean";
-  const reason = (cfg.invariants || []).some((i) => matches(i.paths)) ? "invariant"
-    : cfg.strongPaths && matches(cfg.strongPaths) ? "strongPaths"
+  const reason = each("invariants").length ? "invariant"
+    : scopes.some((s) => typeof s.cfg.strongPaths === "string" && s.cfg.strongPaths && hit(s, s.cfg.strongPaths)) ? "strongPaths"
     : budget === "thorough" ? "thorough" : "default";
   const model = reason === "default" ? word(m.default, "sonnet") : word(m.strong, "opus");
   const effort = reason === "default" ? word(m.effort, "medium") : word(m.strongEffort, word(m.effort, "medium"));
@@ -124,8 +162,17 @@ process.stdin.setEncoding("utf8").on("data", (c) => (raw += c)).on("end", () => 
   process.stdout.write(`${Number.isInteger(mr) && mr >= 1 ? mr : ""}\n@@SPLIT@@\n`);
   // Invariants with a verify command, when the diff touches their paths:
   // "command<TAB>rule" per line, for debate.sh to run before the reviewers.
-  process.stdout.write((cfg.invariants || []).filter((i) => typeof i.verify === "string" && i.verify.trim() && matches(i.paths))
-    .map((i) => `${one(i.verify)}\t${one(i.rule || "(no rule)")}`).join("\n") + "\n");
+  process.stdout.write(each("invariants").filter(([i]) => typeof i.verify === "string" && i.verify.trim())
+    .map(([i, s]) => `${one(from(s, i.verify))}\t${one(i.rule || "(no rule)")}`).join("\n") + "\n@@SPLIT@@\n");
+  // Each touched package: its directory, the hash of its config (for the
+  // record) and its verify commands, run from that directory.
+  const crypto = require("crypto");
+  process.stdout.write(scopes.slice(1).map((s) => {
+    const id = crypto.createHash("sha256").update(s.text).digest("hex").slice(0, 12);
+    return `${one(s.dir)}\t${id}`;
+  }).join("\n") + "\n@@SPLIT@@\n");
+  process.stdout.write(scopes.slice(1).flatMap((s) => (Array.isArray(s.cfg.verify) ? s.cfg.verify : [])
+    .filter((c) => typeof c === "string" && c.trim()).map((c) => one(from(s, c)))).join("\n") + "\n");
 });')
 section() { printf '%s\n' "$rules" | awk -v n="$1" '$0=="@@SPLIT@@"{k++; next} k==n-1' | sed '/^$/d'; }
 invariants=$(section 1)
@@ -138,6 +185,8 @@ defender_model=$(section 8)
 later_effort=$(section 9)
 max_rounds=$(section 10)
 invariant_checks=$(section 11)
+packages=$(section 12)
+package_verify=$(section 13)
 budget=$(section 4)
 
 precedents="none recorded for these files"
@@ -253,6 +302,12 @@ process.stdin.setEncoding("utf8").on("data", (d) => (diff += d)).on("end", () =>
   if [ -n "$reviewers" ]; then
     printf '%s\n' "$reviewers" | sed 's/^/<!-- objection-reviewer: /; s/$/ -->/'
   fi
+  if [ -n "$packages" ]; then
+    printf '%s\n' "$packages" | sed 's/^/<!-- objection-package: /; s/$/ -->/'
+  fi
+  if [ -n "$package_verify" ]; then
+    printf '%s\n' "$package_verify" | sed 's/^/<!-- objection-package-verify: /; s/$/ -->/'
+  fi
   # debate.sh reads markers only above this line: everything below quotes
   # the branch under review.
   printf '<!-- objection-header-end -->\n'
@@ -265,6 +320,10 @@ process.stdin.setEncoding("utf8").on("data", (d) => (diff += d)).on("end", () =>
   printf '## Size\n\n%s\n\n' "$(git diff --shortstat "$diff_base"...HEAD "${X[@]}" | sed 's/^ *//')"
   printf '## Changed files\n\n%s\n\n' "$(printf '%s\n' "$files" | sed 's/^/- /')"
   printf '## Invariants to check (%s)\n\n%s\n\n' "$config_note" "${invariants:-none match the changed files}"
+  if [ -n "$packages" ]; then
+    printf '## Package configs for these files (%s)\n\n%s\n\n' "$config_note" \
+      "$(printf '%s\n' "$packages" | cut -f1 | sed 's|^\(.*\)$|- \1/.objection.json: its rules apply to the files under \1/|')"
+  fi
   printf '## Reviewer focus for these files (%s)\n\n%s\n\n' "$config_note" "${focus:-none}"
   printf '## Defects this repository already shipped: check these first\n\n%s\n\n' "$precedents"
   printf '## Diff\n\nEach line of a hunk starts with its line number in the new file (blank for a removed line), then the diff line: cite file:line with that number.\n\n```\n'

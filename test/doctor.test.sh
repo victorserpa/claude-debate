@@ -52,6 +52,18 @@ has 'budget "cheap"'
 has "smallDiff must be a whole number"
 has "models.default"
 
+# A monorepo's package config: validated with the package's own keys.
+repo '{"bases":["main"],"verify":["true"]}'
+mkdir -p "apps/web x" apps/api
+printf '{"verify":["npm test"],"invariants":[{"rule":"x","paths":"^src/"}],"budget":"thorough"}\n' >"apps/web x/.objection.json"
+printf '{"invariants":[{"rule":"x","paths":"(["}]}\n' >apps/api/.objection.json
+git add -A && gitc commit -q -m pkgs
+doc && fail "an invalid package regex passed"
+has 'config (package apps/api/.objection.json): invariants[0].paths: invalid regex'
+has 'config (package apps/web x/.objection.json): "budget" is set only in the root config'
+hasnt 'package apps/web x/.objection.json): bases must be'
+hasnt 'package apps/web x/.objection.json): no verify'
+
 # The working copy ahead of the base: the debate uses the base's.
 repo '{"bases":["main"],"verify":["true"]}'
 printf '{"bases":["main"],"verify":["true","false"]}\n' >.objection.json

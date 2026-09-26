@@ -350,6 +350,26 @@ has "$record" "(invariant: exact money): passed"
 hasnt "$record" "(verify)"
 cd "$R" || exit 1
 
+# A monorepo package's invariant check runs from the package directory,
+# its config is named in the record by hash, and its verify is printed
+# for the agent to run.
+P="$T/pkg"
+git init -q "$P" && cd "$P" || exit 1
+mkdir -p "apps/web x/src"
+printf '{"bases":["main"]}\n' >.objection.json
+printf '{"verify":["npm test"],"invariants":[{"paths":"^src/","rule":"from the package","verify":"test -f here-only"}]}\n' >"apps/web x/.objection.json"
+echo 1 >"apps/web x/here-only" && echo 1 >"apps/web x/src/a.ts"
+git add . && gitc commit -q -m base && git update-ref refs/remotes/origin/main HEAD
+echo 2 >>"apps/web x/src/a.ts" && git add . && gitc commit -q -m change
+accuse LOW
+reset
+out=$(bash "$DEBATE" main 2>/dev/null)
+record=$(printf '%s\n' "$out" | sed -n 's/^draft record: //p')
+has "$record" "(invariant: from the package): passed"
+has "$record" "; packages apps/web x/.objection.json sha256:"
+printf '%s\n' "$out" | grep -qF "  cd 'apps/web x' && npm test" || fail "the package verify was not printed ($out)"
+cd "$R" || exit 1
+
 # usage.sh sums the log review.sh wrote, per branch.
 bash "$USAGE" >"$T/usage"
 has "$T/usage" "$(git rev-parse --abbrev-ref HEAD)"

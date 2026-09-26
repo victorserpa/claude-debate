@@ -208,4 +208,69 @@ has "$out" "RULE-UTF"
 has "$out" "- src/ação.ts"
 cd "$T" || exit 1
 
+# A monorepo: a package config adds rules for the files under its
+# directory, with paths relative to it and commands run from it. Read from
+# the base like the root config; a package the diff does not touch adds
+# nothing, and repository-wide keys stay the root's.
+M="$T/mono"
+git init -q "$M" && cd "$M" || exit 1
+mkdir -p "apps/web app" apps/api/src
+printf '{"bases":["main"],"invariants":[{"paths":"^apps/","rule":"ROOT-RULE"}]}\n' >.objection.json
+printf '{"verify":["npm test"],"invariants":[{"paths":"^src/","rule":"WEB-RULE","verify":"test -f ok"}],"reviewers":[{"agent":"sonnet","focus":"WEB-FOCUS","paths":"^src/"}],"budget":"thorough"}\n' >"apps/web app/.objection.json"
+printf '{"invariants":[{"paths":"^src/","rule":"API-RULE"}],"strongPaths":"^src/"}\n' >apps/api/.objection.json
+printf '{"invariants":[{"paths":"^apps/","rule":"ABSOLUTE-RULE"}]}\n' >apps/.objection.json.bak
+git add . && gitc commit -q -m base && git update-ref refs/remotes/origin/main HEAD
+mkdir -p "apps/web app/src" && printf 'a\n' >"apps/web app/src/x.ts"
+# Paths are relative to the package: ^src/ at the root matches nothing.
+mkdir -p src && printf 'a\n' >src/y.ts
+git add . && gitc commit -q -m change
+out=$(bash "$BRIEF" origin/main)
+has "$out" "ROOT-RULE"
+has "$out" "WEB-RULE (guards apps/web app/, ^src/)"
+has "$out" "WEB-FOCUS [sonnet, apps/web app/, ^src/]"
+hasnt "$out" "API-RULE"
+hasnt "$out" "ABSOLUTE-RULE"
+has "$out" "<!-- objection-invariant-check: cd 'apps/web app' && test -f ok	WEB-RULE -->"
+has "$out" "<!-- objection-package-verify: cd 'apps/web app' && npm test -->"
+has "$out" "<!-- objection-package: apps/web app	"
+has "$out" "<!-- objection-reviewer: sonnet	WEB-FOCUS -->"
+has "$out" "sets budget, which only the root config sets"
+has "$out" "<!-- objection-budget: lean -->"
+# An invariant makes the tier strong; strongPaths of an untouched package
+# does not.
+has "$out" "<!-- objection-model: opus medium invariant -->"
+# A package's strongPaths applies inside the package only.
+printf 'a\n' >apps/api/src/z.ts && git add . && gitc commit -q -m api
+out=$(bash "$BRIEF" origin/main)
+has "$out" "API-RULE (guards apps/api/, ^src/)"
+# From the base: a branch that rewrites its package config does not change
+# the rules, and one it adds does not apply yet.
+printf '{"invariants":[]}\n' >"apps/web app/.objection.json"
+mkdir -p apps/new && printf '{"invariants":[{"paths":".","rule":"NEW-RULE"}]}\n' >apps/new/.objection.json && printf 'a\n' >apps/new/f.ts
+git add . && gitc commit -q -m rewrite
+out=$(bash "$BRIEF" origin/main)
+has "$out" "WEB-RULE"
+hasnt "$out" "NEW-RULE (guards"
+cd "$T" || exit 1
+# Not valid JSON: said, never dropped silently.
+B="$T/monobad"
+git init -q "$B" && cd "$B" || exit 1
+mkdir -p pkg && printf '{"bases":["main"]}\n' >.objection.json && printf '{nope\n' >pkg/.objection.json
+git add . && gitc commit -q -m base && git update-ref refs/remotes/origin/main HEAD
+printf 'a\n' >pkg/f.ts && git add . && gitc commit -q -m change
+out=$(bash "$BRIEF" origin/main)
+has "$out" "INVALID package config pkg/.objection.json"
+cd "$T" || exit 1
+
+# Before the root config reaches the base, packages come from the working
+# copy too.
+W="$T/monofresh"
+git init -q "$W" && cd "$W" && gitc commit -q --allow-empty -m base && git update-ref refs/remotes/origin/main HEAD
+mkdir -p pkg/a && printf '{"bases":["main"]}\n' >.objection.json
+printf '{"invariants":[{"paths":".","rule":"WC-PKG-RULE"}]}\n' >pkg/.objection.json && printf 'a\n' >pkg/a/f.ts
+git add . && gitc commit -q -m optin
+out=$(bash "$BRIEF" origin/main)
+has "$out" "WC-PKG-RULE (guards pkg/, .)"
+cd "$T" || exit 1
+
 if [ "$failures" = 0 ]; then echo "brief: all cases passed"; else echo "brief: $failures failure(s)"; exit 1; fi

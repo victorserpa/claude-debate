@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://raw.githubusercontent.com/victorserpa/objection/v1/skills/objection/objection.schema.json",
   "title": ".objection.json",
-  "description": "Opts a repository in to objection: the rules its debates follow. Read from the base branch, never from the branch under review.",
+  "description": "Opts a repository in to objection: the rules its debates follow. Read from the base branch, never from the branch under review. In a monorepo, <dir>/.objection.json adds rules for the files under <dir>/ (verify, invariants, reviewers and strongPaths only; paths relative to <dir>, commands run from it).",
   "type": "object",
   "additionalProperties": false,
   "properties": {
