@@ -1,1 +1,1 @@
-{"goal": "Validate the plan name and record when it changed", "severity": "HIGH", "match": "where|every account|all accounts|every row|all rows|accountId|account id|unused", "file": "src/plans.js", "lines": [5]}
+{"goal": "Validate the plan name and record when it changed", "severity": "HIGH", "match": "(no|without( a)?|missing|lost|dropped)( the)? where|where clause|every (account|row)|all (accounts|rows)|accountid (is )?(never|not) used|whole table", "file": "src/plans.js", "lines": [5]}

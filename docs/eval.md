@@ -94,7 +94,7 @@ name), an index built without `CONCURRENTLY` on a 40-million-row table
 written on every checkout, and a clean single-statement spend. Three runs
 on sonnet before any change to the roles: every bug caught every time
 (the four at BLOCKER or MEDIUM as expected, citing the line), and the
-clean case passed three of three. So the reviewers were not the gap; the
+clean case passed three of three ([raw output](../eval/results/2026-09-26-database.md)). So the reviewers were not the gap; the
 flow was: under `lean`, a migration of a line or two was a "small diff"
 and ran no reviewer at all. It now always gets one.
 

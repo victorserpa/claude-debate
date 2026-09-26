@@ -1,1 +1,1 @@
-{"goal": "Let users spend from their wallet", "severity": "HIGH", "match": "race|concurren|lost update|lock|transaction|atomic|for update|same time|simultaneous|double.?spend", "file": "src/wallet.js", "lines": [7, 8, 9]}
+{"goal": "Let users spend from their wallet", "severity": "HIGH", "match": "race|lost update|concurren|double.?spend|for update|atomic|same time|simultaneous|two (requests|spends|calls)|check.then.(act|write)", "file": "src/wallet.js", "lines": [7, 8, 9]}

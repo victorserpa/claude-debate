@@ -1,1 +1,1 @@
-{"goal": "Speed up listing a user's orders", "severity": "MEDIUM", "match": "concurrently|lock|block|writes|checkout", "file": "db/migrations/002_orders_user_idx.sql", "lines": [1]}
+{"goal": "Speed up listing a user's orders", "severity": "MEDIUM", "match": "concurrently|locks? (the )?(table|writes)|block(s|ing)? (writes|inserts|checkout)|share lock|while (it|the index) (builds|is built)", "file": "db/migrations/002_orders_user_idx.sql", "lines": [1]}

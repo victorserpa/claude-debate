@@ -154,7 +154,7 @@ process.stdin.setEncoding("utf8").on("data", (c) => (raw += c)).on("end", () => 
   // a one-line NOT NULL or RENAME breaks production as well as a big diff,
   // so it keeps its reviewer on the default model instead of the judge
   // reading it alone.
-  const db = /(^|\/)(migrations?|migrate|alembic|flyway|liquibase)\/|\.sql$|(^|\/)(schema\.prisma|schema\.rb|structure\.sql)$/i;
+  const db = /(^|\/)(migrations?|migrate|alembic|flyway|liquibase)\/|\.(sql|ddl|prisma)$|(^|\/)(schema\.rb|structure\.sql)$/i;
   const reason = each("invariants").length ? "invariant"
     : scopes.some((s) => typeof s.cfg.strongPaths === "string" && s.cfg.strongPaths && hit(s, s.cfg.strongPaths)) ? "strongPaths"
     : budget === "thorough" ? "thorough"

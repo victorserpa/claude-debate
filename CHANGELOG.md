@@ -5,7 +5,7 @@
 - **A database change always gets a reviewer.** Under `lean`, a diff of
   20 lines or fewer ran no reviewer, so a one-line `NOT NULL` column or a
   `RENAME COLUMN` was judged by the session alone. A diff that touches a
-  migration directory, a `.sql` file or a schema file (`schema.prisma`,
+  migration directory, a `.sql` file or a schema file (`.prisma`, `.ddl`,
   `schema.rb`, `structure.sql`) now runs its reviewer, on the default
   model.
 - Five database cases in the eval: a lost update, an `UPDATE` without its
