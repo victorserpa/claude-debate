@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.21.0 (2026-09-25)
 
 - **GitLab review**, like the GitHub one: `ci-review.sh` runs in a merge
   request job (`templates/gitlab/objection-review.gitlab-ci.yml`), reads
