@@ -280,7 +280,7 @@ grep -qiE '^[[:space:]]*\|[[:space:]]*(#[[:space:]]*\|[[:space:]]*)?severity[[:s
 # it refuted none, proposed a lower severity for 2 and could not verify 2;
 # of 65 real ones it refuted one, the main row of caller-units, with a
 # refutation that cited a real line and said itself "not confirmed", and
-# proposed LOW for the other row of that bug. Honored, it would have
+# upheld the other row of that bug while arguing for LOW. Honored, it would have
 # passed a real bug through the barrier, which costs more than a false
 # alarm. Without a judge, its answer is for the person reading.
 defense=""

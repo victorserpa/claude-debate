@@ -86,7 +86,7 @@ accuser's.** Measured on 70 findings a Gemini accuser made on the eval,
 with sonnet defending: of 5 false alarms it refuted none, proposed a
 lower severity for 2 and could not verify 2; of 65 real findings it
 refuted one, the main row of a real bug (caller-units), citing a real
-line, and proposed LOW for that bug's other row. Letting it decide would
+line, and upheld that bug's other row while arguing for LOW. Letting it decide would
 have passed that bug through the barrier. With no judge in CI, its
 answer is for the person reading the comment. One more call, only when
 there is a BLOCKER, HIGH or MEDIUM. `defender-model` picks its Claude
