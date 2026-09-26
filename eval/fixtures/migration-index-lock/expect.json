@@ -1,0 +1,1 @@
+{"goal": "Speed up listing a user's orders", "severity": "MEDIUM", "match": "concurrently|lock|block|writes|checkout", "file": "db/migrations/002_orders_user_idx.sql", "lines": [1]}

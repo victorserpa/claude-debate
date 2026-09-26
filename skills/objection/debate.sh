@@ -260,8 +260,8 @@ draft_tail() {
   printf 'TODO(judge): what stays open, then OPEN: BLOCKER=<n> HIGH=<n>, then the VERDICT line.\n'
 }
 
-# A small lean diff that no invariant or strongPaths names is not worth a
-# reviewer: the judge reads it and the verify step still runs. The
+# A small lean diff that no invariant or strongPaths names, and that
+# touches no migration, SQL or schema file, is not worth a reviewer: the judge reads it and the verify step still runs. The
 # threshold is the base config's smallDiff (default 20; 0 turns it off),
 # or OBJECTION_SMALL_DIFF.
 lines=$(sed -n 's/^<!-- objection-lines: \([0-9]*\) -->$/\1/p' "$header" | head -n 1)
@@ -284,7 +284,7 @@ if [ "$budget" = lean ] && [ "$brief_reason" = default ] && [ "$small" -gt 0 ] &
   {
     draft_head
     printf 'Budget: %s. Diff: %s...HEAD.\n\n' "$budget" "$diff_base"
-    printf '## Accusation\n\nNo reviewers ran: small diff (%s changed lines, at most %s, and no invariant or strongPaths match). The judge reads the diff and rules on it alone.\n' "$lines" "$small"
+    printf '## Accusation\n\nNo reviewers ran: small diff (%s changed lines, at most %s, no invariant or strongPaths match, and no database file). The judge reads the diff and rules on it alone.\n' "$lines" "$small"
     printf '\n## Defense\n\nnot run.\n'
     # Pre-filled for the common case, except the one thing only the judge
     # can say: what the diff does and why it is safe. The script never

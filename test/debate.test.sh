@@ -296,6 +296,15 @@ printf '%s\n' "$out" | grep -qF "reviewers: skipped (small diff: 2 changed lines
 record=$(printf '%s\n' "$out" | sed -n 's/^draft record: //p')
 [ -f "$record" ] || fail "the skip wrote no draft record ($out)"
 has "$record" "No reviewers ran: small diff"
+# A small migration is not skipped: a one-line NOT NULL breaks production.
+git checkout -q -b db HEAD~1 && mkdir -p db/migrations && printf 'ALTER TABLE users ADD COLUMN t bigint NOT NULL;\n' >db/migrations/002.sql
+git add . && gitc commit -q -m migration
+reset
+out=$(OBJECTION_SMALL_DIFF= bash "$DEBATE" main 2>/dev/null)
+[ -e "$T/ran-accuser" ] || fail "a small migration skipped the reviewers ($out)"
+printf '%s\n' "$out" | grep -qF "(database)" || fail "the tier does not say database ($out)"
+grep -qx sonnet "$T/models-accuser" || fail "a database change moved off the default model"
+git checkout -q - 
 # One line to delete, then it stamps; with it, stamp.sh refuses.
 [ "$(grep -c '^TODO(judge)' "$record")" = 1 ] || fail "the small-diff draft does not have exactly one TODO(judge) line"
 bash "$ROOT/skills/objection/stamp.sh" "$record" origin/main >/dev/null 2>"$T/stamp.err" && fail "stamped a small-diff draft with its TODO line"

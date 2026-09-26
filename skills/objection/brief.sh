@@ -150,11 +150,18 @@ process.stdin.setEncoding("utf8").on("data", (c) => (raw += c)).on("end", () => 
   const m = cfg.models || {};
   const word = (x, d) => (/^[A-Za-z0-9._-]+$/.test(String(x || "")) ? String(x) : d);
   const budget = ["lean", "standard", "thorough"].includes(cfg.budget) ? cfg.budget : "lean";
+  // A database change (a migration, SQL, a schema file) is never "small":
+  // a one-line NOT NULL or RENAME breaks production as well as a big diff,
+  // so it keeps its reviewer on the default model instead of the judge
+  // reading it alone.
+  const db = /(^|\/)(migrations?|migrate|alembic|flyway|liquibase)\/|\.sql$|(^|\/)(schema\.prisma|schema\.rb|structure\.sql)$/i;
   const reason = each("invariants").length ? "invariant"
     : scopes.some((s) => typeof s.cfg.strongPaths === "string" && s.cfg.strongPaths && hit(s, s.cfg.strongPaths)) ? "strongPaths"
-    : budget === "thorough" ? "thorough" : "default";
-  const model = reason === "default" ? word(m.default, "sonnet") : word(m.strong, "opus");
-  const effort = reason === "default" ? word(m.effort, "medium") : word(m.strongEffort, word(m.effort, "medium"));
+    : budget === "thorough" ? "thorough"
+    : files.some((f) => db.test(f)) ? "database" : "default";
+  const plain = reason === "default" || reason === "database";
+  const model = plain ? word(m.default, "sonnet") : word(m.strong, "opus");
+  const effort = plain ? word(m.effort, "medium") : word(m.strongEffort, word(m.effort, "medium"));
   process.stdout.write(`${model} ${effort} ${reason}\n@@SPLIT@@\n`);
   // Small-diff threshold for debate.sh (lines changed); 0 turns it off.
   const n = Number(cfg.smallDiff);

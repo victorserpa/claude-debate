@@ -1,0 +1,1 @@
+{"goal": "Validate the plan name and record when it changed", "severity": "HIGH", "match": "where|every account|all accounts|every row|all rows|accountId|account id|unused", "file": "src/plans.js", "lines": [5]}

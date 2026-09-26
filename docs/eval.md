@@ -86,6 +86,18 @@ runs only its scoring, against a fake reviewer (test/eval.test.sh).
 Nineteen small cases prove the reviewers catch these bugs, not that they
 catch every bug.
 
+**Database changes (0.22).** Five more: a wallet spend that reads the
+balance, checks it and writes it back (two spends at once both pass), an
+`UPDATE` that lost its `WHERE` in a refactor, a column renamed in the same
+deploy as the code that reads it (the old instances still select the old
+name), an index built without `CONCURRENTLY` on a 40-million-row table
+written on every checkout, and a clean single-statement spend. Three runs
+on sonnet before any change to the roles: every bug caught every time
+(the four at BLOCKER or MEDIUM as expected, citing the line), and the
+clean case passed three of three. So the reviewers were not the gap; the
+flow was: under `lean`, a migration of a line or two was a "small diff"
+and ran no reviewer at all. It now always gets one.
+
 **Added in 0.20, not run yet** (twelve cases, so 31 planted and 9 real,
 40 in all; eight clean changes to measure false alarms instead of four):
 a Rust quantity truncated to `u8` before pricing while shipping uses the

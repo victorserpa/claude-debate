@@ -58,7 +58,7 @@ work anywhere you did not opt in.
 | `enforce` | `false` for advisory mode: the hook reports what it would block and lets it through |
 | `$schema` | `init` writes it: editors then complete and check every key against [`objection.schema.json`](../skills/objection/objection.schema.json) |
 | `maxRounds` | rounds a branch may have before `debate.sh` refuses another (default 2 under `lean`, 3 otherwise); one more needs `--extra-round`, when the human asks |
-| `smallDiff` | under `lean`, a diff of at most this many changed lines that no invariant or `strongPaths` touches runs no reviewer; the judge reads it alone (default 20, `0` turns it off) |
+| `smallDiff` | under `lean`, a diff of at most this many changed lines that no invariant or `strongPaths` touches runs no reviewer; the judge reads it alone (default 20, `0` turns it off). A migration, SQL or schema file always gets its reviewer |
 
 **Monorepo: one config per package.** A package can keep its own rules in
 `<dir>/.objection.json`, next to its code. It applies to the changed files

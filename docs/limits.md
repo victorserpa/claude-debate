@@ -55,7 +55,8 @@
     round, $0.09 instead of $0.40); later rounds review only the fix, at
     effort low; the brief carries three lines of context, not five;
   - under `lean`, a small diff (`smallDiff`, 20 changed lines) that no
-    invariant or `strongPaths` touches runs no reviewer at all;
+    invariant or `strongPaths` touches runs no reviewer at all, unless it
+    touches a migration, SQL or schema file;
   - each finding is numbered once and the draft record does not repeat
     the table, so the judging session reads less;
   - `usage.sh` shows what each branch's reviewers cost, from a log

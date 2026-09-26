@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- **A database change always gets a reviewer.** Under `lean`, a diff of
+  20 lines or fewer ran no reviewer, so a one-line `NOT NULL` column or a
+  `RENAME COLUMN` was judged by the session alone. A diff that touches a
+  migration directory, a `.sql` file or a schema file (`schema.prisma`,
+  `schema.rb`, `structure.sql`) now runs its reviewer, on the default
+  model.
+- Five database cases in the eval: a lost update, an `UPDATE` without its
+  `WHERE`, a column renamed while the old code still reads it, an index
+  that locks a busy table, and a clean single-statement spend. Sonnet
+  caught every bug in three runs of each, and passed the clean one.
+
 ## 0.21.1 (2026-09-25)
 
 - The README is shorter (245 lines to 154) and shows the GitHub Action's

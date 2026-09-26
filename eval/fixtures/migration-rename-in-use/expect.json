@@ -1,0 +1,1 @@
+{"goal": "Rename users.name to full_name", "severity": "HIGH", "match": "deploy|old code|running|old version|rolling|in.?flight|backward|downtime|two steps|expand|still (read|select|use)|instances|rollback", "file": "db/migrations/002_full_name.sql", "lines": [2]}

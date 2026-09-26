@@ -79,7 +79,8 @@ It prints a summary and the draft's path: read that one file.
   old record with one `TODO(judge)` line. Run `verify`, confirm, delete
   the line. `OBJECTION_NO_CARRY=1` runs the full round instead.
 - **A small diff under `lean`** (at most `smallDiff` changed lines, default
-  20, no invariant or `strongPaths` touched) runs no reviewer: the draft
+  20, no invariant or `strongPaths` touched, no migration, SQL or schema
+  file) runs no reviewer: the draft
   comes APPROVED with one `TODO(judge)` line. Read the diff and replace
   it with one sentence of your own on what it does and why it is safe, or
   write the findings and fix the counts and verdict.
