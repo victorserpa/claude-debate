@@ -97,8 +97,9 @@ ESLint and curl, five runs each on 0.20.0 ([raw output](eval/results/2026-09-25.
 | Claude sonnet | 114 of 115 | 5% | 71% | **91%** |
 | Gemini CLI default | 115 of 115 | 12.5% | 76% | **93%** |
 
-Nine real bugs are a small sample, and no number here says it catches
-everything. Scoring, every case and the history: [docs/eval.md](docs/eval.md).
+Sonnet meets both v1.0 bars (90% caught, at most 10% false alarms);
+Gemini catches more but alarms more, over the 10% bar. Nine real bugs
+are a small sample, and no number here says it catches everything. Scoring, every case and the history: [docs/eval.md](docs/eval.md).
 
 ## How it works
 
