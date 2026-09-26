@@ -20,7 +20,15 @@ printf '%s\n' "$@" >"$FAKE_DIR/args"
 env >"$FAKE_DIR/env"
 cat >"$FAKE_DIR/stdin"
 [ -f "$FAKE_DIR/broken" ] && exit 1
-node -e 'process.stdout.write(JSON.stringify({result: require("fs").readFileSync(process.argv[1], "utf8"), usage: {input_tokens: 5, output_tokens: 5}, total_cost_usd: 0.01}))' "$FAKE_DIR/answer"
+# The defender (its role file) answers from $FAKE_DIR/defense.
+ans="$FAKE_DIR/answer"
+prev=""
+for a in "$@"; do
+  [ "$prev" = --system-prompt-file ] && case "$a" in *defender.md) ans="$FAKE_DIR/defense"; touch "$FAKE_DIR/ran-defender"; cp "$FAKE_DIR/stdin" "$FAKE_DIR/stdin-defender" ;; esac
+  prev="$a"
+done
+[ "$ans" = "$FAKE_DIR/defense" ] && [ -f "$FAKE_DIR/defense-broken" ] && exit 1
+node -e 'process.stdout.write(JSON.stringify({result: require("fs").readFileSync(process.argv[1], "utf8"), usage: {input_tokens: 5, output_tokens: 5}, total_cost_usd: 0.01}))' "$ans"
 STUB
 chmod +x "$T/claude"
 export OBJECTION_CLAUDE="$T/claude" FAKE_DIR="$T" ANTHROPIC_API_KEY=test
@@ -237,6 +245,46 @@ git -C "$B" update-ref -d refs/heads/main
 run && fail "a missing base passed"
 printf '{"push":{}}\n' >"$T/event.json"
 run && fail "a non-PR event passed"
+
+# --- The defense ------------------------------------------------------------
+# Advice only: the defender answers every BLOCKER, HIGH and MEDIUM, its
+# answer is shown, and the check stays the accuser's (a refutation of a
+# real bug must not open the barrier).
+defend() { # rows "id|VERDICT|evidence"
+  { printf '| # | verdict | evidence | kind | sentence |\n|---|---|---|---|---|\n'
+    for r in "$@"; do printf '| %s | %s | %s | read | because |\n' "${r%%|*}" "$(printf '%s' "$r" | cut -d'|' -f2)" "$(printf '%s' "$r" | cut -d'|' -f3)"; done
+  } >"$T/defense"
+}
+# The remote as it was: main and the first PR head (the cases above moved both).
+git -C "$W" push -q -f "$B" "$(git -C "$W" rev-parse "$head~1"):refs/heads/main" "$head:refs/pull/7/head"
+event "Add x" "$head"
+answer BLOCKER HIGH MEDIUM LOW
+rm -f "$T/ran-defender" "$T/defense-broken"
+defend "1|REFUTED|src/a.ts:3" "2|UPHELD, propose LOW|src/a.ts:3" "3|CANNOT VERIFY|x"
+OBJECTION_DEFENSE=true run && fail "a refuted BLOCKER passed the check: the defense must not change it"
+has "$T/summary" "failed: 1 BLOCKER"
+has "$T/summary" "3 finding(s) answered: 1 refuted, 1 upheld with a lower severity proposed, 0 upheld, 1 cannot verify"
+has "$T/summary" "as advice (it does not change the check)"
+has "$T/summary" "### Defense"
+[ -e "$T/ran-defender" ] || fail "the defender did not run"
+has "$T/stdin-defender" "| 1 | BLOCKER"
+has "$T/stdin-defender" "| 3 | MEDIUM"
+hasnt "$T/stdin-defender" "| 4 | LOW"
+# A defender that fails is said, and changes nothing.
+touch "$T/defense-broken"
+answer MEDIUM
+OBJECTION_DEFENSE=true run || fail "a failed defender failed a passing review"
+has "$T/summary" "the defender did not run"
+rm -f "$T/defense-broken"
+# Off by default; and only LOWs: no defender.
+rm -f "$T/ran-defender"
+run || fail "a MEDIUM failed"
+[ -e "$T/ran-defender" ] && fail "the defender ran without defense: true"
+answer LOW
+OBJECTION_DEFENSE=true run || fail "a LOW failed"
+[ -e "$T/ran-defender" ] && fail "the defender ran with only a LOW"
+has "$T/summary" "no BLOCKER, HIGH or MEDIUM to defend"
+answer
 
 # --- GitLab: a merge request job --------------------------------------------
 # The merge request comes from the predefined variables, its head from

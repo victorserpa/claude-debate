@@ -43,14 +43,24 @@ def='| # | verdict | evidence | kind | sentence |
 |---|---|---|---|---|
 | 1 | REFUTED | src/format.js:1 | read | the old code did the same |'
 line=$(EVAL_DEFENSE=1 FAKE_DEFENSE="$def" FAKE_ROW="| HIGH | BUG | src/format.js:1 | x | read | p |" bash "$ROOT/eval/run.sh" clean 2>/dev/null | awk '$1 == "clean"')
-case "$line" in *"defense: 1 refuted, 0 upheld, 0 cannot verify"*) ;; *) fail "the defense on a false alarm was not reported ($line)" ;; esac
+case "$line" in *"defense: 1 refuted, 0 lower proposed, 0 upheld, 0 cannot verify"*) ;; *) fail "the defense on a false alarm was not reported ($line)" ;; esac
 # A catch goes to the defender too (review.sh passes the role with
 # --system-prompt-file, which is what the stub keys on).
 up='| # | verdict | evidence | kind | sentence |
 |---|---|---|---|---|
 | 1 | UPHELD | src/export.js:11 | read | nothing cleans it up |'
 line=$(EVAL_DEFENSE=1 FAKE_DEFENSE="$up" FAKE_ROW="$(printf "$row" 11 'x' 'p')" bash "$ROOT/eval/run.sh" missing-cleanup 2>/dev/null | awk '$1 == "missing-cleanup"')
-case "$line" in *"defense: 0 refuted, 1 upheld, 0 cannot verify"*) ;; *) fail "the defense on a catch was not reported ($line)" ;; esac
+case "$line" in *"defense: 0 refuted, 0 lower proposed, 1 upheld, 0 cannot verify"*) ;; *) fail "the defense on a catch was not reported ($line)" ;; esac
+# "UPHELD, propose LOW" is counted apart from a plain UPHELD.
+low='| # | verdict | evidence | kind | sentence |
+|---|---|---|---|---|
+| 1 | UPHELD, propose LOW | src/format.js:1 | read | smaller than said |'
+line=$(EVAL_DEFENSE=1 FAKE_DEFENSE="$low" FAKE_ROW="| HIGH | BUG | src/format.js:1 | x | read | p |" bash "$ROOT/eval/run.sh" clean 2>/dev/null | awk '$1 == "clean"')
+case "$line" in *"defense: 0 refuted, 1 lower proposed, 0 upheld, 0 cannot verify"*) ;; *) fail "a proposed lower severity was not counted apart ($line)" ;; esac
+# EVAL_RESCORE with EVAL_DEFENSE: saved answers go to the defender too.
+mkdir -p "$T/saved" && printf '| HIGH | BUG | src/format.js:1 | x | read | p |\n' >"$T/saved/clean.out"
+line=$(EVAL_RESCORE="$T/saved" EVAL_DEFENSE=1 FAKE_DEFENSE="$def" bash "$ROOT/eval/run.sh" clean 2>/dev/null | awk '$1 == "clean"')
+case "$line" in *"FALSE-ALARM"*"defense: 1 refuted"*) ;; *) fail "a saved answer was not defended ($line)" ;; esac
 line=$(EVAL_DEFENSE=1 FAKE_DEFENSE="$def" FAKE_ROW="NO FINDINGS" bash "$ROOT/eval/run.sh" clean 2>/dev/null | awk '$1 == "clean"')
 case "$line" in *defense:*) fail "the defender ran on a clean pass ($line)" ;; esac
 # EVAL_FIXTURES: another fixture directory (eval/real/fetch.sh builds one).

@@ -79,6 +79,19 @@ change the flags the reviewer is run with.
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
+`defense: true` sends every BLOCKER, HIGH and MEDIUM to a defender in
+one call, the same role the local debate uses, on the same runner, and
+shows its answer under the findings. **It is advice: the check stays the
+accuser's.** Measured on 70 findings a Gemini accuser made on the eval,
+with sonnet defending: of 5 false alarms it refuted none, proposed a
+lower severity for 2 and could not verify 2; of 65 real findings it
+refuted one, the main row of a real bug (caller-units), citing a real
+line, and proposed LOW for that bug's other row. Letting it decide would
+have passed that bug through the barrier. With no judge in CI, its
+answer is for the person reading the comment. One more call, only when
+there is a BLOCKER, HIGH or MEDIUM. `defender-model` picks its Claude
+model (default: `model`).
+
 `comment: true` also puts the findings on the PR as one comment, edited
 in place on every push rather than piling up (the job needs
 `pull-requests: write`). A comment that cannot be posted is a warning;
@@ -111,7 +124,7 @@ branch (where this workflow lives). For a solo admin whose agent uses
 the admin's own `gh` login, GitHub cannot tell the two apart; use a
 fine-grained token without admin rights for the agent. One reviewer with
 no defense can be wrong, and the diff it reads is written by the agent:
-text in the diff can try to talk it out of a finding. It has no tools,
+text in the diff can try to talk it out of a finding (the defense, advice only, reads the same diff). It has no tools,
 so the worst case is a missed finding, not an action.
 
 **GitLab CI.** Copy [`templates/gitlab/objection.gitlab-ci.yml`](../skills/objection/templates/gitlab/objection.gitlab-ci.yml),

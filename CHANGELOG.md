@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- **`defense: true` in the CI review**: a defender answers every
+  BLOCKER, HIGH and MEDIUM in one call, and its answer is shown with the
+  findings (GitHub and GitLab). **Advice only: the check stays the
+  accuser's.** Measured first: of 5 false alarms the defender refuted
+  none (it proposed a lower severity for 2), and of 65 real findings it
+  refuted one real bug. Letting it decide would have opened the barrier
+  to that bug. This repository's own review turns it on.
+- `EVAL_RESCORE` with `EVAL_DEFENSE=1` sends answers already saved to the
+  defender, so a defense is measured without paying the accuser again;
+  the eval counts "UPHELD, propose LOW" apart from a plain UPHELD.
+
 ## 0.22.0 (2026-09-26)
 
 - **A database change always gets a reviewer.** Under `lean`, a diff of

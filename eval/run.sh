@@ -10,7 +10,9 @@
 #   EVAL_BASELINE=1 bash eval/run.sh      the same model with a plain "review
 #                                         this diff" prompt and the raw diff
 #   EVAL_DEFENSE=1 bash eval/run.sh       also runs the defender on each
-#                                         false alarm and each catch
+#                                         false alarm and each catch; with
+#                                         EVAL_RESCORE=<dir>, on answers
+#                                         already saved (no accuser paid)
 #
 # Each fixtures/<name> has base/ (the code before), change/ (the files
 # the PR writes), config.json (.objection.json at the base) and
@@ -46,11 +48,11 @@ for name in "${names[@]}"; do
   if [ -n "${EVAL_RESCORE:-}" ]; then
     # Score answers saved by an earlier run (EVAL_KEEP) with this scorer,
     # without calling a model: how a scoring fix is applied to runs
-    # already paid for, the same for every side.
+    # already paid for, the same for every side. With EVAL_DEFENSE=1 the
+    # saved answers also go to the defender (the repository and brief are
+    # built for it): a defense measured on accusations already paid for.
     [ -f "$EVAL_RESCORE/$name.out" ] || { printf '%-18s no saved answer\n' "$name"; continue; }
-    cp "$EVAL_RESCORE/$name.out" "$T/$name.out" && : >"$T/$name.err"
-    rc=0
-  else
+  fi
   mkdir -p "$r" && cp -R "$f/base/." "$r/" && cp "$f/config.json" "$r/.objection.json"
   (
     cd "$r" && git init -q -b main && git add -A &&
@@ -61,6 +63,10 @@ for name in "${names[@]}"; do
   ) || { printf '%-18s setup failed\n' "$name"; continue; }
   goal=$(node -e 'console.log(require(process.argv[1]).goal || "not stated")' "$f/expect.json")
   brief=$(cd "$r" && bash "$skill/brief.sh" origin/main "$goal" 2>/dev/null) || { printf '%-18s brief failed\n' "$name"; continue; }
+  if [ -n "${EVAL_RESCORE:-}" ]; then
+    cp "$EVAL_RESCORE/$name.out" "$T/$name.out" && : >"$T/$name.err"
+    rc=0
+  else
   roles=""
   if [ -n "${EVAL_BASELINE:-}" ]; then
     # The baseline: the same model and isolation, but a one-paragraph
@@ -139,7 +145,10 @@ for name in "${names[@]}"; do
           const v = fs.readFileSync(process.argv[1], "utf8").split("\n").filter((l) => /^\s*\|\s*\d+\s*\|/.test(l))
             .map((l) => (l.split("|")[2] || "").trim().toUpperCase());
           const n = (w) => v.filter((x) => x.startsWith(w)).length;
-          console.log(`defense: ${n("REFUTED")} refuted, ${n("UPHELD")} upheld, ${n("CANNOT")} cannot verify`);
+          // "UPHELD, propose LOW": the defender agrees there is a defect and
+          // argues it is smaller; the judge decides, so it is counted apart.
+          const lower = v.filter((x) => x.startsWith("UPHELD") && x.includes("PROPOSE")).length;
+          console.log(`defense: ${n("REFUTED")} refuted, ${lower} lower proposed, ${n("UPHELD") - lower} upheld, ${n("CANNOT")} cannot verify`);
         ' "$T/$name.defense")
       else
         defense="defense: failed"

@@ -35,6 +35,12 @@ inputs:
   claude-version:
     description: "The @anthropic-ai/claude-code version installed for the review: pinned, since a new CLI can change the flags review.sh passes."
     default: "2.1.278"
+  defense:
+    description: "true sends every BLOCKER, HIGH and MEDIUM to a defender in one call and shows its answer with the findings, as advice: the check stays the accuser's. One more call, only when there is something to defend."
+    default: "false"
+  defender-model:
+    description: "The defender's Claude model; empty uses model. Runner gemini uses gemini-model for both."
+    default: ""
   comment:
     description: "true also posts the review's findings as one PR comment, edited in place on every push. The job needs pull-requests: write."
     default: "false"
@@ -66,6 +72,8 @@ runs:
         OBJECTION_EFFORT: ${{ inputs.effort }}
         OBJECTION_FAIL_ON: ${{ inputs.fail-on }}
         OBJECTION_COMMENT: ${{ inputs.comment }}
+        OBJECTION_DEFENSE: ${{ inputs.defense }}
+        OBJECTION_DEFENDER_MODEL: ${{ inputs.defender-model }}
         OBJECTION_REVIEW_FORKS: ${{ inputs.review-forks }}
         CLAUDE_VERSION: ${{ inputs.claude-version }}
       run: |

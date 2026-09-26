@@ -33,5 +33,7 @@ jobs:
           # Or, with a Gemini key (it has a free tier):
           # runner: gemini
           # gemini-api-key: ${{ secrets.GEMINI_API_KEY }}
+          # defense: true adds a defender's answer to each finding, as
+          # advice (the check stays the accuser's).
           # comment: true keeps the findings in one PR comment
           # (needs pull-requests: write above).

@@ -33,3 +33,7 @@ jobs:
           runner: gemini
           gemini-api-key: ${{ secrets.GEMINI_API_KEY }}
           comment: "true"
+          # A lone reviewer raised three false findings on one PR here: a
+          # defender answers every BLOCKER, HIGH and MEDIUM, as advice
+          # shown in the comment (it does not change the check).
+          defense: "true"

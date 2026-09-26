@@ -43,6 +43,9 @@ objection-review:
     # blocker, high (BLOCKER or HIGH) or none (report only).
     OBJECTION_FAIL_ON: blocker
     OBJECTION_COMMENT: "false"
+    # "true": a defender answers every BLOCKER, HIGH and MEDIUM, shown
+    # with the findings as advice (the job's result stays the accuser's).
+    OBJECTION_DEFENSE: "false"
     # "true" also reviews merge requests from forks, spending this
     # project's key on a stranger's push.
     OBJECTION_REVIEW_FORKS: "false"

@@ -86,6 +86,20 @@ runs only its scoring, against a fake reviewer (test/eval.test.sh).
 Nineteen small cases prove the reviewers catch these bugs, not that they
 catch every bug.
 
+**A defender in CI, without a judge (0.23).** Could the CI review drop
+false alarms by letting a defender refute them? The saved Gemini answers
+from two full runs went to a sonnet defender (`EVAL_RESCORE` with
+`EVAL_DEFENSE=1`, no accuser paid again): of 5 false alarms it refuted
+none, proposed a lower severity for 2 and could not verify 2 (an
+`ORDER BY` said to need an index, which only an `EXPLAIN` settles); of 65
+findings on real bugs it upheld 64 and refuted one, the main row of
+caller-units, with a refutation citing a real line that called itself
+"not confirmed"; it upheld that bug's other row but argued for LOW. Fresh runs
+with the defender on the accuser's own model refuted no false alarm
+either. So in CI the defense is advice shown with the findings, never the
+verdict: honored, it would have passed a real bug through. In the local
+debate a judge reads the same answers and decides ([raw output](../eval/results/2026-09-26-ci-defense.md)).
+
 **Database changes (0.22).** Five more: a wallet spend that reads the
 balance, checks it and writes it back (two spends at once both pass), an
 `UPDATE` that lost its `WHERE` in a refactor, a column renamed in the same
