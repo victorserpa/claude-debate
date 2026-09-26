@@ -78,3 +78,25 @@ unless someone other than its author tried to break it.
 | Hooks | one pre-tool hook, inert without `.objection.json` | on every Bash, Edit, compaction and stop |
 | Agents | 2 (accuser, defender) + yours | 100+ |
 | Memory | precedents: a capped text file in the repo, reviewed in PRs | vector memory (AgentDB) |
+
+## When it is worth it, and when it is not
+
+Worth it where a bug is expensive: money, auth, data, anything with a
+rule that must never break (write it as an `invariant` and it becomes a
+BLOCKER when violated), and wherever an agent opens PRs faster than
+people can read them.
+
+Less so for a prototype, a repository where every PR already gets a
+careful human review, or PRs that are mostly docs and config (docs-only
+PRs need no reviewers, and small diffs skip them: the judge reads the
+diff, writes one sentence on why it is safe, and stamps).
+
+What it costs you in friction: one command per round (`debate.sh`), a
+record the agent puts into the PR body (`pr-body.sh`), and a cheaper
+round after each push that reviews only the new commits.
+
+**Why it exists.** It started in two projects where `fix:` commits
+outnumbered `feat:` commits almost two to one over 300 commits, and
+review was a rule in the agent's instructions that nothing enforced. The
+question it answers: did anyone other than the author look at this diff
+before it became a PR?

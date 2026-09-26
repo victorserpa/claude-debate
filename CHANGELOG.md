@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- The README is shorter (245 lines to 154) and shows the GitHub Action's
+  workflow up front; the "when it is worth it" section moved to
+  docs/limits.md. Shorter plugin and marketplace descriptions.
+
 ## 0.21.0 (2026-09-25)
 
 - **GitLab review**, like the GitHub one: `ci-review.sh` runs in a merge

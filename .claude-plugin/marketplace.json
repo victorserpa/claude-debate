@@ -1,6 +1,6 @@
 {
   "name": "objection",
-  "description": "Adversarial review for Claude Code: accusers, a defender and a judge debate every PR before it exists.",
+  "description": "Your PR goes on trial before it ships: accusers, a defender and a judge debate every diff, and a gate keeps the PR closed until APPROVED.",
   "owner": {
     "name": "Victor Serpa",
     "url": "https://github.com/victorserpa"
@@ -9,7 +9,7 @@
     {
       "name": "objection",
       "source": "./",
-      "description": "/objection skill, accuser and defender agents, and a hook that blocks PR create/ready/merge without an approved debate record for the exact commit"
+      "description": "The /objection skill, accuser and defender agents, and a hook that blocks PR create, ready and merge without an APPROVED record for the exact commit."
     }
   ]
 }
