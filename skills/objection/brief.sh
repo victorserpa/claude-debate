@@ -120,8 +120,15 @@ process.stdin.setEncoding("utf8").on("data", (c) => (raw += c)).on("end", () => 
   const where = (s, paths) => (s.dir ? `${s.dir}/, ${paths}` : paths);
   // A package command runs from its directory.
   const q = (s) => "\x27" + s.replace(/\x27/g, "\x27\\\x27\x27") + "\x27";
-  const from = (s, cmd) => (s.dir ? `cd ${q(s.dir)} && ${cmd}` : cmd);
+  // A header marker is one line with no "-->", so a directory name with a
+  // control character or "-->" cannot be passed whole: its commands fail
+  // (a BLOCKER for an invariant check) instead of running somewhere else.
+  const one = (x) => String(x).replace(/\s+/g, " ").replace(/-->/g, "- ->").trim();
+  const from = (s, cmd) => !s.dir ? one(cmd)
+    : /[\x00-\x1f\x7f]|-->/.test(s.dir) ? "echo \"the package directory name has a control character or an HTML comment end, so this command cannot run from it\" >&2; exit 1"
+    : `cd ${q(s.dir)} && ${one(cmd)}`;
   const pick = (key, fmt) => scopes.flatMap((s) => (Array.isArray(s.cfg[key]) ? s.cfg[key] : []).map((x) => {
+    if (!x || typeof x !== "object") return `- INVALID ${key} entry ${JSON.stringify(x)}${s.dir ? ` in ${s.dir}/.objection.json` : ""}: skipped`;
     let re;
     try { re = new RegExp(x.paths); } catch { return `- INVALID paths regex ${JSON.stringify(x.paths)}: this rule was NOT checked (${fmt(x, s)})`; }
     return s.files.some((f) => re.test(f)) ? `- ${fmt(x, s)}` : null;
@@ -134,7 +141,6 @@ process.stdin.setEncoding("utf8").on("data", (c) => (raw += c)).on("end", () => 
   process.stdout.write((["lean", "standard", "thorough"].includes(cfg.budget) ? cfg.budget : "lean") + "\n@@SPLIT@@\n");
   // Matching reviewers, one "agent<TAB>focus" per line, for debate.sh to
   // run each as its own accuser under standard and thorough.
-  const one = (x) => String(x).replace(/\s+/g, " ").replace(/-->/g, "- ->").trim();
   const hit = (s, re) => { try { return s.files.some((f) => new RegExp(re).test(f)); } catch { return false; } };
   const each = (key) => scopes.flatMap((s) => (Array.isArray(s.cfg[key]) ? s.cfg[key] : []).filter((x) => x && hit(s, x.paths)).map((x) => [x, s]));
   process.stdout.write(each("reviewers").map(([r]) => `${one(r.agent || "reviewer")}\t${one(r.focus || "(no focus)")}`).join("\n") + "\n@@SPLIT@@\n");
@@ -163,7 +169,7 @@ process.stdin.setEncoding("utf8").on("data", (c) => (raw += c)).on("end", () => 
   // Invariants with a verify command, when the diff touches their paths:
   // "command<TAB>rule" per line, for debate.sh to run before the reviewers.
   process.stdout.write(each("invariants").filter(([i]) => typeof i.verify === "string" && i.verify.trim())
-    .map(([i, s]) => `${one(from(s, i.verify))}\t${one(i.rule || "(no rule)")}`).join("\n") + "\n@@SPLIT@@\n");
+    .map(([i, s]) => `${from(s, i.verify)}\t${one(i.rule || "(no rule)")}`).join("\n") + "\n@@SPLIT@@\n");
   // Each touched package: its directory, the hash of its config (for the
   // record) and its verify commands, run from that directory.
   const crypto = require("crypto");
@@ -172,7 +178,7 @@ process.stdin.setEncoding("utf8").on("data", (c) => (raw += c)).on("end", () => 
     return `${one(s.dir)}\t${id}`;
   }).join("\n") + "\n@@SPLIT@@\n");
   process.stdout.write(scopes.slice(1).flatMap((s) => (Array.isArray(s.cfg.verify) ? s.cfg.verify : [])
-    .filter((c) => typeof c === "string" && c.trim()).map((c) => one(from(s, c)))).join("\n") + "\n");
+    .filter((c) => typeof c === "string" && c.trim()).map((c) => from(s, c))).join("\n") + "\n");
 });')
 section() { printf '%s\n' "$rules" | awk -v n="$1" '$0=="@@SPLIT@@"{k++; next} k==n-1' | sed '/^$/d'; }
 invariants=$(section 1)

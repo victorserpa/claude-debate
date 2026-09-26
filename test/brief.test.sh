@@ -260,6 +260,14 @@ git add . && gitc commit -q -m base && git update-ref refs/remotes/origin/main H
 printf 'a\n' >pkg/f.ts && git add . && gitc commit -q -m change
 out=$(bash "$BRIEF" origin/main)
 has "$out" "INVALID package config pkg/.objection.json"
+# A null entry is reported, not a crash; a directory name with two spaces
+# reaches cd whole.
+mkdir -p "two  sp/src" && printf '{"invariants":[null,{"paths":"^src/","rule":"TWO-SP","verify":"true"}]}\n' >"two  sp/.objection.json"
+git add . && gitc commit -q -m more && git update-ref refs/remotes/origin/main HEAD
+printf 'a\n' >"two  sp/src/f.ts" && git add . && gitc commit -q -m touch
+out=$(bash "$BRIEF" origin/main) || { echo "FAIL: a null package entry broke the brief"; failures=$((failures + 1)); }
+has "$out" "INVALID invariants entry null in two  sp/.objection.json: skipped"
+has "$out" "<!-- objection-invariant-check: cd 'two  sp' && true	TWO-SP -->"
 cd "$T" || exit 1
 
 # Before the root config reaches the base, packages come from the working

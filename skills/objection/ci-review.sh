@@ -229,11 +229,20 @@ $(head -n 5 "$work/brief.err")"
   finished=yes
   exit 1
 fi
-# The reviewer gets only its own runner's key: not the GitHub or GitLab
-# tokens, not the other runner's key.
+# The reviewer gets only its own runner's key: not the other runner's
+# key, and no credential of the job. Named by pattern, since each CI adds
+# its own: GitHub's token and OIDC request token, GitLab's job token,
+# job JWTs, registry and deploy passwords, and CI_REPOSITORY_URL, which
+# carries the job token inside the URL.
 other_key=GEMINI_API_KEY
 [ "$runner" = gemini ] && other_key=ANTHROPIC_API_KEY
-env -u GITHUB_TOKEN -u GH_TOKEN -u CI_JOB_TOKEN -u OBJECTION_GITLAB_TOKEN -u CI_REGISTRY_PASSWORD -u CI_DEPLOY_PASSWORD -u "$other_key" bash "$here/review.sh" accuser "$brief" >"$accusation" || rc=$?
+strip=(-u "$other_key")
+while IFS= read -r v; do
+  case "$v" in
+    *TOKEN* | *PASSWORD* | *JWT* | *SECRET* | CI_REPOSITORY_URL) strip+=(-u "$v") ;;
+  esac
+done < <(compgen -e)
+env "${strip[@]}" bash "$here/review.sh" accuser "$brief" >"$accusation" || rc=$?
 
 # Same row rule as debate.sh: a table row whose first cell starts with the word.
 count() {

@@ -288,7 +288,8 @@ glrun() {
 y" \
     CI_MERGE_REQUEST_TARGET_BRANCH_NAME=main CI_COMMIT_SHA="${GL_HEAD:-$ghead}" \
     CI_MERGE_REQUEST_SOURCE_PROJECT_ID="${GL_SOURCE:-42}" CI_MERGE_REQUEST_PROJECT_ID=42 CI_PROJECT_ID=42 \
-    CI_API_V4_URL="$glapi" CI_JOB_TOKEN=job-secret OBJECTION_CI_REMOTE="$GB" bash "$CI" >"$T/out" 2>"$T/err"
+    CI_API_V4_URL="$glapi" CI_JOB_TOKEN=job-secret CI_REPOSITORY_URL="https://gitlab-ci-token:job-secret@gitlab.example/o/r.git" \
+    CI_JOB_JWT_V2=jwt-secret CI_REGISTRY_PASSWORD=reg-secret OBJECTION_CI_REMOTE="$GB" bash "$CI" >"$T/out" 2>"$T/err"
 }
 answer
 glrun || fail "a clean GitLab review failed ($(cat "$T/err"))"
@@ -298,7 +299,9 @@ has "$T/stdin" "GL RULE FROM BASE (guards"
 has "$T/stdin" "Goal: Add y"
 has "$T/stdin" "+y"
 # The reviewer sees neither the job token nor the note token.
-grep -q "job-secret" "$T/env" && fail "the reviewer got CI_JOB_TOKEN"
+grep -q "job-secret" "$T/env" && fail "the reviewer got the job token (CI_JOB_TOKEN or CI_REPOSITORY_URL)"
+grep -qE "jwt-secret|reg-secret" "$T/env" && fail "the reviewer got a job JWT or the registry password"
+grep -q "^ANTHROPIC_API_KEY=test" "$T/env" || fail "the reviewer lost its own key"
 OBJECTION_GITLAB_TOKEN=gl-token glrun
 grep -q "gl-token" "$T/env" && fail "the reviewer got OBJECTION_GITLAB_TOKEN"
 # No comment without comment: true.
